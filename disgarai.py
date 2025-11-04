@@ -7,10 +7,11 @@ import socket
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QTabWidget, QLineEdit, QPushButton
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QUrl
 
+# --- APENAS A DEF de app=FastAPI() PRECISA PERMANECER PARA QUE O RENDER RODE O BACKEND ---
 app = FastAPI()
 
 # --- CLASSE DE GERENCIAMENTO DE CONEXÕES ---
@@ -44,87 +45,256 @@ manager = ConnectionManager()
 @app.get("/", response_class=HTMLResponse)
 def home():
     """Retorna o HTML principal com a interface de chat em tempo real."""
-    # O conteúdo HTML permanece o mesmo, com a lógica de reconexão do JavaScript
+    
+    # O HTML foi atualizado para incluir a interface de abas (Chat e Navegador)
     html_content = """
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Quizcord - Dos Brabos</title>
+        <title>Quizcord - Cliente Global</title>
+        <script src="https://cdn.tailwindcss.com"></script>
         <style>
-            /* ... (Seus estilos) ... */
+            /* Reset básico para o corpo da aplicação */
             body { 
-                font-family: 'Inter', sans-serif; 
-                text-align: center; 
-                padding-top: 50px; 
-                background-color: #ecf0f1; 
                 margin: 0;
+                padding: 0;
+                font-family: ui-sans-serif, system-ui; 
+                background-color: #2c2f33; /* Cor de fundo do Discord */
+                display: flex;
+                height: 100vh;
+                overflow: hidden;
             }
-            .container { 
-                background: white; 
-                padding: 30px; 
-                border-radius: 12px; 
-                box-shadow: 0 8px 16px rgba(0,0,0,0.2); 
-                display: inline-block; 
-                max-width: 90%;
-                width: 600px;
-                text-align: left;
+            .sidebar-app {
+                width: 72px; /* Largura padrão da barra de servidores do Discord */
+                background-color: #202225; /* Cor da barra lateral (servidores) */
+                flex-shrink: 0;
+                padding-top: 10px;
             }
-            h1 { color: #2980b9; margin-bottom: 20px; text-align: center; }
-            .status { margin-bottom: 20px; font-weight: bold; text-align: center; }
-            .log { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; border-radius: 4px; font-size: 0.9em; margin-bottom: 15px;}
-            #messageInput { width: 80%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-            #sendButton { width: 18%; padding: 10px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; float: right; }
-            #sendButton:hover { background-color: #27ae60; }
-            .message-item { margin: 5px 0; padding: 5px; border-bottom: 1px dotted #eee; }
+            .channel-list {
+                width: 240px; /* Largura da lista de canais/amigos */
+                background-color: #2f3136; /* Cor da coluna de canais */
+                flex-shrink: 0;
+                padding: 10px 0;
+            }
+            .main-content {
+                flex-grow: 1; /* Ocupa o restante do espaço */
+                background-color: #36393f; /* Cor da área de chat/conteúdo */
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+            }
             
-            .my-message { color: #2980b9; font-weight: bold; }
-            .my-message-text { color: #2980b9; }
-            .other-message { color: #34495e; }
-            .error-message { color: #e74c3c; font-weight: bold; }
+            /* Estilos do botão de navegação */
+            .nav-button {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                width: 50px;
+                height: 50px;
+                margin: 0 auto 8px auto;
+                border-radius: 50%;
+                color: #dcddde;
+                cursor: pointer;
+                transition: background-color 0.2s, border-radius 0.2s;
+            }
+            .nav-button:hover {
+                border-radius: 30%;
+                background-color: #4f545c;
+            }
+            .nav-button.active {
+                background-color: #7289da; /* Cor primária do Discord */
+                border-radius: 30%;
+            }
+            .nav-button.active:hover {
+                background-color: #7289da;
+            }
+            
+            /* Estilos para a área de conteúdo (Chat ou Navegador) */
+            #chat-container, #browser-container {
+                height: 100%;
+                width: 100%;
+                padding: 1rem;
+                box-sizing: border-box;
+                display: none; /* Escondido por padrão */
+            }
+            
+            /* Estilos do Chat */
+            .chat-log { 
+                flex-grow: 1;
+                overflow-y: auto; 
+                padding: 10px; 
+                background: #36393f;
+                color: #dcddde;
+                border-radius: 4px;
+                margin-bottom: 10px;
+            }
+            .message-input-area {
+                display: flex;
+                padding-bottom: 10px;
+            }
+            .message-item { margin: 5px 0; }
+            .my-message { color: #5865f2; font-weight: bold; }
+            .other-message { color: #8a8e94; }
+            .system-message { color: #e74c3c; font-weight: bold; }
+            
+            /* Estilos do Navegador */
+            .browser-bar {
+                display: flex;
+                margin-bottom: 10px;
+            }
+            .browser-bar input {
+                flex-grow: 1;
+                padding: 8px;
+                border-radius: 4px;
+                border: none;
+                margin-right: 5px;
+                background-color: #40444b;
+                color: white;
+            }
+            .browser-bar button {
+                padding: 8px 15px;
+                border: none;
+                border-radius: 4px;
+                background-color: #5865f2;
+                color: white;
+                cursor: pointer;
+            }
+            .browser-iframe {
+                width: 100%;
+                height: calc(100% - 40px); /* Ajusta altura com base na barra de URL */
+                border: none;
+                background-color: white;
+                border-radius: 8px;
+            }
+
         </style>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     </head>
     <body>
-        <div class="container">
-            <h1>Chat Global (Discord Lite)</h1>
-            <div id="status" class="status" style="color: #e74c3c;">Status: Conectando...</div>
+        
+        <!-- Barra Lateral de Aplicações (72px) -->
+        <div class="sidebar-app">
             
-            <div id="messageLog" class="log"></div>
+            <!-- Botão Chat (Padrão) -->
+            <div class="nav-button active" id="btn-chat" onclick="showContent('chat')">
+                <i class="fas fa-comment-dots text-2xl"></i>
+            </div>
             
-            <input type="text" id="usernameInput" value="Usuário_Web" placeholder="Seu nome..." style="width: 100%; margin-bottom: 10px;">
-            <input type="text" id="messageInput" placeholder="Digite sua mensagem..." onkeyup="if(event.key === 'Enter') sendMessage()">
-            <button id="sendButton" onclick="sendMessage()">Enviar</button>
-            <div style="clear: both;"></div>
+            <!-- Seu Botão Navegador -->
+            <div class="nav-button" id="btn-browser" onclick="showContent('browser')">
+                <i class="fas fa-globe text-2xl"></i>
+            </div>
+            
+            <!-- Outros botões (Amigos, Nitro, etc.) iriam aqui -->
+        </div>
+
+        <!-- Lista de Canais (240px) -->
+        <div class="channel-list p-3">
+            <h2 class="text-white text-lg font-semibold mb-4">Aplicações</h2>
+            <div class="text-gray-400 text-sm mb-2 hover:text-white cursor-pointer transition"># Chat Global</div>
+            <div class="text-gray-400 text-sm hover:text-white cursor-pointer transition"># Navegador Web</div>
+        </div>
+
+        <!-- Conteúdo Principal (Chat ou Navegador) -->
+        <div class="main-content">
+            
+            <!-- CONTEÚDO DO CHAT (Visível por padrão) -->
+            <div id="chat-container">
+                <div class="flex items-center justify-between mb-4">
+                    <h1 class="text-white text-2xl font-bold">Chat Global</h1>
+                    <div id="status" class="text-sm font-bold text-yellow-500">Status: Conectando...</div>
+                </div>
+
+                <div id="messageLog" class="chat-log"></div>
+                
+                <input type="text" id="usernameInput" value="Web_User" placeholder="Seu nome..." class="w-full p-2 mb-2 rounded bg-gray-600 text-white placeholder-gray-400">
+                
+                <div class="message-input-area">
+                    <input type="text" id="messageInput" placeholder="Digite sua mensagem..." class="p-3 rounded-l w-full bg-gray-600 text-white placeholder-gray-400 focus:outline-none" onkeyup="if(event.key === 'Enter') sendMessage()">
+                    <button id="sendButton" onclick="sendMessage()" class="p-3 rounded-r bg-green-600 hover:bg-green-700 text-white font-bold transition">Enviar</button>
+                </div>
+            </div>
+            
+            <!-- CONTEÚDO DO NAVEGADOR (Escondido por padrão) -->
+            <div id="browser-container">
+                <div class="browser-bar">
+                    <input type="text" id="urlInput" value="https://google.com" placeholder="Digite uma URL (ex: https://twitch.tv)">
+                    <button onclick="navigate()">Navegar</button>
+                </div>
+                <iframe id="webFrame" src="about:blank" class="browser-iframe"></iframe>
+            </div>
+            
         </div>
 
         <script>
-            // --- VARIÁVEIS DE CONEXÃO E RECONEXÃO ---
+            // Variável Global para armazenar a URL do Servidor Render. 
+            // O host real será determinado pelo navegador do cliente (PyQtWebEngine).
+            // O Render usará o WSS:// (seguro)
+            const ws_protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const ws_url = `${ws_protocol}//${window.location.host}/ws`;
+
             const statusDiv = document.getElementById('status');
             const logDiv = document.getElementById('messageLog');
             const input = document.getElementById('messageInput');
             const usernameInput = document.getElementById('usernameInput');
             
-            // --- CORREÇÃO CRUCIAL AQUI ---
-            // Detecta se a página foi carregada via HTTPS (Ngrok) ou HTTP (Localhost)
-            const isSecure = window.location.protocol === 'https:';
-            const ws_protocol = isSecure ? 'wss:' : 'ws:';
-            const ws_url = `${ws_protocol}//${window.location.host}/ws`;
-
             let socket;
             let reconnectAttempts = 0;
             const MAX_RECONNECT_ATTEMPTS = 10;
             const RECONNECT_INTERVAL_MS = 3000;
+            
+            // --- LÓGICA DE NAVEGAÇÃO ENTRE ABAS ---
+            function showContent(tabName) {
+                const chatContainer = document.getElementById('chat-container');
+                const browserContainer = document.getElementById('browser-container');
+                
+                document.getElementById('btn-chat').classList.remove('active');
+                document.getElementById('btn-browser').classList.remove('active');
 
-            // --- FUNÇÃO DE CONEXÃO PRINCIPAL ---
+                if (tabName === 'chat') {
+                    chatContainer.style.display = 'flex';
+                    browserContainer.style.display = 'none';
+                    document.getElementById('btn-chat').classList.add('active');
+                } else if (tabName === 'browser') {
+                    chatContainer.style.display = 'none';
+                    browserContainer.style.display = 'flex';
+                    document.getElementById('btn-browser').classList.add('active');
+                    // Garante que o iframe não esteja vazio ao trocar
+                    const urlInput = document.getElementById('urlInput');
+                    if (document.getElementById('webFrame').src === 'about:blank') {
+                        navigate();
+                    }
+                }
+            }
+
+            function navigate() {
+                const urlInput = document.getElementById('urlInput').value;
+                const iframe = document.getElementById('webFrame');
+                
+                // Adiciona https:// se não houver protocolo
+                let fullUrl = urlInput;
+                if (!fullUrl.match(/^(http|https):\/\//)) {
+                    fullUrl = 'https://' + fullUrl;
+                }
+                iframe.src = fullUrl;
+                console.log('Navegando para:', fullUrl);
+            }
+
+            // Garante que o Chat é a aba inicial
+            showContent('chat');
+            
+            // --- FUNÇÃO DE CONEXÃO PRINCIPAL (CHAT) ---
             function connectWebSocket() {
                 if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-                    return; // Já conectado ou conectando
+                    return;
                 }
                 
                 statusDiv.textContent = `Status: Tentativa ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS}: Conectando...`;
-                statusDiv.style.color = "#f39c12"; // Amarelo para indicar tentativa
+                statusDiv.classList.remove('text-green-500', 'text-red-500');
+                statusDiv.classList.add('text-yellow-500');
 
                 try {
-                    // O Ngrok lida com a conexão WSS -> WS
                     socket = new WebSocket(ws_url);
                 } catch (error) {
                     handleConnectionError(error);
@@ -132,32 +302,27 @@ def home():
                 }
 
                 socket.onopen = function(e) {
-                    statusDiv.textContent = "Status: CONECTADO. Digite para conversar.";
-                    statusDiv.style.color = "#2ecc71";
-                    reconnectAttempts = 0; // Resetar após sucesso
+                    statusDiv.textContent = "Status: CONECTADO.";
+                    statusDiv.classList.remove('text-yellow-500', 'text-red-500');
+                    statusDiv.classList.add('text-green-500');
+                    reconnectAttempts = 0;
                 };
 
                 socket.onmessage = function(event) {
                     const messageData = JSON.parse(event.data);
                     
                     let userClass = 'other-message';
-                    let textClass = 'other-message';
-                    
                     if (messageData.user === "Servidor") {
-                        userClass = 'my-message'; 
-                        textClass = 'my-message-text';
+                        userClass = 'system-message'; 
+                    } else if (messageData.user === usernameInput.value) {
+                         userClass = 'my-message';
                     }
                     
-                    appendLog(messageData.user, messageData.text, userClass, textClass);
+                    appendLog(messageData.user, messageData.text, userClass);
                 };
 
                 socket.onclose = function(event) {
-                    if (event.code === 1006 || reconnectAttempts > 0) {
-                        handleConnectionError("Conexão encerrada. Tentando reconectar...");
-                    } else {
-                        statusDiv.textContent = "Status: DESCONECTADO.";
-                        statusDiv.style.color = "#e74c3c";
-                    }
+                    handleConnectionError("Conexão encerrada. Tentando reconectar...");
                 };
 
                 socket.onerror = function(error) {
@@ -168,13 +333,8 @@ def home():
             // --- FUNÇÃO DE TRATAMENTO DE ERRO COM RECONEXÃO ---
             function handleConnectionError(message) {
                 statusDiv.textContent = "Status: DESCONECTADO.";
-                statusDiv.style.color = "#e74c3c";
-                // Corrigido para mostrar a mensagem de erro do servidor no log, não o 'SecurityError' do console
-                if (typeof message === 'object' && message.type === 'error') {
-                     appendLog("Servidor", "Erro de segurança ao iniciar o WebSocket.", 'error-message', 'error-message');
-                } else {
-                    appendLog("Servidor", message, 'error-message', 'error-message');
-                }
+                statusDiv.classList.remove('text-green-500', 'text-yellow-500');
+                statusDiv.classList.add('text-red-500');
                 
                 if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     reconnectAttempts++;
@@ -182,7 +342,7 @@ def home():
                         connectWebSocket();
                     }, RECONNECT_INTERVAL_MS);
                 } else {
-                    appendLog("Servidor", "Máximo de tentativas de reconexão atingido.", 'error-message', 'error-message');
+                    appendLog("Sistema", "Máximo de tentativas de reconexão atingido.", 'system-message');
                 }
             }
 
@@ -200,29 +360,18 @@ def home():
                     socket.send(JSON.stringify(dataToSend));
                     
                     // Adiciona a mensagem localmente para o remetente
-                    appendLog(user, message.trim(), 'my-message', 'my-message-text'); 
-                    
+                    appendLog(user, message.trim(), 'my-message'); 
                     input.value = ''; 
                 } else if (message.trim()) {
-                    appendLog("Sistema", "Não conectado. Aguarde a reconexão.", 'error-message', 'error-message');
+                    appendLog("Sistema", "Não conectado. Aguarde a reconexão.", 'system-message');
                 }
             }
             
             // --- FUNÇÃO PARA ADICIONAR LOG ---
-            function appendLog(user, text, userClassName, textClassName) {
+            function appendLog(user, text, className) {
                 const messageDiv = document.createElement('div');
-                messageDiv.className = 'message-item';
-                
-                const userSpan = document.createElement('span');
-                userSpan.textContent = user + ": ";
-                userSpan.className = userClassName;
-                
-                const textSpan = document.createElement('span');
-                textSpan.textContent = text;
-                textSpan.className = textClassName; 
-                
-                messageDiv.appendChild(userSpan);
-                messageDiv.appendChild(textSpan);
+                messageDiv.className = `message-item text-sm ${className}`;
+                messageDiv.innerHTML = `<span class="font-semibold">${user}:</span> ${text}`;
                 
                 logDiv.appendChild(messageDiv);
                 logDiv.scrollTop = logDiv.scrollHeight;
@@ -239,6 +388,7 @@ def home():
 # --- ENDPOINT DE WEBSOCKET ---
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # O Render/Gunicorn irá iniciar este código no servidor global
     await manager.connect(websocket)
     
     connect_message = json.dumps({
@@ -261,24 +411,27 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.broadcast(disconnect_message) 
         
     except Exception as e:
-        print(f"Erro inesperado no WS: {e}")
+        # AQUI É O SERVIDOR GLOBAL
+        print(f"Erro inesperado no WS (Servidor Render): {e}")
         manager.disconnect(websocket)
 
+# ************************************************
+# *** CÓDIGO PYQT: SOMENTE CLIENTE (Desktop) ***
+# ************************************************
 
-# --- FUNÇÃO PARA INICIAR O SERVIDOR (Simples) ---
-def start_server():
-    """Inicia o servidor Uvicorn para ouvir em todas as interfaces de rede (0.0.0.0)."""
-    # Host: 0.0.0.0 permite conexão de outros dispositivos na mesma rede.
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="warning") 
+# Variável que você deve alterar manualmente após o deploy no Render
+# EXEMPLO: 'https://quizcord-global.onrender.com'
+RENDER_URL = "https://SEU-NOME-DO-APP.onrender.com" 
 
 # --- CLASSE DA JANELA PYQT ---
 class MainWindow(QMainWindow):
     """Janela principal que hospeda o QWebEngineView."""
     def __init__(self, url):
         super().__init__()
-        self.setWindowTitle("Quizcord")
+        self.setWindowTitle("Quizcord - Cliente Global")
         self.setGeometry(100, 100, 1024, 768) 
         
+        # O cliente agora se conecta à URL externa (do Render)
         self.browser = QWebEngineView()
         self.browser.setUrl(QUrl(url))
         self.setCentralWidget(self.browser)
@@ -294,54 +447,26 @@ def start_app(url):
     window.show()
     sys.exit(app.exec_())
 
-# --- FUNÇÃO DE VERIFICAÇÃO DE PORTA ---
-def is_port_open(host, port):
-    """Verifica se a porta está ativa usando um socket."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(0.5) # Define um timeout curto para a tentativa
-    try:
-        # Tentar conectar a 127.0.0.1 em vez de 0.0.0.0, pois 0.0.0.0 não é um IP de conexão válido
-        s.connect(("127.0.0.1", port)) 
-        s.close()
-        return True
-    except (ConnectionRefusedError, socket.timeout, OSError):
-        return False
-
-# --- BLOCO PRINCIPAL ---
+# --- BLOCO PRINCIPAL (CLIENTE) ---
 if __name__ == "__main__":
     
-    # 1. Inicia o servidor FastAPI em outra thread
-    server_thread = threading.Thread(target=start_server, daemon=True)
-    server_thread.start()
+    # 1. Tente usar a URL de produção (Render)
+    prod_url = RENDER_URL
     
-    # MUDANÇA ANTERIOR: O host 0.0.0.0 deve ser usado para que o Uvicorn ESCUTE em todas as interfaces.
-    # Mas o cliente PyQt deve se conectar a 127.0.0.1 para que o sistema operacional saiba onde procurar.
-    # Vamos manter a variável de host para a URL final como 127.0.0.1 (IP real de loopback).
-    fastapi_host = "127.0.0.1" 
-    fastapi_port = 8000
-    fastapi_url = f"http://{fastapi_host}:{fastapi_port}" 
+    # 2. Se estiver testando localmente, use localhost
+    local_url = "http://127.0.0.1:8000"
     
-    # 2. Espera ativa pelo servidor (máximo de 10 segundos)
-    print(f"Aguardando o servidor em http://{fastapi_host}:{fastapi_port} iniciar...")
-    max_wait = 10
-    start_time = time.time()
-    server_ready = False
-    
-    while time.time() - start_time < max_wait:
-        # A verificação de porta usa 127.0.0.1 agora.
-        if is_port_open("127.0.0.1", fastapi_port): 
-            server_ready = True
-            break
-        time.sleep(0.5) # Espera 500ms antes de tentar novamente
-
-    if not server_ready:
-        print(f"\n--- ERRO ---")
-        print(f"O servidor Uvicorn não iniciou na porta {fastapi_port} após {max_wait} segundos.")
-        print("Verifique se a porta 8000 não está sendo usada por outro programa.")
-        sys.exit(1)
+    # Se você não alterou o RENDER_URL, ele tentará usar o localhost.
+    if RENDER_URL == "https://SEU-NOME-DO-APP.onrender.com":
+        final_url = local_url
+        print("AVISO: Usando URL local. Lembre-se de alterar 'RENDER_URL' no código para o deploy final.")
+    else:
+        final_url = prod_url
         
-    print(f"\n--- SERVIDOR ATIVO ---")
-    print(f"Iniciando Cliente PyQt. Acessando: {fastapi_url}")
+    print(f"ATENÇÃO: Este código DEIXOU de ser um servidor. Tentando acessar: {final_url}")
     
-    # 3. Inicia o cliente PyQt
-    start_app(fastapi_url)
+    # Se você for testar o EXE localmente, precisará rodar o servidor FastAPI manualmente
+    # Ex: uvicorn disgarai:app --host 0.0.0.0 --port 8000
+    
+    # Inicia o cliente PyQt conectando à URL (Render ou Local)
+    start_app(final_url)
