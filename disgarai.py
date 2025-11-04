@@ -42,14 +42,79 @@ manager = ConnectionManager()
 def home():
     html_content = """
     <!DOCTYPE html>
-    <html>
+    <html lang="pt-BR">
     <head>
-        <title>Quizcord</title>
+        <meta charset="UTF-8">
+        <title>Quizcord Chat</title>
+        <style>
+            body {
+                font-family: Arial;
+                margin: 0; padding: 0;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+            }
+            #messages {
+                flex: 1;
+                overflow-y: auto;
+                padding: 10px;
+                background: #1e1e1e;
+                color: #fff;
+            }
+            #input-area {
+                display: flex;
+                background: #111;
+                padding: 10px;
+            }
+            input {
+                flex: 1;
+                padding: 10px;
+                border: none;
+                outline: none;
+                border-radius: 5px;
+                margin-right: 10px;
+            }
+            button {
+                padding: 10px;
+                background: #5865F2;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+            }
+        </style>
     </head>
     <body>
-        <h1>🎉 Quizcord Online!</h1>
-        <p>O servidor FastAPI está funcionando no Render.</p>
-        <p>Tente acessar o WebSocket em <code>/ws</code> a partir do cliente PyQt5.</p>
+
+        <div id="messages"></div>
+
+        <div id="input-area">
+            <input id="msgBox" type="text" placeholder="Digite uma mensagem..." />
+            <button onclick="sendMsg()">Enviar</button>
+        </div>
+
+        <script>
+            const ws = new WebSocket("wss://" + window.location.host + "/ws");
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                const div = document.createElement("div");
+                div.textContent = msg.user + ": " + msg.text;
+                document.getElementById("messages").appendChild(div);
+            };
+
+            function sendMsg() {
+                let txt = document.getElementById("msgBox").value;
+                if (txt.trim() !== "") {
+                    ws.send(JSON.stringify({ user: "Usuário", text: txt }));
+                    document.getElementById("msgBox").value = "";
+                }
+            }
+
+            document.getElementById("msgBox").addEventListener("keydown", e => {
+                if (e.key === "Enter") sendMsg();
+            });
+        </script>
     </body>
     </html>
     """
