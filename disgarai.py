@@ -36,9 +36,22 @@ manager = ConnectionManager()
 # HTML PRINCIPAL (CHAT + NAVEGADOR)
 # --------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
+
+
 def home():
-    html_content = """ 
-    <!-- HTML completo que você enviou anteriormente -->
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Quizcord</title>
+    </head>
+    <body>
+        <h1>🎉 Quizcord Online!</h1>
+        <p>O servidor FastAPI está funcionando no Render.</p>
+        <p>Tente acessar o WebSocket em <code>/ws</code> a partir do cliente PyQt5.</p>
+    </body>
+    </html>
     """
     return HTMLResponse(content=html_content)
 
@@ -105,6 +118,10 @@ if __name__ == "__main__":
     start_app(RENDER_URL)
 """
 
+if __name__ == "__main__":
+    import uvicorn, os
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("disgarai:app", host="0.0.0.0", port=port)
 # ==================================================
 # Para deploy Render: usar somente o app FastAPI
 # Comando local para teste: uvicorn disgarai:app --host 0.0.0.0 --port 8000 --reload
