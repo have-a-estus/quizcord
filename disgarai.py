@@ -1,5 +1,4 @@
 import json
-import os
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse
@@ -8,8 +7,9 @@ from fastapi.staticfiles import StaticFiles
 app = FastAPI()
 
 # SERVE A PASTA STATIC
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
 
 
 class ConnectionManager:
