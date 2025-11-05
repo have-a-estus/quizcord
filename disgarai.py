@@ -28,47 +28,53 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# ---------------- HTML PRINCIPAL ----------------
+# -------------------- HTML PAGE --------------------
 @app.get("/", response_class=HTMLResponse)
 def home():
-    html_content = """
+    html = """
     <!DOCTYPE html>
     <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
         <title>Quizcord Chat</title>
         <style>
-            body { font-family: Arial; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-            #messages { flex: 1; overflow-y: auto; padding: 10px; background: #1e1e1e; color: #fff; }
-            #input-area { display: flex; background: #111; padding: 10px; }
-            input { flex: 1; padding: 10px; border: none; outline: none; border-radius: 5px; margin-right: 10px; }
-            button { padding: 10px; background: #5865F2; color: white; border: none; border-radius: 5px; cursor: pointer; }
+            body { margin: 0; background: #181818; font-family: Arial, sans-serif; color: #fff;}
+            #messages { height: 85vh; overflow-y: auto; padding: 10px; }
+            #input-area { display: flex; padding: 10px; background: #111; }
+            input { flex: 1; padding: 10px; border-radius: 5px; border: none; outline: none; }
+            button { margin-left: 10px; padding: 10px; background: #5865F2; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
         </style>
     </head>
     <body>
-
         <div id="messages"></div>
-
         <div id="input-area">
-            <input id="msgBox" type="text" placeholder="Digite uma mensagem..." />
+            <input id="msgBox" placeholder="Digite uma mensagem...">
             <button onclick="sendMsg()">Enviar</button>
         </div>
 
         <script>
             const ws = new WebSocket("wss://" + window.location.host + "/ws");
+            const box = document.getElementById("messages");
 
             ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
+                let data;
+                try {
+                    data = JSON.parse(event.data);
+                } catch {
+                    data = { user: "Servidor", text: event.data };
+                }
+
                 const div = document.createElement("div");
-                div.textContent = msg.user + ": " + msg.text;
-                document.getElementById("messages").appendChild(div);
+                div.textContent = data.user + ": " + data.text;
+                box.appendChild(div);
+                box.scrollTop = box.scrollHeight;
             };
 
             function sendMsg() {
-                let txt = document.getElementById("msgBox").value;
-                if (txt.trim() !== "") {
-                    ws.send(JSON.stringify({ user: "Usuário", text: txt }));
-                    document.getElementById("msgBox").value = "";
+                const input = document.getElementById("msgBox");
+                if (input.value.trim() !== "") {
+                    ws.send(JSON.stringify({ user: "Usuário", text: input.value }));
+                    input.value = "";
                 }
             }
 
@@ -79,35 +85,42 @@ def home():
     </body>
     </html>
     """
-    return HTMLResponse(content=html_content)
+    return HTMLResponse(html)
 
-# ---------------- WEBSOCKET ----------------
+# -------------------- WEBSOCKET --------------------
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
 
-    # Entrou
-    connect_message = json.dumps({
+    connect_data = json.dumps({
         "user": "Servidor",
-        "text": f"Novo usuário entrou. Conexões ativas: {len(manager.active_connections)}"
+        "text": f"Novo usuário entrou. Conexões: {len(manager.active_connections)}"
     })
-    await manager.broadcast(connect_message, sender=websocket)
-    await websocket.send_text(connect_message)
+    await websocket.send_text(connect_data)
+    await manager.broadcast(connect_data, sender=websocket)
 
     try:
         while True:
             data = await websocket.receive_text()
 
-            # Envia de volta pro remetente (agora aparece!)
-            await websocket.send_text(data)
+            # Garante que é JSON
+            try:
+                parsed = json.loads(data)
+            except:
+                parsed = {"user":"Usuário","text":data}
+
+            message_json = json.dumps(parsed)
+
+            # Responde a quem enviou
+            await websocket.send_text(message_json)
 
             # Envia para todos os outros
-            await manager.broadcast(data, sender=websocket)
+            await manager.broadcast(message_json, sender=websocket)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        disconnect_message = json.dumps({
+        disconnect_data = json.dumps({
             "user": "Servidor",
-            "text": f"Um usuário saiu. Conexões ativas: {len(manager.active_connections)}"
+            "text": f"Um usuário saiu. Conexões: {len(manager.active_connections)}"
         })
-        await manager.broadcast(disconnect_message)
+        await manager.broadcast(disconnect_data)
