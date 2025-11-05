@@ -1,9 +1,16 @@
 import json
+import os
 from typing import List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
+
+# SERVE A PASTA STATIC
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 
 class ConnectionManager:
     def __init__(self):
@@ -18,109 +25,58 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: str, sender: WebSocket = None):
-        for connection in self.active_connections[:]:
-            if connection == sender:
+        for conn in self.active_connections[:]:
+            if conn == sender:
                 continue
             try:
-                await connection.send_text(message)
-            except Exception:
-                self.disconnect(connection)
+                await conn.send_text(message)
+            except:
+                self.disconnect(conn)
+
 
 manager = ConnectionManager()
 
-# -------------------- HTML PAGE --------------------
+
+# ✅ AGORA SERVE O HTML DO FIGMA
 @app.get("/", response_class=HTMLResponse)
 def home():
-    html = """
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-        <meta charset="UTF-8">
-        <title>Quizcord Chat</title>
-        <style>
-            body { margin: 0; background: #181818; font-family: Arial, sans-serif; color: #fff;}
-            #messages { height: 85vh; overflow-y: auto; padding: 10px; }
-            #input-area { display: flex; padding: 10px; background: #111; }
-            input { flex: 1; padding: 10px; border-radius: 5px; border: none; outline: none; }
-            button { margin-left: 10px; padding: 10px; background: #5865F2; color: #fff; border: none; border-radius: 5px; cursor: pointer; }
-        </style>
-    </head>
-    <body>
-        <div id="messages"></div>
-        <div id="input-area">
-            <input id="msgBox" placeholder="Digite uma mensagem...">
-            <button onclick="sendMsg()">Enviar</button>
-        </div>
+    return FileResponse("static/index.html")
 
-        <script>
-            const ws = new WebSocket("wss://" + window.location.host + "/ws");
-            const box = document.getElementById("messages");
 
-            ws.onmessage = (event) => {
-                let data;
-                try {
-                    data = JSON.parse(event.data);
-                } catch {
-                    data = { user: "Servidor", text: event.data };
-                }
-
-                const div = document.createElement("div");
-                div.textContent = data.user + ": " + data.text;
-                box.appendChild(div);
-                box.scrollTop = box.scrollHeight;
-            };
-
-            function sendMsg() {
-                const input = document.getElementById("msgBox");
-                if (input.value.trim() !== "") {
-                    ws.send(JSON.stringify({ user: "Usuário", text: input.value }));
-                    input.value = "";
-                }
-            }
-
-            document.getElementById("msgBox").addEventListener("keydown", e => {
-                if (e.key === "Enter") sendMsg();
-            });
-        </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(html)
-
-# -------------------- WEBSOCKET --------------------
+# ✅ WEBSOCKET
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
 
-    connect_data = json.dumps({
+    join_msg = json.dumps({
         "user": "Servidor",
-        "text": f"Novo usuário entrou. Conexões: {len(manager.active_connections)}"
+        "text": f"Novo usuário conectado. Conexões: {len(manager.active_connections)}"
     })
-    await websocket.send_text(connect_data)
-    await manager.broadcast(connect_data, sender=websocket)
+
+    await websocket.send_text(join_msg)
+    await manager.broadcast(join_msg, sender=websocket)
 
     try:
         while True:
             data = await websocket.receive_text()
 
-            # Garante que é JSON
             try:
                 parsed = json.loads(data)
             except:
-                parsed = {"user":"Usuário","text":data}
+                parsed = {"user": "Usuário", "text": data}
 
             message_json = json.dumps(parsed)
 
-            # Responde a quem enviou
+            # volta para quem enviou
             await websocket.send_text(message_json)
 
-            # Envia para todos os outros
+            # envia para os outros
             await manager.broadcast(message_json, sender=websocket)
 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-        disconnect_data = json.dumps({
+        left_msg = json.dumps({
             "user": "Servidor",
-            "text": f"Um usuário saiu. Conexões: {len(manager.active_connections)}"
+            "text": f"Usuário saiu. Conexões: {len(manager.active_connections)}"
         })
-        await manager.broadcast(disconnect_data)
+        await manager.broadcast(left_msg)
