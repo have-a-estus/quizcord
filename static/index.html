@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>QuizCord</title>
+
+    <!-- IMPORTA CSS DO FIGMA -->
+    <link href="/static/css/main.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="v1_12">
+        <div class="v1_13"></div>
+        <div class="v1_14"></div>
+        <div class="v1_15"></div>
+    </div>
+
+    <!-- ÁREA DE MENSAGENS (pode esconder se quiser) -->
+    <div id="messages" style="position:fixed;bottom:80px;left:10px;max-height:200px;overflow:auto;font-family:Arial;font-size:14px;"></div>
+
+    <!-- INPUT PARA TESTAR O CHAT -->
+    <input id="msg" type="text" placeholder="Mensagem..." 
+           style="position:fixed;bottom:40px;left:10px;width:200px;">
+    <button onclick="send()" 
+            style="position:fixed;bottom:40px;left:220px;">
+        Enviar
+    </button>
+
+    <!-- SCRIPT WEBSOCKET -->
+    <script>
+        // detecta se é ws ou wss
+        const proto = location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(proto + "://" + location.host + "/ws");
+
+        ws.onmessage = (event) => {
+            let data;
+            try { data = JSON.parse(event.data); }
+            catch { data = { user: "Servidor", text: event.data }; }
+
+            const box = document.getElementById("messages");
+            const div = document.createElement("div");
+            div.textContent = data.user + ": " + data.text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        };
+
+        function send() {
+            const input = document.getElementById("msg");
+            ws.send(JSON.stringify({ user: "Cliente", text: input.value }));
+            input.value = "";
+        }
+
+        window.send = send;
+    </script>
+</body>
+</html>
