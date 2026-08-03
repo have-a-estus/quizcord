@@ -1,100 +1,200 @@
 import json
-from typing import List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, FileResponse
+import os
+import sqlite3
+import uuid
+import asyncio
+from datetime import datetime
+from typing import Dict, List
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-import logging
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("security")
 
 app = FastAPI()
-
-# SERVE A PASTA STATIC
-import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+DB_PATH = os.path.join(BASE_DIR, "quizcord.db")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def get_client_ip(websocket: WebSocket) -> str:
-    # Se estiver atrás do proxy (Render)
-    xff = websocket.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-    # Fallback padrão
-    if websocket.client:
-        return websocket.client.host
+# ─── BANCO ───
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS rooms (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        user_color TEXT,
+        content TEXT NOT NULL,
+        msg_type TEXT DEFAULT 'text',
+        file_url TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    conn.commit()
+    conn.close()
 
-    return "unknown"
+init_db()
 
-class ConnectionManager:
+def _get_history(room_id: str, limit: int = 50):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("""
+        SELECT id, room_id, user_name, user_color, content, msg_type, file_url, timestamp
+        FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?
+    """, (room_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    msgs = []
+    for r in rows:
+        d = dict(r)
+        d["user"] = {"name": d.pop("user_name"), "color": d.pop("user_color")}
+        msgs.append(d)
+    return list(reversed(msgs))
+
+# ─── WEBSOCKET MANAGER ───
+class RoomManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.rooms: Dict[str, List[WebSocket]] = {}
+        self.user_info: Dict[WebSocket, dict] = {}
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
+    async def connect(self, room_id: str, ws: WebSocket, user: dict):
+        await ws.accept()
+        self.rooms.setdefault(room_id, []).append(ws)
+        self.user_info[ws] = user
+        await self.broadcast(room_id, {
+            "type": "user_joined", "user": user,
+            "users": self.get_users(room_id)
+        }, exclude=ws)
 
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+    def disconnect(self, room_id: str, ws: WebSocket):
+        if room_id in self.rooms and ws in self.rooms[room_id]:
+            self.rooms[room_id].remove(ws)
+        user = self.user_info.pop(ws, {})
+        if room_id in self.rooms:
+            asyncio.create_task(self.broadcast(room_id, {
+                "type": "user_left", "user": user,
+                "users": self.get_users(room_id)
+            }))
+            if not self.rooms[room_id]:
+                del self.rooms[room_id]
 
-    async def broadcast(self, message: str, sender: WebSocket = None):
-        for conn in self.active_connections[:]:
-            if conn == sender:
+    async def broadcast(self, room_id: str, msg: dict, exclude: WebSocket = None):
+        if room_id not in self.rooms:
+            return
+        text = json.dumps(msg)
+        for conn in self.rooms[room_id][:]:
+            if conn == exclude:
                 continue
             try:
-                await conn.send_text(message)
+                await conn.send_text(text)
             except:
-                self.disconnect(conn)
+                pass
 
+    def get_users(self, room_id: str) -> List[dict]:
+        if room_id not in self.rooms:
+            return []
+        return [self.user_info[ws] for ws in self.rooms[room_id] if ws in self.user_info]
 
-manager = ConnectionManager()
+manager = RoomManager()
 
-
-# ✅ AGORA SERVE O HTML DO FIGMA
-@app.get("/", response_class=HTMLResponse)
+# ─── ROTAS HTTP ───
+@app.get("/", response_class=FileResponse)
 def home():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+@app.get("/api/rooms")
+def list_rooms():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM rooms ORDER BY created_at DESC")
+    rooms = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rooms
 
-# ✅ WEBSOCKET
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    ip = get_client_ip(websocket)
-    logger.info(f"Novo usuário conectado - IP: {ip}")
+@app.post("/api/rooms")
+def create_room(name: str = Form(...)):
+    rid = str(uuid.uuid4())[:8]
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO rooms (id, name) VALUES (?, ?)", (rid, name))
+    conn.commit()
+    conn.close()
+    return {"id": rid, "name": name}
 
-    await manager.connect(websocket)
+@app.get("/api/rooms/{room_id}/history")
+def api_history(room_id: str, limit: int = 50):
+    return _get_history(room_id, limit)
 
-    join_msg = json.dumps({
-        "user": "Servidor",
-        "text": f"Novo usuário conectado. Conexões: {len(manager.active_connections)}"
-    })
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[1]
+    fname = f"{uuid.uuid4().hex}{ext}"
+    path = os.path.join(UPLOAD_DIR, fname)
+    with open(path, "wb") as f:
+        f.write(await file.read())
+    return {"url": f"/static/uploads/{fname}"}
 
-    await websocket.send_text(join_msg)
-    await manager.broadcast(join_msg, sender=websocket)
+# ─── WEBSOCKET ───
+@app.websocket("/ws/{room_id}")
+async def ws_endpoint(room_id: str, ws: WebSocket):
+    # Primeira mensagem = handshake do usuário
+    raw = await ws.receive_text()
+    try:
+        info = json.loads(raw)
+    except:
+        await ws.close()
+        return
+
+    user = {
+        "id": str(uuid.uuid4())[:8],
+        "name": info.get("name", "Anônimo")[:32],
+        "color": info.get("color", "#5865F2")
+    }
+
+    await manager.connect(room_id, ws, user)
+
+    # Envia histórico + lista de usuários
+    await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
+    await ws.send_text(json.dumps({"type": "users", "users": manager.get_users(room_id)}))
 
     try:
         while True:
-            data = await websocket.receive_text()
+            raw = await ws.receive_text()
+            data = json.loads(raw)
+            mtype = data.get("type", "message")
 
-            try:
-                parsed = json.loads(data)
-            except:
-                parsed = {"user": "Usuário", "text": data}
+            if mtype == "typing":
+                await manager.broadcast(room_id, {"type": "typing", "user": user}, exclude=ws)
+                continue
 
-            message_json = json.dumps(parsed)
+            content = data.get("content", "")
+            file_url = data.get("file_url")
+            db_type = "image" if file_url else "text"
 
-            # volta para quem enviou
-            await websocket.send_text(message_json)
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("""
+                INSERT INTO messages (room_id, user_name, user_color, content, msg_type, file_url)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (room_id, user["name"], user["color"], content, db_type, file_url))
+            conn.commit()
+            conn.close()
 
-            # envia para os outros
-            await manager.broadcast(message_json, sender=websocket)
+            await manager.broadcast(room_id, {
+                "type": "message",
+                "user": user,
+                "content": content,
+                "file_url": file_url,
+                "msg_type": db_type,
+                "timestamp": datetime.now().isoformat()
+            })
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        left_msg = json.dumps({
-            "user": "Servidor",
-            "text": f"Usuário saiu. Conexões: {len(manager.active_connections)}"
-        })
-        await manager.broadcast(left_msg)
+        manager.disconnect(room_id, ws)
