@@ -63,26 +63,18 @@ class RoomManager:
         self.rooms: Dict[str, List[WebSocket]] = {}
         self.user_info: Dict[WebSocket, dict] = {}
 
-    async def connect(self, room_id: str, ws: WebSocket, user: dict):
-        await ws.accept()
+    def connect(self, room_id: str, ws: WebSocket, user: dict):
         self.rooms.setdefault(room_id, []).append(ws)
         self.user_info[ws] = user
-        await self.broadcast(room_id, {
-            "type": "user_joined", "user": user,
-            "users": self.get_users(room_id)
-        }, exclude=ws)
 
     def disconnect(self, room_id: str, ws: WebSocket):
         if room_id in self.rooms and ws in self.rooms[room_id]:
             self.rooms[room_id].remove(ws)
         user = self.user_info.pop(ws, {})
         if room_id in self.rooms:
-            asyncio.create_task(self.broadcast(room_id, {
-                "type": "user_left", "user": user,
-                "users": self.get_users(room_id)
-            }))
             if not self.rooms[room_id]:
                 del self.rooms[room_id]
+        return user
 
     async def broadcast(self, room_id: str, msg: dict, exclude: WebSocket = None):
         if room_id not in self.rooms:
@@ -144,7 +136,10 @@ async def upload(file: UploadFile = File(...)):
 # ─── WEBSOCKET ───
 @app.websocket("/ws/{room_id}")
 async def ws_endpoint(room_id: str, ws: WebSocket):
-    # Primeira mensagem = handshake do usuário
+    # ✅ ACEITA PRIMEIRO — antes de qualquer receive_text()
+    await ws.accept()
+
+    # Handshake: primeira mensagem do cliente com nome e cor
     raw = await ws.receive_text()
     try:
         info = json.loads(raw)
@@ -158,9 +153,16 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
         "color": info.get("color", "#5865F2")
     }
 
-    await manager.connect(room_id, ws, user)
+    manager.connect(room_id, ws, user)
 
-    # Envia histórico + lista de usuários
+    # Avisa todo mundo que entrou
+    await manager.broadcast(room_id, {
+        "type": "user_joined",
+        "user": user,
+        "users": manager.get_users(room_id)
+    }, exclude=ws)
+
+    # Envia histórico + lista de usuários para quem acabou de entrar
     await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
     await ws.send_text(json.dumps({"type": "users", "users": manager.get_users(room_id)}))
 
@@ -197,4 +199,11 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             })
 
     except WebSocketDisconnect:
-        manager.disconnect(room_id, ws)
+        pass
+    finally:
+        user_left = manager.disconnect(room_id, ws)
+        await manager.broadcast(room_id, {
+            "type": "user_left",
+            "user": user_left,
+            "users": manager.get_users(room_id)
+        })
