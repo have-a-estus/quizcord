@@ -35,7 +35,7 @@ body {
   display: flex;
 }
 
-/* ─── DOCK LATERAL ─── */
+/* ─── DOCK ─── */
 .dock {
   width: 72px;
   background: var(--bg-glass);
@@ -83,12 +83,23 @@ body {
   border: 2px solid transparent;
   background: var(--bg-elevated);
   color: var(--text);
+  position: relative;
 }
 
 .dock-circle:hover { transform: scale(1.08); }
 .dock-circle.active {
   border-color: var(--accent-2);
   box-shadow: 0 0 0 4px rgba(167,139,250,0.15);
+}
+
+.dock-circle .badge {
+  position: absolute; top: -2px; right: -2px;
+  width: 18px; height: 18px;
+  background: var(--accent);
+  border-radius: 50%;
+  font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--bg);
 }
 
 .dock-btn {
@@ -104,7 +115,7 @@ body {
 
 .dock-btn:hover { color: var(--text); border-color: var(--text-muted); }
 
-/* ─── PAINEL LATERAL ─── */
+/* ─── PANEL ─── */
 .panel {
   width: 280px;
   background: var(--bg-glass);
@@ -138,7 +149,7 @@ body {
   background: rgba(255,255,255,0.1); border-radius: 2px;
 }
 
-/* ─── LISTA DE CONTATOS ─── */
+/* ─── CONTACTS ─── */
 .contact-item {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px;
@@ -172,7 +183,7 @@ body {
 .contact-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact-sub { font-size: 12px; color: var(--text-muted); }
 
-/* ─── SOLICITAÇÕES ─── */
+/* ─── REQUESTS ─── */
 .request-item {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -199,7 +210,7 @@ body {
 .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
 .btn-ghost:hover { background: var(--bg-elevated); }
 
-/* ─── TÓPICOS ─── */
+/* ─── TOPICS ─── */
 .topic-tab {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px;
@@ -217,7 +228,7 @@ body {
 
 .topic-icon { font-size: 16px; }
 
-/* ─── ÁREA PRINCIPAL ─── */
+/* ─── MAIN ─── */
 .main {
   flex: 1;
   display: flex;
@@ -389,6 +400,51 @@ body {
 
 .input-btn.secondary:hover { color: var(--text); }
 
+/* ─── TOAST ─── */
+.toast-container {
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  min-width: 280px;
+  animation: toastIn 0.3s ease;
+  display: flex; align-items: center; gap: 12px;
+}
+
+.toast.out { animation: toastOut 0.3s ease forwards; }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(40px); }
+}
+
+.toast-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+  flex-shrink: 0;
+}
+
+.toast-body { flex: 1; }
+.toast-title { font-size: 13px; font-weight: 600; }
+.toast-sub { font-size: 12px; color: var(--text-muted); }
+
 /* ─── MODAL ─── */
 .modal-overlay {
   position: fixed; inset: 0;
@@ -434,7 +490,7 @@ body {
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
 
-/* ─── LOGIN / REGISTRO ─── */
+/* ─── AUTH ─── */
 .auth-screen {
   position: fixed; inset: 0;
   background: var(--bg);
@@ -538,6 +594,9 @@ body {
 </head>
 <body>
 
+<!-- TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
 <!-- AUTH -->
 <div id="authScreen" class="auth-screen">
   <div class="auth-card">
@@ -559,7 +618,6 @@ body {
 
 <!-- APP -->
 <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
-  <!-- DOCK -->
   <div class="dock">
     <div class="dock-avatar home active" id="dockHome" title="Inicio">🏠</div>
     <div class="dock-divider"></div>
@@ -569,7 +627,6 @@ body {
     <div class="dock-avatar" id="dockProfile" title="Perfil" style="background:#444;">?</div>
   </div>
 
-  <!-- PANEL -->
   <div class="panel" id="panel">
     <div class="panel-header">
       <h2 id="panelTitle">Contatos</h2>
@@ -578,7 +635,6 @@ body {
     <div class="panel-scroll" id="panelContent"></div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
     <div class="main-header">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -594,7 +650,7 @@ body {
     <div class="chat-area" id="chatArea">
       <div class="welcome-screen" id="welcomeScreen">
         <h1>Aurora</h1>
-        <p>Selecione um contato ou circulo para comecar a conversar.<br>Convidados podem entrar em topicos via link.</p>
+        <p>Selecione um contato ou circulo para comecar a conversar.</p>
       </div>
     </div>
 
@@ -619,8 +675,6 @@ body {
 </div>
 
 <script>
-
-// ─── ESTADO ───
 const API = '';
 let token = localStorage.getItem('aurora_token');
 let me = null;
@@ -634,14 +688,15 @@ let ws = null;
 let typingTimer = null;
 let isGuest = false;
 let selectedColor = '#ff7b72';
+let pollInterval = null;
+let pendingCount = 0;
 
 const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
 
-// ─── INIT ───
 document.addEventListener('DOMContentLoaded', () => {
   renderColorPicker();
-  if (token) { verifyAndLoad(); }
-  else { showAuth(); }
+  if (token) verifyAndLoad();
+  else showAuth();
   bindAuth();
   bindInputs();
 });
@@ -675,7 +730,6 @@ function bindAuth() {
     const u = document.getElementById('authUser').value.trim();
     const p = document.getElementById('authPass').value;
     if (!u || !p) return alert('Preencha usuario e senha');
-
     const fd = new FormData();
     fd.append('username', u);
     fd.append('password', p);
@@ -683,7 +737,6 @@ function bindAuth() {
       fd.append('display_name', document.getElementById('authDisplay').value || u);
       fd.append('color', selectedColor);
     }
-
     const res = await fetch(API + '/api/' + mode, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) return alert(data.detail || 'Erro');
@@ -730,8 +783,54 @@ async function loadData() {
   circles = cRes.ok ? await cRes.json() : [];
   friends = fRes.ok ? await fRes.json() : { friends: [], pending_sent: [], pending_received: [] };
   dmChats = dRes.ok ? await dRes.json() : [];
+  updatePendingBadge();
   renderDock();
   showHome();
+  startPolling();
+}
+
+function updatePendingBadge() {
+  pendingCount = friends.pending_received?.length || 0;
+  const home = document.getElementById('dockHome');
+  const existing = home.querySelector('.badge');
+  if (existing) existing.remove();
+  if (pendingCount > 0) {
+    home.innerHTML = '🏠<div class="badge">' + pendingCount + '</div>';
+  } else {
+    home.textContent = '🏠';
+  }
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    if (isGuest || !token) return;
+    const res = await fetch(API + '/api/friends?token=' + token);
+    if (!res.ok) return;
+    const oldPending = friends.pending_received?.length || 0;
+    friends = await res.json();
+    const newPending = friends.pending_received?.length || 0;
+    updatePendingBadge();
+    if (newPending > oldPending && currentCircle === null && currentDM === null) {
+      showHome();
+    }
+  }, 8000);
+}
+
+// ─── TOAST ───
+function showToast(title, sub, color) {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `
+    <div class="toast-avatar" style="background:${color}20;color:${color}">${title[0].toUpperCase()}</div>
+    <div class="toast-body">
+      <div class="toast-title">${title}</div>
+      <div class="toast-sub">${sub}</div>
+    </div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
 }
 
 // ─── DOCK ───
@@ -756,7 +855,7 @@ function setActiveDock(id) {
   if (el) el.classList.add('active');
 }
 
-// ─── HOME / CONTATOS ───
+// ─── HOME ───
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null;
   closeWS();
@@ -778,7 +877,7 @@ function showHome() {
 
   const html = [];
 
-  if (friends.pending_received.length) {
+  if (friends.pending_received?.length) {
     html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 8px 8px;">Solicitacoes</div>`);
     friends.pending_received.forEach(r => {
       html.push(`
@@ -796,10 +895,9 @@ function showHome() {
     });
   }
 
-  if (friends.friends.length) {
+  if (friends.friends?.length) {
     html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Amigos (${friends.friends.length})</div>`);
     friends.friends.forEach(f => {
-      const dm = dmChats.find(d => d.peer_id === f.fid);
       html.push(`
         <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
@@ -813,7 +911,9 @@ function showHome() {
         </div>
       `);
     });
-  } else if (!friends.pending_received.length) {
+  }
+
+  if (!friends.pending_received?.length && !friends.friends?.length) {
     html.push(`<div style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:13px;">Nenhum amigo ainda.<br>Use "+ Adicionar" para comecar.</div>`);
   }
 
@@ -828,7 +928,7 @@ async function openAddFriend() {
   fd.append('username', u);
   const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd });
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); }
-  else { alert('Solicitacao enviada!'); loadData(); }
+  else { showToast(u, 'Solicitacao enviada!', '#a78bfa'); loadData(); }
 }
 
 async function acceptFriend(fid) {
@@ -853,7 +953,6 @@ async function selectCircle(id) {
   currentCircle = circles.find(c => c.id === id);
   currentDM = null;
   if (!currentCircle) return;
-
   const res = await fetch(API + '/api/circles/' + id + '?token=' + token);
   if (!res.ok) return;
   const data = await res.json();
@@ -865,13 +964,11 @@ async function selectCircle(id) {
   document.getElementById('panelSubtitle').textContent = currentCircle.members.length + ' membros';
   document.getElementById('mainTitle').textContent = currentCircle.name;
 
-  // Ações do header
   const isOwner = data.members.find(m => m.id === me.id)?.role === 'owner';
   document.getElementById('headerActions').innerHTML = isOwner
     ? `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`
     : '';
 
-  // Tópicos como abas
   const tabs = document.getElementById('topicTabs');
   tabs.classList.remove('hidden');
   tabs.innerHTML = currentCircle.topics.map(t =>
@@ -881,7 +978,6 @@ async function selectCircle(id) {
     el.onclick = () => selectTopic(el.dataset.tid);
   });
 
-  // Painel lateral: lista de tópicos + membros
   let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
   currentCircle.topics.forEach(t => {
     const icon = t.type === 'voice' ? '🎤' : t.type === 'media' ? '📎' : '💬';
@@ -901,7 +997,6 @@ async function selectCircle(id) {
   });
   document.getElementById('panelContent').innerHTML = html;
 
-  // Seleciona primeiro tópico automaticamente
   if (currentCircle.topics.length && !currentTopic) {
     selectTopic(currentCircle.topics[0].id);
   }
@@ -911,18 +1006,13 @@ async function selectTopic(tid) {
   currentTopic = currentCircle.topics.find(t => t.id === tid);
   currentDM = null;
   if (!currentTopic) return;
-
-  // Atualiza abas
   document.querySelectorAll('.header-tab').forEach(t => t.classList.toggle('active', t.dataset.tid === tid));
   document.querySelectorAll('.topic-tab').forEach(t => t.classList.toggle('active', t.textContent.includes(currentTopic.name)));
-
   document.getElementById('mainTitle').textContent = currentCircle.name + ' / ' + currentTopic.name;
   document.getElementById('chatArea').innerHTML = '';
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.remove('hidden');
-
-  const roomId = 'topic:' + tid;
-  connectWS(roomId);
+  connectWS('topic:' + tid);
 }
 
 // ─── DM ───
@@ -930,7 +1020,6 @@ async function openDM(peerId, peerName, peerColor) {
   currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
-
   document.getElementById('panelTitle').textContent = 'Contatos';
   document.getElementById('panelSubtitle').textContent = 'Conversa direta';
   document.getElementById('mainTitle').textContent = peerName;
@@ -939,13 +1028,8 @@ async function openDM(peerId, peerName, peerColor) {
   document.getElementById('chatArea').innerHTML = '';
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.add('hidden');
-
-  // Procura chat existente
   let chat = dmChats.find(d => d.peer_id === peerId);
   if (!chat) {
-    // Cria no backend (aceitar amizade já criou, mas se não tiver...)
-    // Na verdade, o DM chat é criado no accept. Se não existir, vamos usar um roomId genérico.
-    // Simplificação: usamos roomId dm:user1:user2
     const u1 = [me.id, peerId].sort().join(':');
     chat = { id: u1, peer_id: peerId };
   }
@@ -978,6 +1062,15 @@ function connectWS(roomId) {
     else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
     else if (msg.type === 'users') renderUserList(msg.users);
     else if (msg.type === 'typing') showTyping(msg.user);
+    // Notificacoes de amizade em tempo real
+    else if (msg.type === 'friend_request') {
+      showToast(msg.from.display_name || msg.from.username, 'Quer ser seu amigo!', msg.from.avatar_color || '#a78bfa');
+      loadData();
+    }
+    else if (msg.type === 'friend_accepted') {
+      showToast(msg.by.display_name || msg.by.username, 'Aceitou sua solicitacao!', msg.by.avatar_color || '#4ade80');
+      loadData();
+    }
     else if (msg.type === 'voice_user_joined') renderVoiceUsers(msg.voice_users);
     else if (msg.type === 'voice_user_left') renderVoiceUsers(msg.voice_users);
     else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
@@ -988,16 +1081,13 @@ function connectWS(roomId) {
   ws.onclose = () => { ws = null; };
 }
 
-function closeWS() {
-  if (ws) { ws.close(); ws = null; }
-}
+function closeWS() { if (ws) { ws.close(); ws = null; } }
 
 // ─── CHAT UI ───
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
   const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
-
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble ' + (isOwn ? 'own' : '');
   bubble.innerHTML = `
@@ -1012,11 +1102,7 @@ function appendMessage(m) {
   area.scrollTop = area.scrollHeight;
 }
 
-function escapeHtml(t) {
-  const d = document.createElement('div');
-  d.textContent = t;
-  return d.innerHTML;
-}
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
 function renderUserList(users) {
   const el = document.getElementById('userList');
@@ -1035,9 +1121,7 @@ function showTyping(user) {
   typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
 }
 
-function renderVoiceUsers(list) {
-  // placeholder — pode expandir depois
-}
+function renderVoiceUsers(list) {}
 
 // ─── INPUTS ───
 function bindInputs() {
@@ -1082,9 +1166,7 @@ function openModal(title, bodyHtml, actionsHtml) {
   document.getElementById('modalOverlay').classList.add('show');
 }
 
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('show');
-}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
 
 document.getElementById('modalOverlay').onclick = (e) => {
   if (e.target === document.getElementById('modalOverlay')) closeModal();
@@ -1151,7 +1233,6 @@ async function doCreateTopic() {
   selectCircle(currentCircle.id);
 }
 
-// ─── VOZ (WebRTC stubs) ───
 function handleVoiceOffer(msg) {}
 function handleVoiceAnswer(msg) {}
 function handleVoiceICE(msg) {}

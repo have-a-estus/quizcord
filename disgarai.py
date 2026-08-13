@@ -260,28 +260,24 @@ def list_friends(token: str):
     user = require_user(token)
     conn = get_db()
     c = conn.cursor()
-    # Amigos aceitos (onde user é o solicitante)
     c.execute("""
         SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color
         FROM friendships f JOIN users u ON u.id = f.friend_id
         WHERE f.user_id = ? AND f.status = 'accepted'
     """, (user["id"],))
     sent = [dict(r) for r in c.fetchall()]
-    # Amigos aceitos (onde user é o solicitado)
     c.execute("""
         SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color
         FROM friendships f JOIN users u ON u.id = f.user_id
         WHERE f.friend_id = ? AND f.status = 'accepted'
     """, (user["id"],))
     received = [dict(r) for r in c.fetchall()]
-    # Pendentes enviados por mim
     c.execute("""
         SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color
         FROM friendships f JOIN users u ON u.id = f.friend_id
         WHERE f.user_id = ? AND f.status = 'pending'
     """, (user["id"],))
     pending_sent = [dict(r) for r in c.fetchall()]
-    # Pendentes recebidos por mim
     c.execute("""
         SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color
         FROM friendships f JOIN users u ON u.id = f.user_id
@@ -292,11 +288,11 @@ def list_friends(token: str):
     return {"friends": sent + received, "pending_sent": pending_sent, "pending_received": pending_received}
 
 @app.post("/api/friends/request")
-def add_friend(token: str = Form(...), username: str = Form(...)):
+async def add_friend(token: str = Form(...), username: str = Form(...)):
     user = require_user(token)
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id FROM users WHERE username = ?", (username.lower(),))
+    c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username = ?", (username.lower(),))
     target = c.fetchone()
     if not target:
         conn.close()
@@ -305,7 +301,6 @@ def add_friend(token: str = Form(...), username: str = Form(...)):
     if tid == user["id"]:
         conn.close()
         raise HTTPException(status_code=400, detail="Nao pode adicionar voce mesmo")
-    # Verifica se ja existe
     c.execute("SELECT * FROM friendships WHERE user_id = ? AND friend_id = ?", (user["id"], tid))
     if c.fetchone():
         conn.close()
@@ -318,10 +313,15 @@ def add_friend(token: str = Form(...), username: str = Form(...)):
     c.execute("INSERT INTO friendships (id, user_id, friend_id, status) VALUES (?, ?, ?, 'pending')", (fid, user["id"], tid))
     conn.commit()
     conn.close()
+    # Notifica o destinatario em tempo real se estiver online
+    await manager.send_to_user(tid, {
+        "type": "friend_request",
+        "from": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
+    })
     return {"ok": True}
 
 @app.post("/api/friends/accept")
-def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
+async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
     user = require_user(token)
     conn = get_db()
     c = conn.cursor()
@@ -329,12 +329,16 @@ def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
     if c.rowcount == 0:
         conn.close()
         raise HTTPException(status_code=400, detail="Solicitacao nao encontrada")
-    # Cria o DM chat
     dm_id = str(uuid.uuid4())[:8]
     u1, u2 = sorted([user["id"], friend_id])
     c.execute("INSERT OR IGNORE INTO direct_chats (id, user1_id, user2_id) VALUES (?, ?, ?)", (dm_id, u1, u2))
     conn.commit()
     conn.close()
+    # Notifica o solicitante que foi aceito
+    await manager.send_to_user(friend_id, {
+        "type": "friend_accepted",
+        "by": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
+    })
     return {"ok": True}
 
 @app.post("/api/friends/reject")
@@ -374,7 +378,6 @@ def create_circle(token: str = Form(...), name: str = Form(...), color: str = Fo
         (cid, name, user["id"], color, invite))
     mid = str(uuid.uuid4())[:8]
     c.execute("INSERT INTO circle_members (id, circle_id, user_id, role) VALUES (?, ?, ?, 'owner')", (mid, cid, user["id"]))
-    # Cria tópico padrão Geral
     tid = str(uuid.uuid4())[:8]
     c.execute("INSERT INTO topics (id, circle_id, name, type, position) VALUES (?, ?, ?, 'text', 0)", (tid, cid, "geral"))
     conn.commit()
@@ -467,7 +470,7 @@ def dm_history(chat_id: str, token: str, limit: int = 50):
     user = require_user(token)
     return _get_history(f"dm:{chat_id}", limit)
 
-# ─── MENSAGENS EM TÓPICOS ───
+# ─── MENSAGENS EM TOPICOS ───
 @app.get("/api/topics/{topic_id}/history")
 def topic_history(topic_id: str, token: str, limit: int = 50):
     user = require_user(token)
