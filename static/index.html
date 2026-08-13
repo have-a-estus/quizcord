@@ -1,605 +1,1160 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quizcord</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
-    .scrollbar::-webkit-scrollbar { width: 8px; }
-    .scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .scrollbar::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
-    .scrollbar::-webkit-scrollbar-thumb:hover { background: #4b5563; }
-    .msg-enter { animation: msgIn 0.2s ease-out; }
-    @keyframes msgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .typing-dot { animation: typing 1.4s infinite ease-in-out both; }
-    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-    @keyframes typing { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
-    .voice-pulse { animation: pulse-green 2s infinite; }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); } 70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
-    .tab-active { border-bottom: 2px solid #6366f1; color: #818cf8; }
-    .tab-inactive { color: #9ca3af; }
-    .tab-inactive:hover { color: #d1d5db; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aurora Chat</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Nunito:wght@400;600;700&display=swap');
+
+:root {
+  --bg: #0f0f12;
+  --bg-elevated: rgba(255,255,255,0.03);
+  --bg-glass: rgba(20,20,24,0.75);
+  --border: rgba(255,255,255,0.06);
+  --text: #e2e2e2;
+  --text-muted: #888;
+  --accent: #ff7b72;
+  --accent-2: #a78bfa;
+  --online: #4ade80;
+  --away: #fbbf24;
+  --offline: #6b7280;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Inter', 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ─── DOCK LATERAL ─── */
+.dock {
+  width: 72px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  gap: 12px;
+  z-index: 10;
+}
+
+.dock-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 18px;
+  cursor: pointer; transition: all 0.2s;
+  position: relative;
+  border: 2px solid transparent;
+}
+
+.dock-avatar:hover { transform: scale(1.08); }
+.dock-avatar.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(255,123,114,0.15);
+}
+
+.dock-avatar.home { background: linear-gradient(135deg, #ff7b72, #a78bfa); }
+
+.dock-divider {
+  width: 32px; height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  margin: 4px 0;
+}
+
+.dock-circle {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+  border: 2px solid transparent;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.dock-circle:hover { transform: scale(1.08); }
+.dock-circle.active {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 4px rgba(167,139,250,0.15);
+}
+
+.dock-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 20px;
+}
+
+.dock-btn:hover { color: var(--text); border-color: var(--text-muted); }
+
+/* ─── PAINEL LATERAL ─── */
+.panel {
+  width: 280px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+}
+
+.panel-header {
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header h2 {
+  font-size: 18px; font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+}
+
+.panel-header p {
+  font-size: 12px; color: var(--text-muted); margin-top: 4px;
+}
+
+.panel-scroll {
+  flex: 1; overflow-y: auto; padding: 12px;
+}
+
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1); border-radius: 2px;
+}
+
+/* ─── LISTA DE CONTATOS ─── */
+.contact-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.15s;
+  margin-bottom: 4px;
+}
+
+.contact-item:hover { background: var(--bg-elevated); }
+
+.contact-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px;
+  position: relative; flex-shrink: 0;
+}
+
+.contact-status {
+  position: absolute; bottom: 0; right: 0;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+
+.contact-status.online { background: var(--online); }
+.contact-status.away { background: var(--away); }
+.contact-status.offline { background: var(--offline); }
+
+.contact-info { flex: 1; min-width: 0; }
+.contact-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contact-sub { font-size: 12px; color: var(--text-muted); }
+
+/* ─── SOLICITAÇÕES ─── */
+.request-item {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.request-actions {
+  display: flex; gap: 8px; margin-top: 8px;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.1); }
+
+.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { background: var(--bg-elevated); }
+
+/* ─── TÓPICOS ─── */
+.topic-tab {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.15s;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.topic-tab:hover { background: var(--bg-elevated); }
+.topic-tab.active {
+  background: rgba(167,139,250,0.12);
+  color: var(--accent-2);
+}
+
+.topic-icon { font-size: 16px; }
+
+/* ─── ÁREA PRINCIPAL ─── */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+.main-header {
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+}
+
+.main-header h3 { font-size: 16px; font-weight: 600; }
+
+.header-tabs {
+  display: flex; gap: 4px;
+}
+
+.header-tab {
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text-muted);
+}
+
+.header-tab:hover { color: var(--text); background: var(--bg-elevated); }
+.header-tab.active {
+  background: rgba(255,123,114,0.12);
+  color: var(--accent);
+}
+
+/* ─── CHAT ─── */
+.chat-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-area::-webkit-scrollbar { width: 6px; }
+.chat-area::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08); border-radius: 3px;
+}
+
+.welcome-screen {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.welcome-screen h1 {
+  font-family: 'Nunito', sans-serif;
+  font-size: 32px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+.message-bubble {
+  display: flex;
+  gap: 12px;
+  max-width: 80%;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message-bubble.own { align-self: flex-end; flex-direction: row-reverse; }
+
+.msg-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+  flex-shrink: 0;
+}
+
+.msg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.msg-author {
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted);
+}
+
+.msg-content {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 14px; line-height: 1.5;
+  word-break: break-word;
+}
+
+.message-bubble.own .msg-content {
+  background: linear-gradient(135deg, rgba(255,123,114,0.15), rgba(167,139,250,0.15));
+  border-color: rgba(255,123,114,0.2);
+}
+
+.msg-content img {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: var(--radius-sm);
+  display: block; margin-top: 6px;
+}
+
+.msg-time {
+  font-size: 10px; color: var(--text-muted);
+}
+
+/* ─── INPUT ─── */
+.input-area {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 12px; align-items: center;
+}
+
+.input-box {
+  flex: 1;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none; transition: all 0.2s;
+}
+
+.input-box:focus {
+  border-color: rgba(255,123,114,0.3);
+  box-shadow: 0 0 0 3px rgba(255,123,114,0.08);
+}
+
+.input-btn {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.input-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
+
+.input-btn.secondary {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.input-btn.secondary:hover { color: var(--text); }
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: 400px;
+  max-width: 90vw;
+  animation: modalIn 0.25s ease;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal h3 { font-size: 18px; margin-bottom: 16px; font-family: 'Nunito', sans-serif; }
+
+.modal-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 12px;
+  outline: none;
+}
+
+.modal-input:focus { border-color: var(--accent); }
+
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+
+/* ─── LOGIN / REGISTRO ─── */
+.auth-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+
+.auth-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  width: 380px;
+  text-align: center;
+}
+
+.auth-card h1 {
+  font-family: 'Nunito', sans-serif;
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.auth-card p { color: var(--text-muted); margin-bottom: 24px; font-size: 14px; }
+
+.auth-input {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 12px;
+  outline: none;
+}
+
+.auth-input:focus { border-color: var(--accent); }
+
+.auth-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px; font-weight: 600;
+  cursor: pointer; margin-top: 8px;
+}
+
+.auth-btn:hover { filter: brightness(1.1); }
+
+.auth-link {
+  color: var(--accent);
+  cursor: pointer; font-size: 13px;
+  margin-top: 16px; display: inline-block;
+}
+
+.color-picker {
+  display: flex; gap: 8px; justify-content: center; margin: 12px 0;
+}
+
+.color-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--bg); }
+
+/* ─── UTILS ─── */
+.hidden { display: none !important; }
+
+.typing-indicator {
+  font-size: 12px; color: var(--text-muted);
+  padding: 0 24px 8px;
+  font-style: italic;
+}
+
+.user-list {
+  display: flex; gap: 6px; padding: 0 24px 12px;
+}
+
+.user-chip {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.user-chip-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+</style>
+<base target="_blank">
 </head>
-<body class="bg-[#1a1b1e] text-gray-100 h-screen overflow-hidden selection:bg-indigo-500 selection:text-white">
+<body>
 
-  <!-- AUTH / LOGIN -->
-  <div id="auth" class="h-full flex items-center justify-center p-4">
-    <div class="bg-[#25262b] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-800">
-      <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">Quizcord</h1>
-      <p class="text-gray-400 text-center mb-6 text-sm">Entre com sua conta ou use como convidado.</p>
-      
-      <!-- Tabs -->
-      <div class="flex mb-6 border-b border-gray-700">
-        <button onclick="switchTab('login')" id="tab-login" class="flex-1 pb-2 text-sm font-medium tab-active transition">Entrar</button>
-        <button onclick="switchTab('register')" id="tab-register" class="flex-1 pb-2 text-sm font-medium tab-inactive transition">Criar conta</button>
+<!-- AUTH -->
+<div id="authScreen" class="auth-screen">
+  <div class="auth-card">
+    <h1>Aurora</h1>
+    <p id="authSubtitle">Entre na sua conta</p>
+    <input type="text" id="authUser" class="auth-input" placeholder="Usuario" maxlength="20">
+    <input type="password" id="authPass" class="auth-input" placeholder="Senha">
+    <div id="regExtra" class="hidden">
+      <input type="text" id="authDisplay" class="auth-input" placeholder="Nome de exibicao (opcional)">
+      <div class="color-picker" id="colorPicker"></div>
+    </div>
+    <button class="auth-btn" id="authBtn">Entrar</button>
+    <div style="margin-top:12px">
+      <button class="btn-ghost btn-sm" id="guestBtn" style="width:100%">Entrar como Convidado</button>
+    </div>
+    <span class="auth-link" id="authToggle">Criar conta</span>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
+  <!-- DOCK -->
+  <div class="dock">
+    <div class="dock-avatar home active" id="dockHome" title="Inicio">🏠</div>
+    <div class="dock-divider"></div>
+    <div id="dockCircles"></div>
+    <div class="dock-btn" id="btnCreateCircle" title="Novo Circulo">+</div>
+    <div style="flex:1"></div>
+    <div class="dock-avatar" id="dockProfile" title="Perfil" style="background:#444;">?</div>
+  </div>
+
+  <!-- PANEL -->
+  <div class="panel" id="panel">
+    <div class="panel-header">
+      <h2 id="panelTitle">Contatos</h2>
+      <p id="panelSubtitle">Amigos e conversas</p>
+    </div>
+    <div class="panel-scroll" id="panelContent"></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h3 id="mainTitle">Bem-vindo</h3>
+        <div class="header-tabs hidden" id="topicTabs"></div>
       </div>
+      <div style="display:flex;gap:8px;" id="headerActions"></div>
+    </div>
 
-      <!-- Login -->
-      <div id="form-login" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Usuario</label>
-          <input id="login-user" type="text" placeholder="seu_usuario" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition lowercase">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Senha</label>
-          <input id="login-pass" type="password" placeholder="********" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition">
-        </div>
-        <button onclick="doLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition transform active:scale-95">Entrar</button>
-      </div>
+    <div class="user-list hidden" id="userList"></div>
+    <div class="typing-indicator hidden" id="typingIndicator"></div>
 
-      <!-- Register -->
-      <div id="form-register" class="space-y-4 hidden">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Usuario</label>
-          <input id="reg-user" type="text" placeholder="seu_usuario" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition lowercase">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Nome de exibicao</label>
-          <input id="reg-display" type="text" placeholder="Como te chamam?" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Senha</label>
-          <input id="reg-pass" type="password" placeholder="********" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Cor do avatar</label>
-          <div class="flex gap-2 flex-wrap" id="color-picker"></div>
-        </div>
-        <button onclick="doRegister()" class="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-lg transition transform active:scale-95">Criar conta</button>
-      </div>
-
-      <div class="mt-6 pt-4 border-t border-gray-800 text-center">
-        <p class="text-xs text-gray-500 mb-3">Ou entre sem conta</p>
-        <button onclick="showGuest()" class="text-sm text-gray-400 hover:text-white transition underline">Entrar como convidado</button>
+    <div class="chat-area" id="chatArea">
+      <div class="welcome-screen" id="welcomeScreen">
+        <h1>Aurora</h1>
+        <p>Selecione um contato ou circulo para comecar a conversar.<br>Convidados podem entrar em topicos via link.</p>
       </div>
     </div>
-  </div>
 
-  <!-- GUEST FORM -->
-  <div id="guest" class="hidden h-full flex items-center justify-center p-4">
-    <div class="bg-[#25262b] p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-800">
-      <h1 class="text-3xl font-bold text-center mb-2 text-indigo-400">Quizcord</h1>
-      <p class="text-gray-400 text-center mb-8 text-sm">Modo convidado — sem registro.</p>
-      <div class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Seu nome</label>
-          <input id="guest-nick" type="text" maxlength="32" placeholder="Anonimo" class="w-full bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition">
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Cor do avatar</label>
-          <div class="flex gap-2 flex-wrap" id="guest-color-picker"></div>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Sala</label>
-          <div class="flex gap-2">
-            <input id="guest-room" type="text" placeholder="nome-da-sala" class="flex-1 bg-[#1a1b1e] border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-indigo-500 transition lowercase">
-            <button onclick="createRoom()" class="bg-gray-700 hover:bg-gray-600 px-4 rounded-lg text-sm font-medium transition">Criar</button>
-          </div>
-        </div>
-        <button onclick="enterGuest()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 rounded-lg transition transform active:scale-95">Entrar no Chat</button>
-        <button onclick="backToAuth()" class="w-full text-sm text-gray-500 hover:text-gray-300 transition mt-2">Voltar</button>
-      </div>
+    <div class="input-area hidden" id="inputArea">
+      <label class="input-btn secondary" title="Enviar arquivo">
+        📎
+        <input type="file" id="fileInput" style="display:none" accept="image/*">
+      </label>
+      <input type="text" class="input-box" id="msgInput" placeholder="Mensagem..." autocomplete="off">
+      <button class="input-btn" id="sendBtn">➤</button>
     </div>
   </div>
+</div>
 
-  <!-- APP -->
-  <div id="app" class="hidden h-full flex">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-[#25262b] border-r border-gray-800 flex flex-col">
-      <div class="p-4 border-b border-gray-800">
-        <h2 class="font-bold text-indigo-400 text-lg">Quizcord</h2>
-        <p id="current-room-display" class="text-xs text-gray-500 mt-1">Sala: -</p>
-      </div>
-      <div class="flex-1 overflow-y-auto p-3 space-y-1 scrollbar">
-        <p class="text-xs font-bold text-gray-500 uppercase px-2 mb-2">Salas ativas</p>
-        <div id="room-list" class="space-y-1"></div>
-        <div class="mt-6 border-t border-gray-800 pt-4">
-          <p class="text-xs font-bold text-gray-500 uppercase px-2 mb-2">Canal de Voz</p>
-          <button id="btn-voice" onclick="toggleVoice()" class="w-full flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white py-2 rounded-lg transition mb-3">
-            <span id="voice-icon">🎤</span>
-            <span id="voice-text">Entrar na Voz</span>
-          </button>
-          <div id="voice-users" class="space-y-2"></div>
-        </div>
-      </div>
-      <div class="p-3 border-t border-gray-800">
-        <div class="flex items-center gap-3">
-          <div id="my-avatar" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"></div>
-          <div class="flex-1 min-w-0">
-            <p id="my-name" class="text-sm font-medium truncate"></p>
-            <p id="my-status" class="text-xs text-green-400">Online</p>
-          </div>
-          <button onclick="logout()" class="text-xs text-gray-500 hover:text-red-400 transition" title="Sair">🚪</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Chat -->
-    <main class="flex-1 flex flex-col bg-[#1a1b1e]">
-      <header class="h-14 border-b border-gray-800 flex items-center px-4 justify-between bg-[#25262b]">
-        <div class="flex items-center gap-2">
-          <span class="text-gray-400">#</span>
-          <span id="header-room" class="font-semibold">geral</span>
-        </div>
-        <div id="typing-indicator" class="hidden text-xs text-gray-400 flex items-center gap-1">
-          <span id="typing-name">Alguem</span> esta digitando
-          <div class="flex gap-0.5 ml-1"><div class="w-1 h-1 bg-gray-400 rounded-full typing-dot"></div><div class="w-1 h-1 bg-gray-400 rounded-full typing-dot"></div><div class="w-1 h-1 bg-gray-400 rounded-full typing-dot"></div></div>
-        </div>
-      </header>
-      <div id="messages" class="flex-1 overflow-y-auto p-4 space-y-4 scrollbar"></div>
-      <div class="p-4 bg-[#25262b] border-t border-gray-800">
-        <div id="preview" class="hidden mb-2 relative inline-block">
-          <img id="preview-img" class="max-h-32 rounded-lg border border-gray-700">
-          <button onclick="clearFile()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">×</button>
-        </div>
-        <div class="flex gap-2 items-end">
-          <div class="flex-1 bg-[#1a1b1e] border border-gray-700 rounded-lg flex items-end">
-            <button onclick="document.getElementById('file').click()" class="p-3 text-gray-400 hover:text-white transition">📎</button>
-            <textarea id="input" rows="1" placeholder="Mensagem #geral" class="flex-1 bg-transparent p-3 focus:outline-none resize-none max-h-32 scrollbar" onkeydown="handleKey(event)"></textarea>
-            <button onclick="toggleEmoji()" class="p-3 text-gray-400 hover:text-white transition">😀</button>
-          </div>
-          <button onclick="send()" class="bg-indigo-600 hover:bg-indigo-500 p-3 rounded-lg transition h-10 w-10 flex items-center justify-center">➤</button>
-        </div>
-        <input type="file" id="file" class="hidden" accept="image/*" onchange="handleFile(this)">
-        <div id="emoji-panel" class="hidden absolute bottom-20 right-4 bg-[#25262b] border border-gray-700 rounded-lg p-2 grid grid-cols-8 gap-1 max-h-48 overflow-y-auto z-50"></div>
-      </div>
-    </main>
-
-    <!-- Users -->
-    <aside class="w-60 bg-[#25262b] border-l border-gray-800 flex flex-col">
-      <div class="p-4 border-b border-gray-800">
-        <h3 class="text-xs font-bold text-gray-500 uppercase">Online — <span id="user-count">0</span></h3>
-      </div>
-      <div id="user-list" class="flex-1 overflow-y-auto p-3 space-y-2 scrollbar"></div>
-    </aside>
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <h3 id="modalTitle">Titulo</h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions" id="modalActions"></div>
   </div>
+</div>
 
-  <script>
-    const COLORS = ['#5865F2','#EB459E','#3BA55D','#FAA61A','#ED4245','#57F287','#FEE75C','#9B59B6','#1ABC9C','#E74C3C'];
-    let state = { nick:'', color:COLORS[0], room:'', ws:null, fileUrl:null, users:[], typingTimer:null, myUserId:null, inVoice:false, token:null, isGuest:false };
-    let voicePeers = {};
-    let localStream = null;
-    const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+<script>
 
-    // ─── AUTH UI ───
-    function switchTab(tab) {
-      document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
-      document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
-      document.getElementById('tab-login').className = 'flex-1 pb-2 text-sm font-medium transition ' + (tab === 'login' ? 'tab-active' : 'tab-inactive');
-      document.getElementById('tab-register').className = 'flex-1 pb-2 text-sm font-medium transition ' + (tab === 'register' ? 'tab-active' : 'tab-inactive');
+// ─── ESTADO ───
+const API = '';
+let token = localStorage.getItem('aurora_token');
+let me = null;
+let circles = [];
+let friends = { friends: [], pending_sent: [], pending_received: [] };
+let dmChats = [];
+let currentCircle = null;
+let currentTopic = null;
+let currentDM = null;
+let ws = null;
+let typingTimer = null;
+let isGuest = false;
+let selectedColor = '#ff7b72';
+
+const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
+
+// ─── INIT ───
+document.addEventListener('DOMContentLoaded', () => {
+  renderColorPicker();
+  if (token) { verifyAndLoad(); }
+  else { showAuth(); }
+  bindAuth();
+  bindInputs();
+});
+
+function renderColorPicker() {
+  const el = document.getElementById('colorPicker');
+  el.innerHTML = COLORS.map(c =>
+    `<div class="color-dot ${c===selectedColor?'selected':''}" style="background:${c}" data-color="${c}"></div>`
+  ).join('');
+  el.querySelectorAll('.color-dot').forEach(d => d.onclick = () => {
+    selectedColor = d.dataset.color;
+    renderColorPicker();
+  });
+}
+
+function bindAuth() {
+  const btn = document.getElementById('authBtn');
+  const toggle = document.getElementById('authToggle');
+  const guest = document.getElementById('guestBtn');
+  let mode = 'login';
+
+  toggle.onclick = () => {
+    mode = mode === 'login' ? 'register' : 'login';
+    document.getElementById('authSubtitle').textContent = mode === 'login' ? 'Entre na sua conta' : 'Criar nova conta';
+    btn.textContent = mode === 'login' ? 'Entrar' : 'Criar conta';
+    toggle.textContent = mode === 'login' ? 'Criar conta' : 'Ja tenho conta';
+    document.getElementById('regExtra').classList.toggle('hidden', mode === 'login');
+  };
+
+  btn.onclick = async () => {
+    const u = document.getElementById('authUser').value.trim();
+    const p = document.getElementById('authPass').value;
+    if (!u || !p) return alert('Preencha usuario e senha');
+
+    const fd = new FormData();
+    fd.append('username', u);
+    fd.append('password', p);
+    if (mode === 'register') {
+      fd.append('display_name', document.getElementById('authDisplay').value || u);
+      fd.append('color', selectedColor);
     }
 
-    function showGuest() {
-      document.getElementById('auth').classList.add('hidden');
-      document.getElementById('guest').classList.remove('hidden');
-      initGuestColors();
-    }
+    const res = await fetch(API + '/api/' + mode, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) return alert(data.detail || 'Erro');
+    token = data.token;
+    me = data.user;
+    localStorage.setItem('aurora_token', token);
+    enterApp();
+  };
 
-    function backToAuth() {
-      document.getElementById('guest').classList.add('hidden');
-      document.getElementById('auth').classList.remove('hidden');
-    }
+  guest.onclick = () => {
+    isGuest = true;
+    me = { id: 'guest_' + Math.random().toString(36).slice(2,8), name: 'Convidado', color: '#888', is_guest: true };
+    enterApp();
+  };
+}
 
-    function initColors() {
-      const pick = (c, elId) => {
-        state.color = c;
-        document.querySelectorAll(`#${elId} button`).forEach(b => {
-          b.style.borderColor = b.dataset.color === c ? '#fff' : 'transparent';
-        });
-      };
-      ['color-picker'].forEach(id => {
-        const el = document.getElementById(id);
-        if(!el) return;
-        el.innerHTML = COLORS.map(c => 
-          `<button onclick="window.setRegColor('${c}')" class="w-8 h-8 rounded-full border-2 transition hover:scale-110" style="background:${c};border-color:transparent" data-color="${c}"></button>`
-        ).join('');
-      });
-      window.setRegColor = (c) => {
-        state.color = c;
-        document.querySelectorAll('#color-picker button').forEach(b => {
-          b.style.borderColor = b.dataset.color === c ? '#fff' : 'transparent';
-        });
-      };
-      window.setRegColor(COLORS[0]);
-    }
+async function verifyAndLoad() {
+  const res = await fetch(API + '/api/me?token=' + token);
+  if (!res.ok) { localStorage.removeItem('aurora_token'); token = null; showAuth(); return; }
+  me = await res.json();
+  enterApp();
+}
 
-    function initGuestColors() {
-      const el = document.getElementById('guest-color-picker');
-      if(!el) return;
-      el.innerHTML = COLORS.map(c => 
-        `<button onclick="window.setGuestColor('${c}')" class="w-8 h-8 rounded-full border-2 transition hover:scale-110" style="background:${c};border-color:transparent" data-color="${c}"></button>`
-      ).join('');
-      window.setGuestColor = (c) => {
-        state.color = c;
-        document.querySelectorAll('#guest-color-picker button').forEach(b => {
-          b.style.borderColor = b.dataset.color === c ? '#fff' : 'transparent';
-        });
-      };
-      window.setGuestColor(COLORS[0]);
-    }
+function showAuth() {
+  document.getElementById('authScreen').style.display = 'flex';
+  document.getElementById('app').classList.add('hidden');
+}
 
-    initColors();
+function enterApp() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('dockProfile').textContent = (me.display_name || me.name || me.username || '?')[0].toUpperCase();
+  document.getElementById('dockProfile').style.background = me.color || '#444';
+  loadData();
+}
 
-    async function doLogin() {
-      const user = document.getElementById('login-user').value.trim();
-      const pass = document.getElementById('login-pass').value;
-      if(!user || !pass) return alert('Preenche usuario e senha!');
-      try {
-        const form = new FormData();
-        form.append('username', user);
-        form.append('password', pass);
-        const res = await fetch('/api/login', {method:'POST', body:form});
-        const data = await res.json();
-        if(!res.ok) return alert(data.detail || 'Erro no login');
-        localStorage.setItem('quizcord_token', data.token);
-        state.token = data.token;
-        state.isGuest = false;
-        enterApp(data.user.display_name || data.user.username, data.user.color, data.user.id);
-      } catch(e) { alert('Erro ao conectar'); }
-    }
+async function loadData() {
+  if (isGuest) { renderDock(); showHome(); return; }
+  const [cRes, fRes, dRes] = await Promise.all([
+    fetch(API + '/api/circles?token=' + token),
+    fetch(API + '/api/friends?token=' + token),
+    fetch(API + '/api/dm-chats?token=' + token)
+  ]);
+  circles = cRes.ok ? await cRes.json() : [];
+  friends = fRes.ok ? await fRes.json() : { friends: [], pending_sent: [], pending_received: [] };
+  dmChats = dRes.ok ? await dRes.json() : [];
+  renderDock();
+  showHome();
+}
 
-    async function doRegister() {
-      const user = document.getElementById('reg-user').value.trim();
-      const display = document.getElementById('reg-display').value.trim();
-      const pass = document.getElementById('reg-pass').value;
-      if(!user || !pass) return alert('Preenche usuario e senha!');
-      if(pass.length < 4) return alert('Senha muito curta!');
-      try {
-        const form = new FormData();
-        form.append('username', user);
-        form.append('password', pass);
-        form.append('display_name', display || user);
-        form.append('color', state.color);
-        const res = await fetch('/api/register', {method:'POST', body:form});
-        const data = await res.json();
-        if(!res.ok) return alert(data.detail || 'Erro no registro');
-        localStorage.setItem('quizcord_token', data.token);
-        state.token = data.token;
-        state.isGuest = false;
-        enterApp(data.user.display_name || data.user.username, data.user.color, data.user.id);
-      } catch(e) { alert('Erro ao conectar'); }
-    }
+// ─── DOCK ───
+function renderDock() {
+  const container = document.getElementById('dockCircles');
+  container.innerHTML = circles.map(c =>
+    `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}</div>`
+  ).join('');
+  container.querySelectorAll('.dock-circle').forEach(el => {
+    el.onclick = () => selectCircle(el.dataset.id);
+  });
+}
 
-    function enterGuest() {
-      const nick = document.getElementById('guest-nick').value.trim();
-      const room = document.getElementById('guest-room').value.trim().toLowerCase();
-      if(!nick || !room) return alert('Preenche nome e sala!');
-      state.token = null;
-      state.isGuest = true;
-      localStorage.removeItem('quizcord_token');
-      enterApp(nick, state.color, null, room);
-    }
+document.getElementById('dockHome').onclick = () => {
+  setActiveDock('dockHome');
+  showHome();
+};
 
-    function logout() {
-      localStorage.removeItem('quizcord_token');
-      location.reload();
-    }
+function setActiveDock(id) {
+  document.querySelectorAll('.dock-avatar, .dock-circle').forEach(d => d.classList.remove('active'));
+  const el = document.getElementById(id) || document.querySelector(`[data-id="${id}"]`);
+  if (el) el.classList.add('active');
+}
 
-    // ─── APP ENTRY ───
-    async function enterApp(name, color, userId, forcedRoom) {
-      state.nick = name; state.color = color; state.myUserId = userId;
-      const room = forcedRoom || document.getElementById('guest-room')?.value?.trim().toLowerCase() || 'geral';
-      state.room = room;
-      
-      document.getElementById('auth').classList.add('hidden');
-      document.getElementById('guest').classList.add('hidden');
-      document.getElementById('app').classList.remove('hidden');
-      
-      document.getElementById('my-name').textContent = name;
-      document.getElementById('my-avatar').textContent = name[0].toUpperCase();
-      document.getElementById('my-avatar').style.background = color;
-      document.getElementById('current-room-display').textContent = 'Sala: ' + room;
-      document.getElementById('header-room').textContent = room;
-      
-      loadRooms();
-      connect();
-    }
+// ─── HOME / CONTATOS ───
+function showHome() {
+  currentCircle = null; currentTopic = null; currentDM = null;
+  closeWS();
+  document.getElementById('panelTitle').textContent = 'Contatos';
+  document.getElementById('panelSubtitle').textContent = 'Amigos e conversas';
+  document.getElementById('mainTitle').textContent = 'Inicio';
+  document.getElementById('topicTabs').classList.add('hidden');
+  document.getElementById('headerActions').innerHTML = `
+    <button class="btn-sm btn-ghost" onclick="openAddFriend()">+ Adicionar</button>
+  `;
+  document.getElementById('chatArea').innerHTML = `
+    <div class="welcome-screen">
+      <h1>Aurora</h1>
+      <p>Selecione um amigo na lista ao lado ou entre em um Circulo.</p>
+    </div>
+  `;
+  document.getElementById('inputArea').classList.add('hidden');
+  document.getElementById('userList').classList.add('hidden');
 
-    async function loadRooms() {
-      try {
-        const res = await fetch('/api/rooms');
-        const rooms = await res.json();
-        const el = document.getElementById('room-list');
-        el.innerHTML = rooms.map(r => 
-          `<button onclick="joinRoom('${r.id}')" class="w-full text-left px-3 py-2 rounded hover:bg-gray-800 text-sm text-gray-300 transition"># ${r.name}</button>`
-        ).join('');
-      } catch(e) { console.log('Erro carregando salas:', e); }
-    }
+  const html = [];
 
-    async function createRoom() {
-      const name = (document.getElementById('guest-room')?.value || '').trim();
-      if(!name) return alert('Dá um nome pra sala!');
-      const form = new FormData(); form.append('name', name);
-      await fetch('/api/rooms', {method:'POST', body:form});
-      loadRooms();
-      alert('Sala criada!');
-    }
-
-    function joinRoom(id) {
-      const inp = document.getElementById('guest-room');
-      if(inp) inp.value = id;
-    }
-
-    // ─── AUTO LOGIN ───
-    (async () => {
-      const tok = localStorage.getItem('quizcord_token');
-      if(tok) {
-        try {
-          const res = await fetch('/api/me?token=' + encodeURIComponent(tok));
-          if(res.ok) {
-            const user = await res.json();
-            state.token = tok;
-            state.isGuest = false;
-            enterApp(user.display_name || user.username, user.color, user.id);
-            return;
-          }
-        } catch(e) {}
-        localStorage.removeItem('quizcord_token');
-      }
-    })();
-
-    // ─── WEBSOCKET ───
-    function connect() {
-      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const url = `${proto}//${window.location.host}/ws/${state.room}`;
-      state.ws = new WebSocket(url);
-
-      state.ws.onopen = () => {
-        const payload = state.token ? {token: state.token} : {name: state.nick, color: state.color};
-        state.ws.send(JSON.stringify(payload));
-      };
-
-      state.ws.onmessage = (e) => {
-        const data = JSON.parse(e.data);
-        if(data.type === 'handshake') { state.myUserId = data.user_id; }
-        if(data.type === 'history') data.messages.forEach(m => renderMsg(m));
-        if(data.type === 'message') { renderMsg(data); notify(data); }
-        if(data.type === 'users') updateUsers(data.users);
-        if(data.type === 'user_joined' || data.type === 'user_left') updateUsers(data.users);
-        if(data.type === 'typing') showTyping(data.user.name);
-        
-        if(data.type === 'voice_user_joined') {
-          updateVoiceUsers(data.voice_users);
-          if(data.user.id !== state.myUserId && state.inVoice) createOffer(data.user.id);
-        }
-        if(data.type === 'voice_user_left') updateVoiceUsers(data.voice_users);
-        if(data.type === 'voice_offer' && data.from !== state.myUserId) handleOffer(data.from, data.offer);
-        if(data.type === 'voice_answer' && data.from !== state.myUserId) handleAnswer(data.from, data.answer);
-        if(data.type === 'voice_ice' && data.from !== state.myUserId) handleIce(data.from, data.candidate);
-      };
-
-      state.ws.onclose = () => { setTimeout(connect, 3000); };
-    }
-
-    // ─── VOZ ───
-    async function toggleVoice() {
-      if(state.inVoice) leaveVoice();
-      else joinVoice();
-    }
-
-    async function joinVoice() {
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        state.inVoice = true;
-        document.getElementById('voice-text').textContent = 'Sair da Voz';
-        document.getElementById('btn-voice').classList.add('bg-green-600', 'hover:bg-green-500');
-        document.getElementById('btn-voice').classList.remove('bg-gray-800', 'hover:bg-gray-700');
-        state.ws.send(JSON.stringify({type: 'voice_join'}));
-      } catch(err) { alert('Permissao de microfone negada.'); }
-    }
-
-    function leaveVoice() {
-      state.inVoice = false;
-      Object.values(voicePeers).forEach(pc => pc.close());
-      voicePeers = {};
-      if(localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-      document.querySelectorAll('audio[data-voice]').forEach(a => a.remove());
-      document.getElementById('voice-text').textContent = 'Entrar na Voz';
-      document.getElementById('btn-voice').classList.remove('bg-green-600', 'hover:bg-green-500');
-      document.getElementById('btn-voice').classList.add('bg-gray-800', 'hover:bg-gray-700');
-      if(state.ws?.readyState === 1) state.ws.send(JSON.stringify({type: 'voice_leave'}));
-      updateVoiceUsers([]);
-    }
-
-    function createPeerConnection(userId) {
-      if(voicePeers[userId]) return voicePeers[userId];
-      const pc = new RTCPeerConnection(ICE_SERVERS);
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-      pc.ontrack = (event) => {
-        let audio = document.getElementById(`audio-${userId}`);
-        if(!audio) {
-          audio = document.createElement('audio');
-          audio.id = `audio-${userId}`;
-          audio.setAttribute('data-voice', 'true');
-          audio.autoplay = true;
-          document.body.appendChild(audio);
-        }
-        audio.srcObject = event.streams[0];
-      };
-      pc.onicecandidate = (event) => {
-        if(event.candidate && state.ws?.readyState === 1) {
-          state.ws.send(JSON.stringify({type: 'voice_ice', target: userId, candidate: event.candidate}));
-        }
-      };
-      voicePeers[userId] = pc;
-      return pc;
-    }
-
-    async function createOffer(userId) {
-      const pc = createPeerConnection(userId);
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      state.ws.send(JSON.stringify({type: 'voice_offer', target: userId, offer: offer}));
-    }
-
-    async function handleOffer(fromUserId, offer) {
-      const pc = createPeerConnection(fromUserId);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      state.ws.send(JSON.stringify({type: 'voice_answer', target: fromUserId, answer: answer}));
-    }
-
-    async function handleAnswer(fromUserId, answer) {
-      const pc = voicePeers[fromUserId];
-      if(pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    }
-
-    async function handleIce(fromUserId, candidate) {
-      const pc = voicePeers[fromUserId];
-      if(pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    }
-
-    function updateVoiceUsers(users) {
-      const el = document.getElementById('voice-users');
-      if(!users || users.length === 0) { el.innerHTML = ''; return; }
-      el.innerHTML = users.map(u => `
-        <div class="flex items-center gap-2 px-2 py-1 rounded bg-gray-800/50">
-          <div class="w-2 h-2 rounded-full bg-green-500 voice-pulse"></div>
-          <span class="text-xs text-gray-300 truncate">${u.name}</span>
-        </div>
-      `).join('');
-    }
-
-    // ─── CHAT ───
-    function renderMsg(m) {
-      const box = document.getElementById('messages');
-      const div = document.createElement('div');
-      div.className = 'msg-enter flex gap-3 group';
-      const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
-      const content = m.msg_type === 'image' 
-        ? `<a href="${m.file_url}" target="_blank"><img src="${m.file_url}" class="max-h-64 rounded-lg border border-gray-700 hover:border-indigo-500 transition cursor-zoom-in"></a>`
-        : `<div class="text-gray-200 leading-relaxed prose prose-invert max-w-none">${marked.parse(m.content || '')}</div>`;
-      div.innerHTML = `
-        <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold" style="background:${m.user.color}20; color:${m.user.color}; border:2px solid ${m.user.color}40">
-          ${m.user.name[0].toUpperCase()}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-baseline gap-2">
-            <span class="font-semibold text-sm" style="color:${m.user.color}">${m.user.name}</span>
-            <span class="text-xs text-gray-600">${time}</span>
+  if (friends.pending_received.length) {
+    html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 8px 8px;">Solicitacoes</div>`);
+    friends.pending_received.forEach(r => {
+      html.push(`
+        <div class="request-item">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="contact-avatar" style="background:${r.avatar_color}20;color:${r.avatar_color}">${(r.display_name||r.username)[0].toUpperCase()}</div>
+            <div><div class="contact-name">${r.display_name || r.username}</div><div class="contact-sub">@${r.username}</div></div>
           </div>
-          ${content}
+          <div class="request-actions">
+            <button class="btn-sm btn-primary" onclick="acceptFriend('${r.fid}')">Aceitar</button>
+            <button class="btn-sm btn-ghost" onclick="rejectFriend('${r.fid}')">Recusar</button>
+          </div>
         </div>
-      `;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-      hljs.highlightAll();
-    }
+      `);
+    });
+  }
 
-    function updateUsers(users) {
-      state.users = users;
-      document.getElementById('user-count').textContent = users.length;
-      document.getElementById('user-list').innerHTML = users.map(u => `
-        <div class="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-800 transition">
-          <div class="w-2 h-2 rounded-full bg-green-500"></div>
-          <span class="text-sm text-gray-300 truncate">${u.name}</span>
+  if (friends.friends.length) {
+    html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Amigos (${friends.friends.length})</div>`);
+    friends.friends.forEach(f => {
+      const dm = dmChats.find(d => d.peer_id === f.fid);
+      html.push(`
+        <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+          <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
+            ${(f.display_name||f.username)[0].toUpperCase()}
+            <div class="contact-status offline"></div>
+          </div>
+          <div class="contact-info">
+            <div class="contact-name">${f.display_name || f.username}</div>
+            <div class="contact-sub">@${f.username}</div>
+          </div>
         </div>
-      `).join('');
-    }
-
-    let typingTimeout;
-    function showTyping(name) {
-      const el = document.getElementById('typing-indicator');
-      document.getElementById('typing-name').textContent = name;
-      el.classList.remove('hidden');
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => el.classList.add('hidden'), 3000);
-    }
-
-    function notify(m) {
-      if(document.hidden && m.user.name !== state.nick) {
-        if('Notification' in window && Notification.permission === 'granted') {
-          new Notification(m.user.name, {body: m.content || 'Imagem'});
-        }
-      }
-    }
-    if('Notification' in window) Notification.requestPermission();
-
-    function handleKey(e) {
-      if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-      else {
-        clearTimeout(state.typingTimer);
-        state.typingTimer = setTimeout(() => {
-          if(state.ws?.readyState === 1) state.ws.send(JSON.stringify({type:'typing'}));
-        }, 300);
-      }
-    }
-
-    async function handleFile(input) {
-      const file = input.files[0];
-      if(!file) return;
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch('/api/upload', {method:'POST', body:form});
-      const data = await res.json();
-      state.fileUrl = data.url;
-      document.getElementById('preview').classList.remove('hidden');
-      document.getElementById('preview-img').src = data.url;
-    }
-
-    function clearFile() {
-      state.fileUrl = null;
-      document.getElementById('preview').classList.add('hidden');
-      document.getElementById('file').value = '';
-    }
-
-    function send() {
-      const input = document.getElementById('input');
-      const text = input.value.trim();
-      if(!text && !state.fileUrl) return;
-      if(state.ws?.readyState === 1) {
-        state.ws.send(JSON.stringify({content: text, file_url: state.fileUrl}));
-        input.value = '';
-        input.style.height = 'auto';
-        clearFile();
-      }
-    }
-
-    document.getElementById('input').addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+      `);
     });
+  } else if (!friends.pending_received.length) {
+    html.push(`<div style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:13px;">Nenhum amigo ainda.<br>Use "+ Adicionar" para comecar.</div>`);
+  }
 
-    const EMOJIS = ['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🔥','❤️','🎉','💀','🤡','🍺','🍕','🎮','💻','🐶','🐱'];
-    document.getElementById('emoji-panel').innerHTML = EMOJIS.map(e => 
-      `<button onclick="addEmoji('${e}')" class="hover:bg-gray-700 p-1 rounded text-lg">${e}</button>`
-    ).join('');
-    function toggleEmoji() { document.getElementById('emoji-panel').classList.toggle('hidden'); }
-    function addEmoji(e) { const i = document.getElementById('input'); i.value += e; i.focus(); }
-    document.addEventListener('click', e => {
-      if(!e.target.closest('#emoji-panel') && !e.target.closest('button[onclick="toggleEmoji()"]')) {
-        document.getElementById('emoji-panel').classList.add('hidden');
-      }
-    });
-  </script>
+  document.getElementById('panelContent').innerHTML = html.join('');
+}
+
+async function openAddFriend() {
+  const u = prompt('Nome de usuario:');
+  if (!u) return;
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('username', u);
+  const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd });
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); }
+  else { alert('Solicitacao enviada!'); loadData(); }
+}
+
+async function acceptFriend(fid) {
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('friend_id', fid);
+  await fetch(API + '/api/friends/accept', { method: 'POST', body: fd });
+  loadData();
+}
+
+async function rejectFriend(fid) {
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('friend_id', fid);
+  await fetch(API + '/api/friends/reject', { method: 'POST', body: fd });
+  loadData();
+}
+
+// ─── CIRCLE ───
+async function selectCircle(id) {
+  setActiveDock(id);
+  currentCircle = circles.find(c => c.id === id);
+  currentDM = null;
+  if (!currentCircle) return;
+
+  const res = await fetch(API + '/api/circles/' + id + '?token=' + token);
+  if (!res.ok) return;
+  const data = await res.json();
+  currentCircle = data.circle;
+  currentCircle.members = data.members;
+  currentCircle.topics = data.topics;
+
+  document.getElementById('panelTitle').textContent = currentCircle.name;
+  document.getElementById('panelSubtitle').textContent = currentCircle.members.length + ' membros';
+  document.getElementById('mainTitle').textContent = currentCircle.name;
+
+  // Ações do header
+  const isOwner = data.members.find(m => m.id === me.id)?.role === 'owner';
+  document.getElementById('headerActions').innerHTML = isOwner
+    ? `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`
+    : '';
+
+  // Tópicos como abas
+  const tabs = document.getElementById('topicTabs');
+  tabs.classList.remove('hidden');
+  tabs.innerHTML = currentCircle.topics.map(t =>
+    `<div class="header-tab ${currentTopic?.id===t.id?'active':''}" data-tid="${t.id}">${t.name}</div>`
+  ).join('');
+  tabs.querySelectorAll('.header-tab').forEach(el => {
+    el.onclick = () => selectTopic(el.dataset.tid);
+  });
+
+  // Painel lateral: lista de tópicos + membros
+  let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
+  currentCircle.topics.forEach(t => {
+    const icon = t.type === 'voice' ? '🎤' : t.type === 'media' ? '📎' : '💬';
+    html += `<div class="topic-tab ${currentTopic?.id===t.id?'active':''}" onclick="selectTopic('${t.id}')">
+      <span class="topic-icon">${icon}</span> ${t.name}
+    </div>`;
+  });
+  html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
+  currentCircle.members.forEach(m => {
+    html += `<div class="contact-item">
+      <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'👑':''}</div>
+        <div class="contact-sub">@${m.username}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('panelContent').innerHTML = html;
+
+  // Seleciona primeiro tópico automaticamente
+  if (currentCircle.topics.length && !currentTopic) {
+    selectTopic(currentCircle.topics[0].id);
+  }
+}
+
+async function selectTopic(tid) {
+  currentTopic = currentCircle.topics.find(t => t.id === tid);
+  currentDM = null;
+  if (!currentTopic) return;
+
+  // Atualiza abas
+  document.querySelectorAll('.header-tab').forEach(t => t.classList.toggle('active', t.dataset.tid === tid));
+  document.querySelectorAll('.topic-tab').forEach(t => t.classList.toggle('active', t.textContent.includes(currentTopic.name)));
+
+  document.getElementById('mainTitle').textContent = currentCircle.name + ' / ' + currentTopic.name;
+  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('inputArea').classList.remove('hidden');
+  document.getElementById('userList').classList.remove('hidden');
+
+  const roomId = 'topic:' + tid;
+  connectWS(roomId);
+}
+
+// ─── DM ───
+async function openDM(peerId, peerName, peerColor) {
+  currentDM = { peerId, peerName, peerColor };
+  currentCircle = null; currentTopic = null;
+  setActiveDock('dockHome');
+
+  document.getElementById('panelTitle').textContent = 'Contatos';
+  document.getElementById('panelSubtitle').textContent = 'Conversa direta';
+  document.getElementById('mainTitle').textContent = peerName;
+  document.getElementById('topicTabs').classList.add('hidden');
+  document.getElementById('headerActions').innerHTML = '';
+  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('inputArea').classList.remove('hidden');
+  document.getElementById('userList').classList.add('hidden');
+
+  // Procura chat existente
+  let chat = dmChats.find(d => d.peer_id === peerId);
+  if (!chat) {
+    // Cria no backend (aceitar amizade já criou, mas se não tiver...)
+    // Na verdade, o DM chat é criado no accept. Se não existir, vamos usar um roomId genérico.
+    // Simplificação: usamos roomId dm:user1:user2
+    const u1 = [me.id, peerId].sort().join(':');
+    chat = { id: u1, peer_id: peerId };
+  }
+  currentDM.chatId = chat.id;
+  connectWS('dm:' + chat.id);
+}
+
+// ─── WEBSOCKET ───
+function connectWS(roomId) {
+  closeWS();
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = proto + '//' + location.host + '/ws/' + roomId;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      token: isGuest ? undefined : token,
+      name: me.name || me.display_name || me.username,
+      color: me.color || me.avatar_color || '#888'
+    }));
+  };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'history') {
+      document.getElementById('chatArea').innerHTML = '';
+      msg.messages.forEach(m => appendMessage(m));
+    }
+    else if (msg.type === 'message') appendMessage(msg);
+    else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
+    else if (msg.type === 'users') renderUserList(msg.users);
+    else if (msg.type === 'typing') showTyping(msg.user);
+    else if (msg.type === 'voice_user_joined') renderVoiceUsers(msg.voice_users);
+    else if (msg.type === 'voice_user_left') renderVoiceUsers(msg.voice_users);
+    else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
+    else if (msg.type === 'voice_answer') handleVoiceAnswer(msg);
+    else if (msg.type === 'voice_ice') handleVoiceICE(msg);
+  };
+
+  ws.onclose = () => { ws = null; };
+}
+
+function closeWS() {
+  if (ws) { ws.close(); ws = null; }
+}
+
+// ─── CHAT UI ───
+function appendMessage(m) {
+  const area = document.getElementById('chatArea');
+  const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
+  const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'message-bubble ' + (isOwn ? 'own' : '');
+  bubble.innerHTML = `
+    <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${(m.user?.name||'?')[0].toUpperCase()}</div>
+    <div class="msg-body">
+      <div class="msg-author">${m.user?.name||'?'}</div>
+      <div class="msg-content">${escapeHtml(m.content)}${m.file_url ? `<img src="${m.file_url}" onclick="window.open('${m.file_url}')">` : ''}</div>
+      <div class="msg-time">${time}</div>
+    </div>
+  `;
+  area.appendChild(bubble);
+  area.scrollTop = area.scrollHeight;
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+function renderUserList(users) {
+  const el = document.getElementById('userList');
+  if (!users || !users.length) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML = users.map(u =>
+    `<div class="user-chip"><div class="user-chip-dot" style="background:${u.color||'#888'}"></div>${u.name}</div>`
+  ).join('');
+}
+
+function showTyping(user) {
+  const el = document.getElementById('typingIndicator');
+  el.textContent = (user?.name || 'Alguem') + ' esta digitando...';
+  el.classList.remove('hidden');
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
+}
+
+function renderVoiceUsers(list) {
+  // placeholder — pode expandir depois
+}
+
+// ─── INPUTS ───
+function bindInputs() {
+  const input = document.getElementById('msgInput');
+  const send = document.getElementById('sendBtn');
+  const file = document.getElementById('fileInput');
+
+  send.onclick = () => sendMessage();
+  input.onkeydown = (e) => {
+    if (e.key === 'Enter') sendMessage();
+    else if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'typing'}));
+  };
+
+  file.onchange = async () => {
+    if (!file.files[0]) return;
+    const fd = new FormData();
+    fd.append('file', file.files[0]);
+    const res = await fetch(API + '/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    sendMessage(null, data.url);
+    file.value = '';
+  };
+
+  document.getElementById('btnCreateCircle').onclick = openCreateCircle;
+}
+
+function sendMessage(text, fileUrl) {
+  const input = document.getElementById('msgInput');
+  const content = text !== undefined ? text : input.value.trim();
+  if (!content && !fileUrl) return;
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify({ content: content || '', file_url: fileUrl || undefined }));
+  }
+  if (text === undefined) input.value = '';
+}
+
+// ─── MODAIS ───
+function openModal(title, bodyHtml, actionsHtml) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalActions').innerHTML = actionsHtml;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+document.getElementById('modalOverlay').onclick = (e) => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+};
+
+function openCreateCircle() {
+  openModal('Novo Circulo', `
+    <input type="text" id="modalCircleName" class="modal-input" placeholder="Nome do circulo">
+    <div class="color-picker" id="modalColorPicker"></div>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn-sm btn-primary" onclick="doCreateCircle()">Criar</button>
+  `);
+  const el = document.getElementById('modalColorPicker');
+  let sel = COLORS[1];
+  el.innerHTML = COLORS.map(c => `<div class="color-dot ${c===sel?'selected':''}" style="background:${c}" data-c="${c}"></div>`).join('');
+  el.querySelectorAll('.color-dot').forEach(d => d.onclick = () => {
+    sel = d.dataset.c;
+    el.innerHTML = COLORS.map(c => `<div class="color-dot ${c===sel?'selected':''}" style="background:${c}" data-c="${c}"></div>`).join('');
+    el.querySelectorAll('.color-dot').forEach(x => x.onclick = arguments.callee);
+  });
+  window._circleColor = () => sel;
+}
+
+async function doCreateCircle() {
+  const name = document.getElementById('modalCircleName').value.trim();
+  if (!name) return alert('Digite um nome');
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('name', name);
+  fd.append('color', window._circleColor ? window._circleColor() : '#a78bfa');
+  const res = await fetch(API + '/api/circles', { method: 'POST', body: fd });
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
+  closeModal();
+  loadData();
+}
+
+function openCreateTopic() {
+  if (!currentCircle) return;
+  openModal('Novo Topico', `
+    <input type="text" id="modalTopicName" class="modal-input" placeholder="Nome do topico">
+    <select id="modalTopicType" class="modal-input" style="background:var(--bg-glass)">
+      <option value="text">Texto</option>
+      <option value="voice">Voz</option>
+      <option value="media">Midia</option>
+    </select>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
+    <button class="btn-sm btn-primary" onclick="doCreateTopic()">Criar</button>
+  `);
+}
+
+async function doCreateTopic() {
+  const name = document.getElementById('modalTopicName').value.trim();
+  const type = document.getElementById('modalTopicType').value;
+  if (!name) return;
+  const fd = new FormData();
+  fd.append('token', token);
+  fd.append('name', name);
+  fd.append('type', type);
+  const res = await fetch(API + '/api/circles/' + currentCircle.id + '/topics', { method: 'POST', body: fd });
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
+  closeModal();
+  selectCircle(currentCircle.id);
+}
+
+// ─── VOZ (WebRTC stubs) ───
+function handleVoiceOffer(msg) {}
+function handleVoiceAnswer(msg) {}
+function handleVoiceICE(msg) {}
+</script>
 </body>
 </html>
