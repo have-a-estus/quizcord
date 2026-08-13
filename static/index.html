@@ -153,6 +153,7 @@ body {
   border-radius: var(--radius-sm);
   cursor: pointer; transition: all 0.15s;
   margin-bottom: 4px;
+  position: relative;
 }
 
 .contact-item:hover { background: var(--bg-elevated); }
@@ -179,6 +180,16 @@ body {
 .contact-info { flex: 1; min-width: 0; }
 .contact-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact-sub { font-size: 12px; color: var(--text-muted); }
+
+.contact-badge {
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 18px; height: 18px;
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px;
+}
 
 .request-item {
   background: var(--bg-elevated);
@@ -213,12 +224,24 @@ body {
   cursor: pointer; transition: all 0.15s;
   margin-bottom: 4px;
   font-size: 14px;
+  position: relative;
 }
 
 .topic-tab:hover { background: var(--bg-elevated); }
 .topic-tab.active {
   background: rgba(167,139,250,0.12);
   color: var(--accent-2);
+}
+
+.topic-badge {
+  position: absolute; right: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 16px; height: 16px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
 }
 
 .topic-icon { font-size: 16px; }
@@ -347,6 +370,27 @@ body {
 
 .msg-time {
   font-size: 10px; color: var(--text-muted);
+}
+
+/* Mensagem de sistema */
+.system-msg {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
+  animation: fadeIn 0.3s ease;
+}
+
+.system-msg::before, .system-msg::after {
+  content: '';
+  width: 40px; height: 1px;
+  background: var(--border);
 }
 
 .input-area {
@@ -577,6 +621,51 @@ body {
 .user-chip-dot {
   width: 6px; height: 6px; border-radius: 50%;
 }
+
+/* Search dropdown */
+.search-dropdown {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 50;
+  margin-top: 4px;
+}
+
+.search-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px;
+}
+
+.search-item:hover { background: var(--bg-elevated); }
+
+.invite-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-family: monospace;
+  color: var(--text-muted);
+}
+
+.invite-box button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
 </style>
 <base target="_blank">
 </head>
@@ -665,6 +754,7 @@ let me = null;
 let circles = [];
 let friends = { friends: [], pending_sent: [], pending_received: [] };
 let dmChats = [];
+let unreadMap = {};
 let currentCircle = null;
 let currentTopic = null;
 let currentDM = null;
@@ -675,8 +765,24 @@ let isGuest = false;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
 let pendingCount = 0;
+let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
 
 const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
+
+// Som de notificacao (beep suave)
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playNotifSound() {
+  if (document.hidden) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.frequency.value = 800;
+    gain.gain.value = 0.05;
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.1);
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   renderColorPicker();
@@ -775,10 +881,12 @@ function connectNotifWS() {
     const msg = JSON.parse(e.data);
     if (msg.type === 'friend_request') {
       showToast(msg.from.display_name || msg.from.username, 'Quer ser seu amigo!', msg.from.avatar_color || '#a78bfa');
+      playNotifSound();
       loadData();
     }
     else if (msg.type === 'friend_accepted') {
       showToast(msg.by.display_name || msg.by.username, 'Aceitou sua solicitacao!', msg.by.avatar_color || '#4ade80');
+      playNotifSound();
       loadData();
     }
   };
@@ -791,18 +899,47 @@ function connectNotifWS() {
 
 async function loadData() {
   if (isGuest) { renderDock(); showHome(); return; }
-  const [cRes, fRes, dRes] = await Promise.all([
+  const [cRes, fRes, dRes, uRes] = await Promise.all([
     fetch(API + '/api/circles?token=' + token),
     fetch(API + '/api/friends?token=' + token),
-    fetch(API + '/api/dm-chats?token=' + token)
+    fetch(API + '/api/dm-chats?token=' + token),
+    fetch(API + '/api/unread?token=' + token)
   ]);
   circles = cRes.ok ? await cRes.json() : [];
   friends = fRes.ok ? await fRes.json() : { friends: [], pending_sent: [], pending_received: [] };
   dmChats = dRes.ok ? await dRes.json() : [];
+  unreadMap = uRes.ok ? await uRes.json() : {};
   updatePendingBadge();
   renderDock();
   showHome();
   startPolling();
+  restoreSession();
+}
+
+function restoreSession() {
+  if (!lastSession || isGuest) return;
+  if (lastSession.type === 'dm' && lastSession.peerId) {
+    const f = friends.friends?.find(x => x.fid === lastSession.peerId);
+    if (f) openDM(lastSession.peerId, f.display_name || f.username, f.avatar_color);
+  } else if (lastSession.type === 'circle' && lastSession.circleId) {
+    const c = circles.find(x => x.id === lastSession.circleId);
+    if (c) {
+      selectCircle(lastSession.circleId).then(() => {
+        if (lastSession.topicId && currentCircle?.topics) {
+          const t = currentCircle.topics.find(x => x.id === lastSession.topicId);
+          if (t) selectTopic(lastSession.topicId);
+        }
+      });
+    }
+  }
+}
+
+function saveSession() {
+  if (isGuest) return;
+  const s = {};
+  if (currentDM) { s.type = 'dm'; s.peerId = currentDM.peerId; }
+  else if (currentCircle) { s.type = 'circle'; s.circleId = currentCircle.id; s.topicId = currentTopic?.id; }
+  localStorage.setItem('aurora_session', JSON.stringify(s));
 }
 
 function updatePendingBadge() {
@@ -827,6 +964,9 @@ function startPolling() {
     friends = await res.json();
     const newPending = friends.pending_received?.length || 0;
     updatePendingBadge();
+    // Atualiza unread
+    const uRes = await fetch(API + '/api/unread?token=' + token);
+    if (uRes.ok) { unreadMap = await uRes.json(); renderDock(); }
     if (newPending > oldPending && currentCircle === null && currentDM === null) {
       showHome();
     }
@@ -851,9 +991,14 @@ function showToast(title, sub, color) {
 // ─── DOCK ───
 function renderDock() {
   const container = document.getElementById('dockCircles');
-  container.innerHTML = circles.map(c =>
-    `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}</div>`
-  ).join('');
+  container.innerHTML = circles.map(c => {
+    let badge = '';
+    // Soma unread de todos os topicos do circulo
+    let totalUnread = 0;
+    // Precisamos saber os topicos... mas circles so tem os basicos aqui
+    // Vamos simplificar: nao mostrar badge no circulo por enquanto, so nos topicos
+    return `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}${badge}</div>`;
+  }).join('');
   container.querySelectorAll('.dock-circle').forEach(el => {
     el.onclick = () => selectCircle(el.dataset.id);
   });
@@ -874,6 +1019,7 @@ function setActiveDock(id) {
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null;
   closeWS();
+  saveSession();
   document.getElementById('panelTitle').textContent = 'Contatos';
   document.getElementById('panelSubtitle').textContent = 'Amigos e conversas';
   document.getElementById('mainTitle').textContent = 'Inicio';
@@ -913,16 +1059,19 @@ function showHome() {
   if (friends.friends?.length) {
     html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Amigos (${friends.friends.length})</div>`);
     friends.friends.forEach(f => {
+      const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
+      const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
         <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
             ${(f.display_name||f.username)[0].toUpperCase()}
-            <div class="contact-status offline"></div>
+            <div class="contact-status offline" data-uid="${f.fid}"></div>
           </div>
           <div class="contact-info">
             <div class="contact-name">${f.display_name || f.username}</div>
             <div class="contact-sub">@${f.username}</div>
           </div>
+          ${unread > 0 ? `<div class="contact-badge">${unread}</div>` : ''}
         </div>
       `);
     });
@@ -933,17 +1082,58 @@ function showHome() {
   }
 
   document.getElementById('panelContent').innerHTML = html.join('');
+  updateFriendStatuses();
 }
 
-async function openAddFriend() {
-  const u = prompt('Nome de usuario:');
-  if (!u) return;
+async function updateFriendStatuses() {
+  // Busca status dos amigos
+  const friendIds = friends.friends?.map(f => f.fid) || [];
+  if (!friendIds.length) return;
+  // Nao temos endpoint especifico, vamos usar o search ou fazer polling
+  // Simplificacao: nao temos status real sem endpoint, deixa como placeholder
+}
+
+// ─── ADD FRIEND COM BUSCA ───
+function openAddFriend() {
+  openModal('Adicionar Amigo', `
+    <input type="text" id="friendSearch" class="modal-input" placeholder="Buscar usuario..." autocomplete="off">
+    <div id="searchResults" class="search-dropdown hidden"></div>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
+  `);
+  const input = document.getElementById('friendSearch');
+  const results = document.getElementById('searchResults');
+  let searchTimer = null;
+  input.oninput = () => {
+    clearTimeout(searchTimer);
+    const q = input.value.trim();
+    if (!q) { results.classList.add('hidden'); return; }
+    searchTimer = setTimeout(async () => {
+      const res = await fetch(API + '/api/users/search?token=' + token + '&q=' + encodeURIComponent(q));
+      if (!res.ok) return;
+      const users = await res.json();
+      const already = [...(friends.friends||[]), ...(friends.pending_sent||[]), ...(friends.pending_received||[])].map(f => f.fid || f.id);
+      const filtered = users.filter(u => u.id !== me.id && !already.includes(u.id));
+      if (!filtered.length) { results.classList.add('hidden'); return; }
+      results.innerHTML = filtered.map(u => `
+        <div class="search-item" onclick="sendFriendRequest('${u.username}', '${(u.display_name||u.username).replace(/'/g,"\'")}')">
+          <div class="contact-avatar" style="background:${u.avatar_color}20;color:${u.avatar_color};width:28px;height:28px;font-size:12px;">${(u.display_name||u.username)[0].toUpperCase()}</div>
+          <div><div style="font-weight:600;font-size:13px;">${u.display_name || u.username}</div><div style="font-size:11px;color:var(--text-muted);">@${u.username}</div></div>
+        </div>
+      `).join('');
+      results.classList.remove('hidden');
+    }, 300);
+  };
+}
+
+async function sendFriendRequest(username, displayName) {
+  closeModal();
   const fd = new FormData();
   fd.append('token', token);
-  fd.append('username', u);
+  fd.append('username', username);
   const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd });
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); }
-  else { showToast(u, 'Solicitacao enviada!', '#a78bfa'); loadData(); }
+  else { showToast(displayName, 'Solicitacao enviada!', '#a78bfa'); loadData(); }
 }
 
 async function acceptFriend(fid) {
@@ -974,15 +1164,19 @@ async function selectCircle(id) {
   currentCircle = data.circle;
   currentCircle.members = data.members;
   currentCircle.topics = data.topics;
+  saveSession();
 
   document.getElementById('panelTitle').textContent = currentCircle.name;
   document.getElementById('panelSubtitle').textContent = currentCircle.members.length + ' membros';
   document.getElementById('mainTitle').textContent = currentCircle.name;
 
   const isOwner = data.members.find(m => m.id === me.id)?.role === 'owner';
-  document.getElementById('headerActions').innerHTML = isOwner
-    ? `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`
-    : '';
+  let actions = '';
+  if (isOwner) {
+    actions += `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`;
+  }
+  actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">🔗 Convite</button>`;
+  document.getElementById('headerActions').innerHTML = actions;
 
   const tabs = document.getElementById('topicTabs');
   tabs.classList.remove('hidden');
@@ -996,8 +1190,10 @@ async function selectCircle(id) {
   let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
   currentCircle.topics.forEach(t => {
     const icon = t.type === 'voice' ? '🎤' : t.type === 'media' ? '📎' : '💬';
+    const unread = unreadMap['topic:' + t.id] || 0;
     html += `<div class="topic-tab ${currentTopic?.id===t.id?'active':''}" onclick="selectTopic('${t.id}')">
       <span class="topic-icon">${icon}</span> ${t.name}
+      ${unread > 0 ? `<div class="topic-badge">${unread}</div>` : ''}
     </div>`;
   });
   html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
@@ -1017,10 +1213,31 @@ async function selectCircle(id) {
   }
 }
 
+function showInviteCode() {
+  if (!currentCircle) return;
+  openModal('Convite para ' + currentCircle.name, `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este codigo para convidar amigos:</p>
+    <div class="invite-box">
+      <span>${currentCircle.invite_code}</span>
+      <button onclick="copyInvite()">Copiar</button>
+    </div>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>
+  `);
+}
+
+function copyInvite() {
+  if (currentCircle?.invite_code) {
+    navigator.clipboard.writeText(currentCircle.invite_code);
+    showToast('Copiado!', 'Codigo de convite copiado', '#a78bfa');
+  }
+}
+
 async function selectTopic(tid) {
   currentTopic = currentCircle.topics.find(t => t.id === tid);
   currentDM = null;
   if (!currentTopic) return;
+  saveSession();
   document.querySelectorAll('.header-tab').forEach(t => t.classList.toggle('active', t.dataset.tid === tid));
   document.querySelectorAll('.topic-tab').forEach(t => t.classList.toggle('active', t.textContent.includes(currentTopic.name)));
   document.getElementById('mainTitle').textContent = currentCircle.name + ' / ' + currentTopic.name;
@@ -1035,6 +1252,7 @@ async function openDM(peerId, peerName, peerColor) {
   currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
+  saveSession();
   document.getElementById('panelTitle').textContent = 'Contatos';
   document.getElementById('panelSubtitle').textContent = 'Conversa direta';
   document.getElementById('mainTitle').textContent = peerName;
@@ -1073,7 +1291,11 @@ function connectWS(roomId) {
       document.getElementById('chatArea').innerHTML = '';
       msg.messages.forEach(m => appendMessage(m));
     }
-    else if (msg.type === 'message') appendMessage(msg);
+    else if (msg.type === 'message') {
+      appendMessage(msg);
+      if (msg.user?.id !== me.id && document.hidden) playNotifSound();
+    }
+    else if (msg.type === 'system') appendSystemMessage(msg.content);
     else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
     else if (msg.type === 'users') renderUserList(msg.users);
     else if (msg.type === 'typing') showTyping(msg.user);
@@ -1105,6 +1327,15 @@ function appendMessage(m) {
     </div>
   `;
   area.appendChild(bubble);
+  area.scrollTop = area.scrollHeight;
+}
+
+function appendSystemMessage(content) {
+  const area = document.getElementById('chatArea');
+  const div = document.createElement('div');
+  div.className = 'system-msg';
+  div.textContent = content;
+  area.appendChild(div);
   area.scrollTop = area.scrollHeight;
 }
 

@@ -2,10 +2,9 @@ import json
 import os
 import sqlite3
 import uuid
-import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, status
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from passlib.context import CryptContext
@@ -13,7 +12,9 @@ import jwt
 
 app = FastAPI()
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "quizcord.db")
+USERS_DB = os.path.join(BASE_DIR, "quizcord_users.db")
+CIRCLES_DB = os.path.join(BASE_DIR, "quizcord_circles.db")
+MESSAGES_DB = os.path.join(BASE_DIR, "quizcord_messages.db")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -45,15 +46,14 @@ def decode_token(token: str) -> Optional[dict]:
     except:
         return None
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
+def get_db(path: str):
+    conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
+def init_users_db():
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
-
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
@@ -64,7 +64,6 @@ def init_db():
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
-
     c.execute("""CREATE TABLE IF NOT EXISTS friendships (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -73,7 +72,19 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, friend_id)
     )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS direct_chats (
+        id TEXT PRIMARY KEY,
+        user1_id TEXT NOT NULL,
+        user2_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user1_id, user2_id)
+    )""")
+    conn.commit()
+    conn.close()
 
+def init_circles_db():
+    conn = sqlite3.connect(CIRCLES_DB)
+    c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS circles (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -83,7 +94,6 @@ def init_db():
         invite_code TEXT UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
-
     c.execute("""CREATE TABLE IF NOT EXISTS circle_members (
         id TEXT PRIMARY KEY,
         circle_id TEXT NOT NULL,
@@ -92,7 +102,6 @@ def init_db():
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(circle_id, user_id)
     )""")
-
     c.execute("""CREATE TABLE IF NOT EXISTS topics (
         id TEXT PRIMARY KEY,
         circle_id TEXT NOT NULL,
@@ -101,15 +110,12 @@ def init_db():
         position INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
+    conn.commit()
+    conn.close()
 
-    c.execute("""CREATE TABLE IF NOT EXISTS direct_chats (
-        id TEXT PRIMARY KEY,
-        user1_id TEXT NOT NULL,
-        user2_id TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user1_id, user2_id)
-    )""")
-
+def init_messages_db():
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         room_id TEXT NOT NULL,
@@ -121,19 +127,25 @@ def init_db():
         file_url TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )""")
-
+    c.execute("""CREATE TABLE IF NOT EXISTS unread (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        room_id TEXT NOT NULL,
+        count INTEGER DEFAULT 1,
+        last_message_id INTEGER,
+        UNIQUE(user_id, room_id)
+    )""")
     conn.commit()
     conn.close()
 
-init_db()
+init_users_db()
+init_circles_db()
+init_messages_db()
 
 def _get_history(room_id: str, limit: int = 50):
-    conn = get_db()
+    conn = get_db(MESSAGES_DB)
     c = conn.cursor()
-    c.execute("""
-        SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url, timestamp
-        FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?
-    """, (room_id, limit))
+    c.execute("SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url, timestamp FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?", (room_id, limit))
     rows = c.fetchall()
     conn.close()
     msgs = []
@@ -145,17 +157,17 @@ def _get_history(room_id: str, limit: int = 50):
 
 class RoomManager:
     def __init__(self):
-        self.rooms: Dict[str, List[WebSocket]] = {}
-        self.user_info: Dict[WebSocket, dict] = {}
-        self.ws_by_user: Dict[str, WebSocket] = {}
-        self.voice_users: Dict[str, Dict[str, dict]] = {}
+        self.rooms = {}
+        self.user_info = {}
+        self.ws_by_user = {}
+        self.voice_users = {}
 
-    def connect(self, room_id: str, ws: WebSocket, user: dict):
+    def connect(self, room_id, ws, user):
         self.rooms.setdefault(room_id, []).append(ws)
         self.user_info[ws] = user
         self.ws_by_user[user["id"]] = ws
 
-    def disconnect(self, room_id: str, ws: WebSocket):
+    def disconnect(self, room_id, ws):
         if room_id in self.rooms and ws in self.rooms[room_id]:
             self.rooms[room_id].remove(ws)
         user = self.user_info.pop(ws, {})
@@ -164,12 +176,11 @@ class RoomManager:
             del self.voice_users[room_id][user["id"]]
             if not self.voice_users[room_id]:
                 del self.voice_users[room_id]
-        if room_id in self.rooms:
-            if not self.rooms[room_id]:
-                del self.rooms[room_id]
+        if room_id in self.rooms and not self.rooms[room_id]:
+            del self.rooms[room_id]
         return user
 
-    async def broadcast(self, room_id: str, msg: dict, exclude: WebSocket = None):
+    async def broadcast(self, room_id, msg, exclude=None):
         if room_id not in self.rooms:
             return
         text = json.dumps(msg)
@@ -181,7 +192,7 @@ class RoomManager:
             except:
                 pass
 
-    async def send_to_user(self, user_id: str, msg: dict):
+    async def send_to_user(self, user_id, msg):
         ws = self.ws_by_user.get(user_id)
         if ws:
             try:
@@ -189,25 +200,25 @@ class RoomManager:
             except:
                 pass
 
-    def get_users(self, room_id: str) -> List[dict]:
+    def get_users(self, room_id):
         if room_id not in self.rooms:
             return []
         return [self.user_info[ws] for ws in self.rooms[room_id] if ws in self.user_info]
 
-    def get_voice_users(self, room_id: str) -> List[dict]:
+    def get_voice_users(self, room_id):
         return list(self.voice_users.get(room_id, {}).values())
 
 class NotifManager:
     def __init__(self):
-        self.conns: Dict[str, WebSocket] = {}
+        self.conns = {}
 
-    def connect(self, user_id: str, ws: WebSocket):
+    def connect(self, user_id, ws):
         self.conns[user_id] = ws
 
-    def disconnect(self, user_id: str):
+    def disconnect(self, user_id):
         self.conns.pop(user_id, None)
 
-    async def send(self, user_id: str, msg: dict):
+    async def send(self, user_id, msg):
         ws = self.conns.get(user_id)
         if ws:
             try:
@@ -218,11 +229,11 @@ class NotifManager:
 manager = RoomManager()
 notif_manager = NotifManager()
 
-def require_user(token: str):
+def require_user(token):
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token invalido")
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE id = ?", (payload["sub"],))
     row = c.fetchone()
@@ -238,7 +249,7 @@ def home():
 @app.post("/api/register")
 def register(username: str = Form(...), password: str = Form(...), display_name: str = Form(None), color: str = Form("#ff7b72")):
     uid = str(uuid.uuid4())[:8]
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     try:
         c.execute("INSERT INTO users (id, username, display_name, password_hash, avatar_color) VALUES (?, ?, ?, ?, ?)",
@@ -253,7 +264,7 @@ def register(username: str = Form(...), password: str = Form(...), display_name:
 
 @app.post("/api/login")
 def login(username: str = Form(...), password: str = Form(...)):
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT * FROM users WHERE username = ?", (username.lower(),))
     row = c.fetchone()
@@ -268,34 +279,29 @@ def login(username: str = Form(...), password: str = Form(...)):
 def me(token: str):
     return require_user(token)
 
+@app.get("/api/users/search")
+def search_users(token: str, q: str = ""):
+    require_user(token)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 20",
+        (f"%{q}%", f"%{q}%"))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
 @app.get("/api/friends")
 def list_friends(token: str):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
-    c.execute("""
-        SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color
-        FROM friendships f JOIN users u ON u.id = f.friend_id
-        WHERE f.user_id = ? AND f.status = 'accepted'
-    """, (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
     sent = [dict(r) for r in c.fetchall()]
-    c.execute("""
-        SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color
-        FROM friendships f JOIN users u ON u.id = f.user_id
-        WHERE f.friend_id = ? AND f.status = 'accepted'
-    """, (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
     received = [dict(r) for r in c.fetchall()]
-    c.execute("""
-        SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color
-        FROM friendships f JOIN users u ON u.id = f.friend_id
-        WHERE f.user_id = ? AND f.status = 'pending'
-    """, (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
     pending_sent = [dict(r) for r in c.fetchall()]
-    c.execute("""
-        SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color
-        FROM friendships f JOIN users u ON u.id = f.user_id
-        WHERE f.friend_id = ? AND f.status = 'pending'
-    """, (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
     pending_received = [dict(r) for r in c.fetchall()]
     conn.close()
     return {"friends": sent + received, "pending_sent": pending_sent, "pending_received": pending_received}
@@ -303,7 +309,7 @@ def list_friends(token: str):
 @app.post("/api/friends/request")
 async def add_friend(token: str = Form(...), username: str = Form(...)):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username = ?", (username.lower(),))
     target = c.fetchone()
@@ -335,7 +341,7 @@ async def add_friend(token: str = Form(...), username: str = Form(...)):
 @app.post("/api/friends/accept")
 async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("UPDATE friendships SET status = 'accepted' WHERE user_id = ? AND friend_id = ? AND status = 'pending'", (friend_id, user["id"]))
     if c.rowcount == 0:
@@ -355,7 +361,7 @@ async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
 @app.post("/api/friends/reject")
 def reject_friend(token: str = Form(...), friend_id: str = Form(...)):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
         (user["id"], friend_id, friend_id, user["id"]))
@@ -366,13 +372,9 @@ def reject_friend(token: str = Form(...), friend_id: str = Form(...)):
 @app.get("/api/circles")
 def list_circles(token: str):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(CIRCLES_DB)
     c = conn.cursor()
-    c.execute("""
-        SELECT c.* FROM circles c
-        JOIN circle_members m ON m.circle_id = c.id
-        WHERE m.user_id = ? ORDER BY c.created_at DESC
-    """, (user["id"],))
+    c.execute("SELECT c.* FROM circles c JOIN circle_members m ON m.circle_id = c.id WHERE m.user_id = ? ORDER BY c.created_at DESC", (user["id"],))
     circles = [dict(r) for r in c.fetchall()]
     conn.close()
     return circles
@@ -382,10 +384,9 @@ def create_circle(token: str = Form(...), name: str = Form(...), color: str = Fo
     user = require_user(token)
     cid = str(uuid.uuid4())[:8]
     invite = str(uuid.uuid4())[:12]
-    conn = get_db()
+    conn = get_db(CIRCLES_DB)
     c = conn.cursor()
-    c.execute("INSERT INTO circles (id, name, owner_id, color, invite_code) VALUES (?, ?, ?, ?, ?)",
-        (cid, name, user["id"], color, invite))
+    c.execute("INSERT INTO circles (id, name, owner_id, color, invite_code) VALUES (?, ?, ?, ?, ?)", (cid, name, user["id"], color, invite))
     mid = str(uuid.uuid4())[:8]
     c.execute("INSERT INTO circle_members (id, circle_id, user_id, role) VALUES (?, ?, ?, 'owner')", (mid, cid, user["id"]))
     tid = str(uuid.uuid4())[:8]
@@ -397,7 +398,7 @@ def create_circle(token: str = Form(...), name: str = Form(...), color: str = Fo
 @app.post("/api/circles/join")
 def join_circle(token: str = Form(...), code: str = Form(...)):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT * FROM circles WHERE invite_code = ?", (code,))
     circle = c.fetchone()
@@ -417,7 +418,7 @@ def join_circle(token: str = Form(...), code: str = Form(...)):
 @app.get("/api/circles/{circle_id}")
 def get_circle(circle_id: str, token: str):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT * FROM circles WHERE id = ?", (circle_id,))
     circle = c.fetchone()
@@ -428,11 +429,7 @@ def get_circle(circle_id: str, token: str):
     if not c.fetchone():
         conn.close()
         raise HTTPException(status_code=403, detail="Nao e membro")
-    c.execute("""
-        SELECT u.id, u.username, u.display_name, u.avatar_color, m.role
-        FROM circle_members m JOIN users u ON u.id = m.user_id
-        WHERE m.circle_id = ?
-    """, (circle_id,))
+    c.execute("SELECT u.id, u.username, u.display_name, u.avatar_color, m.role FROM circle_members m JOIN users u ON u.id = m.user_id WHERE m.circle_id = ?", (circle_id,))
     members = [dict(r) for r in c.fetchall()]
     c.execute("SELECT * FROM topics WHERE circle_id = ? ORDER BY position", (circle_id,))
     topics = [dict(r) for r in c.fetchall()]
@@ -442,7 +439,7 @@ def get_circle(circle_id: str, token: str):
 @app.post("/api/circles/{circle_id}/topics")
 def create_topic(circle_id: str, token: str = Form(...), name: str = Form(...), type: str = Form("text")):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT role FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user["id"]))
     row = c.fetchone()
@@ -460,29 +457,49 @@ def create_topic(circle_id: str, token: str = Form(...), name: str = Form(...), 
 @app.get("/api/dm-chats")
 def list_dm_chats(token: str):
     user = require_user(token)
-    conn = get_db()
+    conn = get_db(USERS_DB)
     c = conn.cursor()
-    c.execute("""
-        SELECT d.id, d.user1_id, d.user2_id,
-            CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id,
-            u.display_name, u.username, u.avatar_color
-        FROM direct_chats d
-        JOIN users u ON u.id = CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END
-        WHERE d.user1_id = ? OR d.user2_id = ?
-    """, (user["id"], user["id"], user["id"], user["id"]))
+    c.execute("SELECT d.id, d.user1_id, d.user2_id, CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id, u.display_name, u.username, u.avatar_color FROM direct_chats d JOIN users u ON u.id = CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END WHERE d.user1_id = ? OR d.user2_id = ?", (user["id"], user["id"], user["id"], user["id"]))
     chats = [dict(r) for r in c.fetchall()]
     conn.close()
+    conn2 = get_db(MESSAGES_DB)
+    c2 = conn2.cursor()
+    for ch in chats:
+        c2.execute("SELECT count FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + ch["id"]))
+        row = c2.fetchone()
+        ch["unread"] = row["count"] if row else 0
+    conn2.close()
     return chats
 
 @app.get("/api/dm-chats/{chat_id}/history")
 def dm_history(chat_id: str, token: str, limit: int = 50):
     user = require_user(token)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + chat_id))
+    conn.commit()
+    conn.close()
     return _get_history(f"dm:{chat_id}", limit)
 
 @app.get("/api/topics/{topic_id}/history")
 def topic_history(topic_id: str, token: str, limit: int = 50):
     user = require_user(token)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "topic:" + topic_id))
+    conn.commit()
+    conn.close()
     return _get_history(f"topic:{topic_id}", limit)
+
+@app.get("/api/unread")
+def get_unread(token: str):
+    user = require_user(token)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT room_id, count FROM unread WHERE user_id = ?", (user["id"],))
+    rows = {r["room_id"]: r["count"] for r in c.fetchall()}
+    conn.close()
+    return rows
 
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
@@ -508,6 +525,11 @@ async def notif_ws(ws: WebSocket):
     if not payload:
         await ws.close(); return
     user_id = payload["sub"]
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE users SET status = 'online', last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
     notif_manager.connect(user_id, ws)
     try:
         while True:
@@ -516,6 +538,11 @@ async def notif_ws(ws: WebSocket):
         pass
     finally:
         notif_manager.disconnect(user_id)
+        conn = sqlite3.connect(USERS_DB)
+        c = conn.cursor()
+        c.execute("UPDATE users SET status = 'offline', last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
 
 @app.websocket("/ws/{room_id}")
 async def ws_endpoint(room_id: str, ws: WebSocket):
@@ -531,7 +558,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
     if token:
         payload = decode_token(token)
         if payload:
-            conn = get_db()
+            conn = get_db(USERS_DB)
             c = conn.cursor()
             c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE id = ?", (payload["sub"],))
             row = c.fetchone()
@@ -543,6 +570,8 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
         user = {"id": str(uuid.uuid4())[:8], "name": data.get("name", "Convidado")[:32], "color": data.get("color", "#ff7b72"), "is_guest": True}
 
     manager.connect(room_id, ws, user)
+
+    await manager.broadcast(room_id, {"type": "system", "content": f"{user['name']} entrou no chat"}, exclude=ws)
     await ws.send_text(json.dumps({"type": "handshake", "user_id": user["id"], "user": user}))
     await manager.broadcast(room_id, {"type": "user_joined", "user": user, "users": manager.get_users(room_id)}, exclude=ws)
     await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
@@ -587,25 +616,32 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             file_url = data.get("file_url")
             db_type = "image" if file_url else "text"
 
-            conn = sqlite3.connect(DB_PATH)
+            conn = sqlite3.connect(MESSAGES_DB)
             c = conn.cursor()
-            c.execute("""
-                INSERT INTO messages (room_id, user_id, user_name, user_color, content, msg_type, file_url)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (room_id, user["id"] if not user.get("is_guest") else None, user["name"], user["color"], content, db_type, file_url))
+            c.execute("INSERT INTO messages (room_id, user_id, user_name, user_color, content, msg_type, file_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (room_id, user["id"] if not user.get("is_guest") else None, user["name"], user["color"], content, db_type, file_url))
+            msg_id = c.lastrowid
             conn.commit()
             conn.close()
 
-            await manager.broadcast(room_id, {
-                "type": "message", "user": user, "content": content,
-                "file_url": file_url, "msg_type": db_type, "timestamp": datetime.now().isoformat()
-            })
+            room_users = manager.get_users(room_id)
+            conn = sqlite3.connect(MESSAGES_DB)
+            c = conn.cursor()
+            for u in room_users:
+                if u["id"] != user["id"]:
+                    c.execute("INSERT INTO unread (user_id, room_id, count, last_message_id) VALUES (?, ?, 1, ?) ON CONFLICT(user_id, room_id) DO UPDATE SET count = count + 1, last_message_id = excluded.last_message_id",
+                        (u["id"], room_id, msg_id))
+            conn.commit()
+            conn.close()
+
+            await manager.broadcast(room_id, {"type": "message", "user": user, "content": content, "file_url": file_url, "msg_type": db_type, "timestamp": datetime.now().isoformat()})
 
     except WebSocketDisconnect:
         pass
     finally:
         user_left = manager.disconnect(room_id, ws)
         await manager.broadcast(room_id, {"type": "user_left", "user": user_left, "users": manager.get_users(room_id)})
+        await manager.broadcast(room_id, {"type": "system", "content": f"{user_left.get('name', 'Alguem')} saiu do chat"})
         if room_id in manager.voice_users and user_left.get("id") in manager.voice_users.get(room_id, {}):
             del manager.voice_users[room_id][user_left["id"]]
             if not manager.voice_users[room_id]:
