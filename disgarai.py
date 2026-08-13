@@ -20,7 +20,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# ─── AUTH CONFIG ───
 SECRET_KEY = "quizcord-secret-key-mude-em-producao"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
@@ -51,12 +50,11 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-# ─── BANCO ───
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         display_name TEXT,
@@ -65,18 +63,18 @@ def init_db():
         status TEXT DEFAULT 'offline',
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS friendships (
+    c.execute("""CREATE TABLE IF NOT EXISTS friendships (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         friend_id TEXT NOT NULL,
         status TEXT DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, friend_id)
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS circles (
+    c.execute("""CREATE TABLE IF NOT EXISTS circles (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         owner_id TEXT NOT NULL,
@@ -84,35 +82,35 @@ def init_db():
         icon_url TEXT,
         invite_code TEXT UNIQUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS circle_members (
+    c.execute("""CREATE TABLE IF NOT EXISTS circle_members (
         id TEXT PRIMARY KEY,
         circle_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
         role TEXT DEFAULT 'member',
         joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(circle_id, user_id)
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS topics (
+    c.execute("""CREATE TABLE IF NOT EXISTS topics (
         id TEXT PRIMARY KEY,
         circle_id TEXT NOT NULL,
         name TEXT NOT NULL,
         type TEXT DEFAULT 'text',
         position INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS direct_chats (
+    c.execute("""CREATE TABLE IF NOT EXISTS direct_chats (
         id TEXT PRIMARY KEY,
         user1_id TEXT NOT NULL,
         user2_id TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user1_id, user2_id)
-    )''')
+    )""")
 
-    c.execute('''CREATE TABLE IF NOT EXISTS messages (
+    c.execute("""CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         room_id TEXT NOT NULL,
         user_id TEXT,
@@ -122,7 +120,7 @@ def init_db():
         msg_type TEXT DEFAULT 'text',
         file_url TEXT,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+    )""")
 
     conn.commit()
     conn.close()
@@ -145,7 +143,6 @@ def _get_history(room_id: str, limit: int = 50):
         msgs.append(d)
     return list(reversed(msgs))
 
-# ─── WEBSOCKET MANAGER ───
 class RoomManager:
     def __init__(self):
         self.rooms: Dict[str, List[WebSocket]] = {}
@@ -200,9 +197,27 @@ class RoomManager:
     def get_voice_users(self, room_id: str) -> List[dict]:
         return list(self.voice_users.get(room_id, {}).values())
 
-manager = RoomManager()
+class NotifManager:
+    def __init__(self):
+        self.conns: Dict[str, WebSocket] = {}
 
-# ─── HELPERS ───
+    def connect(self, user_id: str, ws: WebSocket):
+        self.conns[user_id] = ws
+
+    def disconnect(self, user_id: str):
+        self.conns.pop(user_id, None)
+
+    async def send(self, user_id: str, msg: dict):
+        ws = self.conns.get(user_id)
+        if ws:
+            try:
+                await ws.send_text(json.dumps(msg))
+            except:
+                pass
+
+manager = RoomManager()
+notif_manager = NotifManager()
+
 def require_user(token: str):
     payload = decode_token(token)
     if not payload:
@@ -216,7 +231,6 @@ def require_user(token: str):
         raise HTTPException(status_code=404, detail="Usuario nao encontrado")
     return dict(row)
 
-# ─── ROTAS HTTP ───
 @app.get("/", response_class=FileResponse)
 def home():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
@@ -254,7 +268,6 @@ def login(username: str = Form(...), password: str = Form(...)):
 def me(token: str):
     return require_user(token)
 
-# ─── AMIZADES ───
 @app.get("/api/friends")
 def list_friends(token: str):
     user = require_user(token)
@@ -313,8 +326,7 @@ async def add_friend(token: str = Form(...), username: str = Form(...)):
     c.execute("INSERT INTO friendships (id, user_id, friend_id, status) VALUES (?, ?, ?, 'pending')", (fid, user["id"], tid))
     conn.commit()
     conn.close()
-    # Notifica o destinatario em tempo real se estiver online
-    await manager.send_to_user(tid, {
+    await notif_manager.send(tid, {
         "type": "friend_request",
         "from": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
     })
@@ -334,8 +346,7 @@ async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
     c.execute("INSERT OR IGNORE INTO direct_chats (id, user1_id, user2_id) VALUES (?, ?, ?)", (dm_id, u1, u2))
     conn.commit()
     conn.close()
-    # Notifica o solicitante que foi aceito
-    await manager.send_to_user(friend_id, {
+    await notif_manager.send(friend_id, {
         "type": "friend_accepted",
         "by": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
     })
@@ -352,7 +363,6 @@ def reject_friend(token: str = Form(...), friend_id: str = Form(...)):
     conn.close()
     return {"ok": True}
 
-# ─── CIRCLES ───
 @app.get("/api/circles")
 def list_circles(token: str):
     user = require_user(token)
@@ -447,7 +457,6 @@ def create_topic(circle_id: str, token: str = Form(...), name: str = Form(...), 
     conn.close()
     return {"id": tid, "name": name, "type": type}
 
-# ─── DMs ───
 @app.get("/api/dm-chats")
 def list_dm_chats(token: str):
     user = require_user(token)
@@ -470,7 +479,6 @@ def dm_history(chat_id: str, token: str, limit: int = 50):
     user = require_user(token)
     return _get_history(f"dm:{chat_id}", limit)
 
-# ─── MENSAGENS EM TOPICOS ───
 @app.get("/api/topics/{topic_id}/history")
 def topic_history(topic_id: str, token: str, limit: int = 50):
     user = require_user(token)
@@ -485,17 +493,38 @@ async def upload(file: UploadFile = File(...)):
         f.write(await file.read())
     return {"url": f"/static/uploads/{fname}"}
 
-# ─── WEBSOCKET ───
-@app.websocket("/ws/{room_id}")
-async def ws_endpoint(room_id: str, ws: WebSocket):
+@app.websocket("/ws/notifications")
+async def notif_ws(ws: WebSocket):
     await ws.accept()
-
     raw = await ws.receive_text()
     try:
         data = json.loads(raw)
     except:
-        await ws.close()
-        return
+        await ws.close(); return
+    token = data.get("token")
+    if not token:
+        await ws.close(); return
+    payload = decode_token(token)
+    if not payload:
+        await ws.close(); return
+    user_id = payload["sub"]
+    notif_manager.connect(user_id, ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        notif_manager.disconnect(user_id)
+
+@app.websocket("/ws/{room_id}")
+async def ws_endpoint(room_id: str, ws: WebSocket):
+    await ws.accept()
+    raw = await ws.receive_text()
+    try:
+        data = json.loads(raw)
+    except:
+        await ws.close(); return
 
     user = None
     token = data.get("token")
@@ -508,29 +537,14 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             row = c.fetchone()
             conn.close()
             if row:
-                user = {
-                    "id": row["id"],
-                    "name": row["display_name"] or row["username"],
-                    "color": row["avatar_color"],
-                    "is_guest": False
-                }
+                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "is_guest": False}
 
     if not user:
-        user = {
-            "id": str(uuid.uuid4())[:8],
-            "name": data.get("name", "Convidado")[:32],
-            "color": data.get("color", "#ff7b72"),
-            "is_guest": True
-        }
+        user = {"id": str(uuid.uuid4())[:8], "name": data.get("name", "Convidado")[:32], "color": data.get("color", "#ff7b72"), "is_guest": True}
 
     manager.connect(room_id, ws, user)
-
     await ws.send_text(json.dumps({"type": "handshake", "user_id": user["id"], "user": user}))
-    await manager.broadcast(room_id, {
-        "type": "user_joined",
-        "user": user,
-        "users": manager.get_users(room_id)
-    }, exclude=ws)
+    await manager.broadcast(room_id, {"type": "user_joined", "user": user, "users": manager.get_users(room_id)}, exclude=ws)
     await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
     await ws.send_text(json.dumps({"type": "users", "users": manager.get_users(room_id)}))
 
@@ -546,11 +560,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
             if mtype == "voice_join":
                 manager.voice_users.setdefault(room_id, {})[user["id"]] = user
-                await manager.broadcast(room_id, {
-                    "type": "voice_user_joined",
-                    "user": user,
-                    "voice_users": manager.get_voice_users(room_id)
-                })
+                await manager.broadcast(room_id, {"type": "voice_user_joined", "user": user, "voice_users": manager.get_voice_users(room_id)})
                 continue
 
             if mtype == "voice_leave":
@@ -558,29 +568,19 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
                     del manager.voice_users[room_id][user["id"]]
                     if not manager.voice_users[room_id]:
                         del manager.voice_users[room_id]
-                await manager.broadcast(room_id, {
-                    "type": "voice_user_left",
-                    "user": user,
-                    "voice_users": manager.get_voice_users(room_id)
-                })
+                await manager.broadcast(room_id, {"type": "voice_user_left", "user": user, "voice_users": manager.get_voice_users(room_id)})
                 continue
 
             if mtype == "voice_offer":
-                await manager.send_to_user(data["target"], {
-                    "type": "voice_offer", "from": user["id"], "offer": data["offer"]
-                })
+                await manager.send_to_user(data["target"], {"type": "voice_offer", "from": user["id"], "offer": data["offer"]})
                 continue
 
             if mtype == "voice_answer":
-                await manager.send_to_user(data["target"], {
-                    "type": "voice_answer", "from": user["id"], "answer": data["answer"]
-                })
+                await manager.send_to_user(data["target"], {"type": "voice_answer", "from": user["id"], "answer": data["answer"]})
                 continue
 
             if mtype == "voice_ice":
-                await manager.send_to_user(data["target"], {
-                    "type": "voice_ice", "from": user["id"], "candidate": data["candidate"]
-                })
+                await manager.send_to_user(data["target"], {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
                 continue
 
             content = data.get("content", "")
@@ -597,29 +597,17 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             conn.close()
 
             await manager.broadcast(room_id, {
-                "type": "message",
-                "user": user,
-                "content": content,
-                "file_url": file_url,
-                "msg_type": db_type,
-                "timestamp": datetime.now().isoformat()
+                "type": "message", "user": user, "content": content,
+                "file_url": file_url, "msg_type": db_type, "timestamp": datetime.now().isoformat()
             })
 
     except WebSocketDisconnect:
         pass
     finally:
         user_left = manager.disconnect(room_id, ws)
-        await manager.broadcast(room_id, {
-            "type": "user_left",
-            "user": user_left,
-            "users": manager.get_users(room_id)
-        })
+        await manager.broadcast(room_id, {"type": "user_left", "user": user_left, "users": manager.get_users(room_id)})
         if room_id in manager.voice_users and user_left.get("id") in manager.voice_users.get(room_id, {}):
             del manager.voice_users[room_id][user_left["id"]]
             if not manager.voice_users[room_id]:
                 del manager.voice_users[room_id]
-            await manager.broadcast(room_id, {
-                "type": "voice_user_left",
-                "user": user_left,
-                "voice_users": manager.get_voice_users(room_id)
-            })
+            await manager.broadcast(room_id, {"type": "voice_user_left", "user": user_left, "voice_users": manager.get_voice_users(room_id)})
