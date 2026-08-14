@@ -11,7 +11,6 @@
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
 <style>
-
 :root {
   --bg: #0f0f12;
   --bg-elevated: rgba(255,255,255,0.03);
@@ -42,7 +41,7 @@ body {
 }
 
 .dock {
-  width: 72px;
+  width: 85px;
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border);
@@ -801,18 +800,321 @@ body {
 .ws-status.connecting { background: rgba(251,191,36,0.12); color: #fbbf24; }
 .ws-status-dot { width: 6px; height: 6px; border-radius: 50%; }
 
-</style>
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
 
+/* ===== DOCK REFORMULADO ===== */
+
+/* Logo Alpaca */
+.dock-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
+  flex-shrink: 0;
+  align-self: center;
+  position: relative;
+}
+.dock-logo::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
+  opacity: 0;
+  filter: blur(4px);
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+.dock-logo:hover::after {
+  opacity: 0.5;
+}
+.dock-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.dock-logo:hover {
+  border-color: #06b6d4;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.5);
+  transform: scale(1.08);
+}
+.dock-logo.active {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+}
+
+/* Barra de busca */
+.dock-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  margin-bottom: 2px;
+}
+.dock-search-icon {
+  font-size: 13px;
+  color: #6366f1;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.dock-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  font-size: 10px;
+  outline: none;
+  cursor: pointer;
+  width: 0;
+  min-width: 0;
+}
+.dock-search-input::placeholder {
+  color: #6366f1;
+  opacity: 0.5;
+}
+
+/* Servidores - Estilo Botão Secundário (standby) */
+.dock-server {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 6px;
+}
+
+.dock-server-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  color: #a5b4fc;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* Hover / Active = Botão Primário (azul brilhante com glow) */
+.dock-server:hover .dock-server-icon,
+.dock-server.active .dock-server-icon {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #fff;
+  box-shadow:
+    0 0 12px rgba(59, 130, 246, 0.4),
+    0 0 24px rgba(6, 182, 212, 0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: scale(1.05);
+}
+
+/* Pill de notificação */
+.dock-server-pill {
+  position: absolute;
+  top: -3px;
+  right: 8px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid #050310;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  z-index: 2;
+}
+
+/* Botão criar círculo */
+.dock-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(255,255,255,0.04);
+  border: 1px dashed rgba(139, 92, 246, 0.25);
+  color: #a5b4fc;
+  font-size: 20px;
+  align-self: center;
+  margin-top: 4px;
+}
+.dock-btn:hover {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+  transform: scale(1.08);
+}
+
+/* ===== RODAPÉ DE PERFIL ===== */
+.dock-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(10, 8, 30, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.4),
+    0 0 30px rgba(139, 92, 246, 0.08);
+  margin-top: auto;
+  width: calc(100% + 4px);
+  margin-left: -2px;
+  position: relative;
+}
+
+/* Glow de mesclagem */
+.dock-profile-bar::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 30px;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.dock-profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.dock-profile-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+}
+.dock-profile-status {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #050310;
+}
+.dock-profile-status.online {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+.dock-profile-status.away {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+.dock-profile-status.offline {
+  background: #6b7280;
+}
+
+.dock-profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+.dock-profile-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.dock-profile-tag {
+  font-size: 9px;
+  color: #6366f1;
+  opacity: 0.7;
+  line-height: 1.2;
+}
+
+.dock-profile-actions {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* Botões do rodapé - Estilo Secundário (standby) */
+.dock-profile-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  color: #a5b4fc;
+  padding: 0;
+}
+
+/* Hover / Active = Primário (azul brilhante com glow) */
+.dock-profile-btn:hover,
+.dock-profile-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+  transform: scale(1.08);
+}
+
+/* ===== MENSAGENS SEM BALÃO ===== */
+.message-bubble {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.message-bubble.own .msg-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 1px 0 !important;
+}
+
+.msg-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* ===== NEBULOSA BACKGROUND ===== */
+body {
+  background: #050310 url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat fixed !important;
+}
+</style>
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
-  <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_v2.css">
 </head>
 <body>
 <div class="stars"></div>
