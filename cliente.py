@@ -52,9 +52,9 @@ def resource_path(filename):
         base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, filename)
 
-# ============ AUTO UPDATER (INLINE) ============
+# ============ AUTO UPDATER (ROBUSTO) ============
 class UpdateChecker(QThread):
-    update_available = pyqtSignal(str, str)
+    update_available = pyqtSignal(str, str, str)  # version, url, release_notes
     no_update = pyqtSignal()
     error = pyqtSignal(str)
 
@@ -67,14 +67,18 @@ class UpdateChecker(QThread):
         try:
             req = urllib.request.Request(
                 self.update_url,
-                headers={"User-Agent": "LuminaChat-Updater/1.0"}
+                headers={"User-Agent": "LuminaChat-Updater/1.1"}
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status != 200:
+                    self.error.emit(f"Servidor retornou status {resp.status}")
+                    return
                 data = json.loads(resp.read().decode("utf-8"))
             remote_version = data.get("version", "0.0.0")
             download_url = data.get("download_url", DOWNLOAD_URL)
+            release_notes = data.get("release_notes", "")
             if self._version_greater(remote_version, self.current_version):
-                self.update_available.emit(remote_version, download_url)
+                self.update_available.emit(remote_version, download_url, release_notes)
             else:
                 self.no_update.emit()
         except Exception as e:
@@ -100,14 +104,29 @@ class UpdateDownloader(QThread):
 
     def run(self):
         try:
-            urllib.request.urlretrieve(self.url, self.dest)
+            req = urllib.request.Request(self.url, headers={"User-Agent": "LuminaChat-Updater/1.1"})
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                if resp.status != 200:
+                    self.error.emit(f"Servidor retornou {resp.status}. O arquivo de atualizacao pode nao estar disponivel.")
+                    return
+                total = int(resp.headers.get('Content-Length', 0))
+                if total > 0 and total < 1000:
+                    self.error.emit("Arquivo de atualizacao muito pequeno. Verifique se o ZIP foi enviado ao servidor.")
+                    return
+                with open(self.dest, 'wb') as f:
+                    f.write(resp.read())
+            # Verifica se eh um ZIP valido
+            if not zipfile.is_zipfile(self.dest):
+                self.error.emit("O arquivo baixado nao e um ZIP valido. Verifique o servidor.")
+                os.remove(self.dest)
+                return
             self.finished_download.emit(self.dest)
         except Exception as e:
             self.error.emit(str(e))
 
 
 class AutoUpdater(QObject):
-    check_done = pyqtSignal(bool, str, str)
+    check_done = pyqtSignal(bool, str, str, str)  # has_update, version, url, notes
 
     def __init__(self, parent, current_version, update_url):
         super().__init__(parent)
@@ -119,19 +138,19 @@ class AutoUpdater(QObject):
     def check(self):
         self.checker = UpdateChecker(self.current_version, self.update_url)
         self.checker.update_available.connect(self._on_update_available)
-        self.checker.no_update.connect(lambda: self.check_done.emit(False, "", ""))
-        self.checker.error.connect(lambda e: self.check_done.emit(False, "", e))
+        self.checker.no_update.connect(lambda: self.check_done.emit(False, "", "", ""))
+        self.checker.error.connect(lambda e: self.check_done.emit(False, "", "", e))
         self.checker.start()
 
-    def _on_update_available(self, version, url):
-        self.check_done.emit(True, version, url)
+    def _on_update_available(self, version, url, notes):
+        self.check_done.emit(True, version, url, notes)
 
     def download_and_install(self, url):
         temp_dir = tempfile.gettempdir()
         zip_path = os.path.join(temp_dir, "LuminaChat_update.zip")
         self.downloader = UpdateDownloader(url, zip_path)
         self.downloader.finished_download.connect(self._install_update)
-        self.downloader.error.connect(lambda e: QMessageBox.critical(None, "Erro", "Falha no download: " + e))
+        self.downloader.error.connect(lambda e: QMessageBox.critical(None, "Erro de Atualizacao", e))
         self.downloader.start()
 
     def _install_update(self, zip_path):
@@ -143,19 +162,35 @@ class AutoUpdater(QObject):
                     shutil.rmtree(extract_dir)
                 with zipfile.ZipFile(zip_path, "r") as z:
                     z.extractall(extract_dir)
+
                 bat_path = os.path.join(tempfile.gettempdir(), "update_lumina.bat")
-                with open(bat_path, "w") as f:
+                exe_path = os.path.join(app_dir, "LuminaChat.exe")
+
+                with open(bat_path, "w", encoding='utf-8') as f:
                     f.write("@echo off\n")
-                    f.write("timeout /t 2 /nobreak >nul\n")
-                    f.write('xcopy /s /y "' + extract_dir + '\\*" "' + app_dir + '\\"\n')
-                    f.write('start "" "' + os.path.join(app_dir, "LuminaChat.exe") + '"\n')
+                    f.write("echo [Updater] Aguardando LuminaChat fechar...\n")
+                    f.write("timeout /t 5 /nobreak >nul\n")
+                    f.write('echo [Updater] Copiando arquivos...\n')
+                    f.write('xcopy /s /y /i "' + extract_dir + '\\*" "' + app_dir + '"\n')
+                    f.write("if errorlevel 1 (\n")
+                    f.write('  echo [Updater] ERRO ao copiar arquivos!\n')
+                    f.write('  pause\n')
+                    f.write('  exit /b 1\n')
+                    f.write(")\n")
+                    f.write('echo [Updater] Reiniciando LuminaChat...\n')
+                    f.write('start "" "' + exe_path + '"\n')
+                    f.write("echo [Updater] Limpeza...\n")
+                    f.write("rmdir /s /q \"" + extract_dir + "\"\n")
+                    f.write("del /f /q \"" + zip_path + "\"\n")
                     f.write("del /f /q \"%~f0\"\n")
-                subprocess.Popen(["cmd", "/c", bat_path], shell=True)
+
+                subprocess.Popen(["cmd", "/c", bat_path], shell=True,
+                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
                 QApplication.instance().quit()
             else:
-                QMessageBox.information(None, "Update", "Nova versao baixada. Reinicie o app.")
+                QMessageBox.information(None, "Update", "Nova versao baixada com sucesso. Reinicie o app para aplicar.")
         except Exception as e:
-            QMessageBox.critical(None, "Erro", "Falha ao instalar: " + str(e))
+            QMessageBox.critical(None, "Erro", "Falha ao instalar atualizacao: " + str(e))
 
 
 # ============ BRIDGE JS <-> PYTHON ============
@@ -217,17 +252,17 @@ class TitleBar(QWidget):
         layout.addWidget(title)
         layout.addStretch()
 
-        self.btn_min = QPushButton("—")
+        self.btn_min = QPushButton("\u2014")
         self.btn_min.setObjectName("minBtn")
         self.btn_min.clicked.connect(self.parent.showMinimized)
         layout.addWidget(self.btn_min)
 
-        self.btn_max = QPushButton("□")
+        self.btn_max = QPushButton("\u25a1")
         self.btn_max.setObjectName("maxBtn")
         self.btn_max.clicked.connect(self._toggle_max)
         layout.addWidget(self.btn_max)
 
-        self.btn_close = QPushButton("✕")
+        self.btn_close = QPushButton("\u2715")
         self.btn_close.setObjectName("closeBtn")
         self.btn_close.clicked.connect(self.parent._force_quit)
         layout.addWidget(self.btn_close)
@@ -328,7 +363,6 @@ class LoadingScreen(QWidget):
             self._on_spin_done()
             return
 
-        # Blur no meio do giro
         if 90 <= self._angle <= 270:
             self.blur.setBlurRadius(8 + abs(180 - self._angle) / 22)
         else:
@@ -528,15 +562,20 @@ class LuminaClient(QMainWindow):
             self.raise_()
             self.activateWindow()
 
-    def _on_update_check(self, has_update, version, url_or_error):
+    def _on_update_check(self, has_update, version, url, notes_or_error):
         if has_update:
+            notes = notes_or_error if notes_or_error else "Novas melhorias disponiveis!"
             reply = QMessageBox.question(
                 self, "Atualizacao Disponivel",
-                "Nova versao " + version + " disponivel!\n\nDeseja atualizar agora?",
+                "Nova versao <b>" + version + "</b> disponivel!\n\n" + notes + "\n\nDeseja atualizar agora?",
                 QMessageBox.Yes | QMessageBox.No
             )
             if reply == QMessageBox.Yes:
-                self.updater.download_and_install(url_or_error)
+                self.updater.download_and_install(url)
+        else:
+            if notes_or_error:
+                # Erro na verificacao (nao mostra popup, so loga)
+                print("[Updater] Erro na verificacao:", notes_or_error)
 
     def closeEvent(self, event):
         event.ignore()

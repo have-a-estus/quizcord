@@ -17,7 +17,9 @@ CIRCLES_DB = os.path.join(BASE_DIR, "quizcord_circles.db")
 MESSAGES_DB = os.path.join(BASE_DIR, "quizcord_messages.db")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
+DOWNLOAD_DIR = os.path.join(STATIC_DIR, "download")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
@@ -256,7 +258,7 @@ def home():
 @app.get("/api/version")
 def get_version():
     return {
-        "version": "1.1.0",
+        "version": "1.1.1-beta",
         "download_url": "https://luminachat.duckdns.org/static/download/LuminaChat.zip",
         "release_notes": "Cosmic Aero theme, frameless client, alpaca loading animation"
     }
