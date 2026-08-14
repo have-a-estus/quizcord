@@ -17,6 +17,7 @@
 
 /* ===== DOCK ===== */
 .dock {
+  position: relative !important;
   background: var(--glass-bg-strong) !important;
   backdrop-filter: var(--glass-blur) !important;
   -webkit-backdrop-filter: var(--glass-blur) !important;
@@ -29,6 +30,7 @@
 
 /* ===== PANEL ===== */
 .panel {
+  position: relative !important;
   background: var(--glass-bg) !important;
   backdrop-filter: var(--glass-blur) !important;
   -webkit-backdrop-filter: var(--glass-blur) !important;
@@ -46,6 +48,7 @@
 
 /* ===== MAIN HEADER ===== */
 .main-header {
+  position: relative !important;
   background: var(--glass-bg) !important;
   backdrop-filter: blur(20px) saturate(130%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(130%) !important;

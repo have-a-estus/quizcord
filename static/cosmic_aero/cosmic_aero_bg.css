@@ -1,33 +1,28 @@
 /* ============================================
- COSMIC AERO - Background Layer v4
- Fundo com nebulosa + VIDRO FUMEGADO para legibilidade
+ COSMIC AERO - Background Layer v5
+ Fundo com nebulosa real + overlay fumegado
  ============================================ */
 
-/* ===== NEBULOSA PRINCIPAL ===== */
-body::before {
-  content: '';
+.nebula-bg {
   position: fixed;
   inset: 0;
-  z-index: -3;
+  z-index: 0;
   background: url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat;
   pointer-events: none;
 }
 
-/* ===== VIDRO FUMEGADO (overlay escuro) ===== */
-body::after {
-  content: '';
+.smoke-overlay {
   position: fixed;
   inset: 0;
-  z-index: -2;
-  background: rgba(5, 3, 16, 0.55);
+  z-index: 1;
+  background: rgba(5, 3, 16, 0.40);
   pointer-events: none;
 }
 
-/* ===== ESTRELAS CSS (poucas) ===== */
 .stars {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 2;
   pointer-events: none;
   background-image:
     radial-gradient(1.5px 1.5px at 15% 25%, rgba(255,255,255,0.8) 50%, transparent 50%),
