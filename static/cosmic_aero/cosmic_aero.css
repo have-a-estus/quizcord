@@ -32,7 +32,7 @@
 
 /* Fundo espacial */
 body {
-  background: radial-gradient(ellipse at 20% 20%, #1a103c 0%, #0f0a1e 40%, #050310 100%) !important;
+  background: transparent !important;
   background-attachment: fixed !important;
   color: var(--cosmic-text-primary) !important;
 }

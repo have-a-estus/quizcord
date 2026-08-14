@@ -1,88 +1,38 @@
 /* ============================================
- COSMIC AERO - Glow Layer
- Bordas luminosas, sombras coloridas, halos
- ============================================ */
+   COSMIC AERO - Icons & Status Layer
+   Status dots, badges, channel icons, tooltips
+   ============================================ */
 
-/* ===== GLOW BASE ===== */
-.glow-border {
-  border: 1px solid rgba(139, 92, 246, 0.35) !important;
-  box-shadow:
-    0 0 8px rgba(139, 92, 246, 0.2),
-    0 0 24px rgba(139, 92, 246, 0.1),
-    inset 0 1px 0 rgba(255,255,255,0.08) !important;
-}
-
-.glow-border-cyan {
-  border: 1px solid rgba(6, 182, 212, 0.35) !important;
-  box-shadow:
-    0 0 8px rgba(6, 182, 212, 0.2),
-    0 0 24px rgba(6, 182, 212, 0.1) !important;
-}
-
-.glow-border-pink {
-  border: 1px solid rgba(236, 72, 153, 0.35) !important;
-  box-shadow:
-    0 0 8px rgba(236, 72, 153, 0.2),
-    0 0 24px rgba(236, 72, 153, 0.1) !important;
-}
-
-/* ===== GLOW PULSE (cards ativos) ===== */
-.glow-pulse {
-  animation: glowPulse 3s ease-in-out infinite !important;
-}
-
-@keyframes glowPulse {
-  0%, 100% {
-    box-shadow:
-      0 0 8px rgba(139, 92, 246, 0.2),
-      0 0 24px rgba(139, 92, 246, 0.08);
-  }
-  50% {
-    box-shadow:
-      0 0 16px rgba(139, 92, 246, 0.4),
-      0 0 40px rgba(139, 92, 246, 0.15),
-      0 0 60px rgba(139, 92, 246, 0.05);
-  }
-}
-
-.glow-pulse-cyan {
-  animation: glowPulseCyan 3s ease-in-out infinite !important;
-}
-
-@keyframes glowPulseCyan {
-  0%, 100% {
-    box-shadow: 0 0 8px rgba(6, 182, 212, 0.2), 0 0 24px rgba(6, 182, 212, 0.08);
-  }
-  50% {
-    box-shadow: 0 0 16px rgba(6, 182, 212, 0.4), 0 0 40px rgba(6, 182, 212, 0.15);
-  }
-}
-
-/* ===== AVATAR GLOW ===== */
-.avatar-glow {
-  position: relative;
-}
-.avatar-glow::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
+/* ===== STATUS DOTS ===== */
+.status-dot {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
-  opacity: 0.4;
-  filter: blur(6px);
-  animation: avatarGlowRotate 4s linear infinite;
-  z-index: -1;
+  border: 2px solid var(--bg, #0f0f12);
+  position: relative;
+  flex-shrink: 0;
 }
 
-@keyframes avatarGlowRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.status-dot.online {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8), 0 0 12px rgba(16, 185, 129, 0.4);
+  animation: statusPulseGreen 2s ease-in-out infinite;
 }
 
-/* ===== STATUS GLOWS ===== */
-.status-glow-online {
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8), 0 0 12px rgba(16, 185, 129, 0.4) !important;
-  animation: statusPulseGreen 2s ease-in-out infinite !important;
+.status-dot.away {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8), 0 0 12px rgba(245, 158, 11, 0.4);
+  animation: statusPulseYellow 2s ease-in-out infinite;
+}
+
+.status-dot.dnd {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8), 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.status-dot.offline {
+  background: #6b7280;
+  box-shadow: none;
 }
 
 @keyframes statusPulseGreen {
@@ -90,109 +40,176 @@
   50% { box-shadow: 0 0 10px rgba(16, 185, 129, 1), 0 0 20px rgba(16, 185, 129, 0.5); }
 }
 
-.status-glow-away {
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8), 0 0 12px rgba(245, 158, 11, 0.4) !important;
-  animation: statusPulseYellow 2s ease-in-out infinite !important;
-}
-
 @keyframes statusPulseYellow {
   0%, 100% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.6), 0 0 12px rgba(245, 158, 11, 0.3); }
   50% { box-shadow: 0 0 10px rgba(245, 158, 11, 1), 0 0 20px rgba(245, 158, 11, 0.5); }
 }
 
-/* ===== TEXT GLOW ===== */
-.text-glow {
-  text-shadow:
-    0 0 8px rgba(139, 92, 246, 0.5),
-    0 0 16px rgba(139, 92, 246, 0.3) !important;
+/* ===== BADGES ===== */
+.badge-bot {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
 }
 
-.text-glow-cyan {
-  text-shadow:
-    0 0 8px rgba(6, 182, 212, 0.5),
-    0 0 16px rgba(6, 182, 212, 0.3) !important;
+.badge-owner {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  color: #000;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
 }
 
-/* ===== BUTTON GLOW ===== */
-.btn-glow {
+.badge-mod {
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  color: #fff;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(6, 182, 212, 0.3);
+}
+
+/* ===== CHANNEL ICONS ===== */
+.channel-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.channel-icon:hover { opacity: 1; }
+
+/* ===== AVATAR STATUS RING ===== */
+.avatar-with-status {
   position: relative;
-  overflow: hidden;
 }
-.btn-glow::after {
-  content: '';
+
+.avatar-with-status .status-ring {
   position: absolute;
-  inset: -2px;
-  background: linear-gradient(45deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
-  background-size: 400% 400%;
-  border-radius: inherit;
-  z-index: -1;
-  filter: blur(8px);
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.avatar-with-status.online .status-ring {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.avatar-with-status.away .status-ring {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+/* ===== TOOLTIP ===== */
+.cosmic-tooltip {
+  position: relative;
+}
+
+.cosmic-tooltip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.9);
+  background: rgba(10, 8, 30, 0.95);
+  backdrop-filter: blur(12px);
+  color: #e0e7ff;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
   opacity: 0;
-  transition: opacity 0.3s ease;
-  animation: gradientShift 3s ease infinite;
-}
-.btn-glow:hover::after {
-  opacity: 0.6;
-}
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  pointer-events: none;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  z-index: 1000;
 }
 
-/* ===== HOVER GLOW INTENSO ===== */
-.hover-glow {
-  transition: all 0.3s ease !important;
-}
-.hover-glow:hover {
-  box-shadow:
-    0 0 12px rgba(139, 92, 246, 0.3),
-    0 0 30px rgba(139, 92, 246, 0.15),
-    0 4px 20px rgba(0,0,0,0.3) !important;
-  border-color: rgba(139, 92, 246, 0.5) !important;
+.cosmic-tooltip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 
-/* ===== SCROLLBAR GLOW ===== */
-::-webkit-scrollbar-thumb {
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3) !important;
-}
-::-webkit-scrollbar-thumb:hover {
-  box-shadow: 0 0 12px rgba(236, 72, 153, 0.4) !important;
-}
-
-/* ===== INPUT FOCUS GLOW ===== */
-.input-glow:focus {
-  box-shadow:
-    0 0 0 3px rgba(139, 92, 246, 0.2),
-    0 0 20px rgba(139, 92, 246, 0.15),
-    inset 0 2px 8px rgba(0,0,0,0.3) !important;
+/* ===== ORBS DECORATIVOS ===== */
+.cosmic-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.15;
+  animation: orbFloat 12s ease-in-out infinite;
 }
 
-/* ===== TOAST GLOW ===== */
-.toast-glow {
-  box-shadow:
-    0 8px 32px rgba(0,0,0,0.4),
-    0 0 20px rgba(6, 182, 212, 0.2),
-    0 0 40px rgba(6, 182, 212, 0.08) !important;
+.orb-1 {
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, #8b5cf6, transparent 70%);
+  top: 10%; right: 10%;
+  animation-delay: 0s;
 }
 
-/* ===== MODAL GLOW ===== */
-.modal-glow {
-  box-shadow:
-    0 25px 50px rgba(0,0,0,0.5),
-    0 0 40px rgba(139, 92, 246, 0.2),
-    0 0 80px rgba(139, 92, 246, 0.08) !important;
+.orb-2 {
+  width: 250px; height: 250px;
+  background: radial-gradient(circle, #06b6d4, transparent 70%);
+  bottom: 20%; left: 5%;
+  animation-delay: -4s;
 }
 
-/* ===== DIVIDER GLOW ===== */
-.glow-divider {
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(139, 92, 246, 0.4),
-    rgba(6, 182, 212, 0.4),
-    rgba(236, 72, 153, 0.4),
-    transparent
-  ) !important;
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.3) !important;
+.orb-3 {
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, #ec4899, transparent 70%);
+  top: 50%; left: 40%;
+  animation-delay: -8s;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, -30px) scale(1.05); }
+  66% { transform: translate(-15px, 15px) scale(0.95); }
+}
+
+/* ===== ANÉIS DECORATIVOS ===== */
+.cosmic-ring {
+  position: fixed;
+  border-radius: 50%;
+  border: 1px solid rgba(139, 92, 246, 0.08);
+  pointer-events: none;
+  z-index: 0;
+  animation: ringSpin 30s linear infinite;
+}
+
+.ring-1 {
+  width: 400px; height: 400px;
+  top: -100px; right: -100px;
+}
+
+.ring-2 {
+  width: 300px; height: 300px;
+  bottom: -50px; left: -50px;
+  animation-direction: reverse;
+  animation-duration: 25s;
+}
+
+@keyframes ringSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== COMETAS CSS (removidos da imagem, mas deixados como opção) ===== */
+.comet {
+  display: none;
 }
