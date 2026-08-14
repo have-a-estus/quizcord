@@ -10,7 +10,11 @@
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
+
+<base target="_blank">
+<base target="_blank">
 <style>
+
 :root {
   --bg: #0f0f12;
   --bg-elevated: rgba(255,255,255,0.03);
@@ -41,7 +45,7 @@ body {
 }
 
 .dock {
-  width: 85px;
+  width: 72px;
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border);
@@ -799,9 +803,14 @@ body {
 .ws-status.offline { background: rgba(248,113,113,0.12); color: #f87171; }
 .ws-status.connecting { background: rgba(251,191,36,0.12); color: #fbbf24; }
 .ws-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
 </style>
-<base target="_blank">
-<base target="_blank">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
 <base target="_blank">
 </head>
 <body>
@@ -834,43 +843,12 @@ body {
   <div class="comet"></div>
   <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
   <div class="dock">
-    <!-- Logo Alpaca -->
-    <div class="dock-logo" id="dockHome" title="Início">
-      <img src="/static/cosmic_aero/alpaca_avatar.png" alt="Lumina">
-    </div>
-
+    <div class="dock-avatar home active" id="dockHome" title="Inicio">&#127968;</div>
     <div class="dock-divider"></div>
-
-    <!-- Barra de busca -->
-    <div class="dock-search-row">
-      <div class="dock-search-icon">&#9906;</div>
-      <input type="text" class="dock-search-input" placeholder="Buscar" readonly>
-    </div>
-
-    <!-- Servidores / Círculos -->
     <div id="dockCircles"></div>
-
-    <!-- Botão criar círculo -->
-    <div class="dock-btn" id="btnCreateCircle" title="Novo Círculo">+</div>
-
+    <div class="dock-btn" id="btnCreateCircle" title="Novo Circulo">+</div>
     <div style="flex:1"></div>
-
-    <!-- Rodapé de perfil -->
-    <div class="dock-profile-bar" id="dockProfile">
-      <div class="dock-profile-avatar-wrap">
-        <img src="/static/cosmic_aero/alpaca_avatar.png" class="dock-profile-avatar" alt="">
-        <div class="dock-profile-status online" id="dockProfileStatus"></div>
-      </div>
-      <div class="dock-profile-info">
-        <div class="dock-profile-name" id="dockProfileName">...</div>
-        <div class="dock-profile-tag" id="dockProfileTag">#0000</div>
-      </div>
-      <div class="dock-profile-actions">
-        <button class="dock-profile-btn" id="btnMute" title="Mutar">&#127908;</button>
-        <button class="dock-profile-btn" id="btnDeafen" title="Surdo">&#127911;</button>
-        <button class="dock-profile-btn" id="btnSettings" title="Configurações">&#9881;</button>
-      </div>
-    </div>
+    <div class="dock-avatar" id="dockProfile" title="Perfil" style="background:#444;">?</div>
   </div>
 
   <div class="panel" id="panel">
@@ -1024,16 +1002,11 @@ function showAuth() {
 function enterApp() {
   document.getElementById('authScreen').style.display = 'none';
   document.getElementById('app').classList.remove('hidden');
-
-  // Preencher rodapé de perfil
-  const displayName = me.display_name || me.name || me.username || '?';
-  document.getElementById('dockProfileName').textContent = displayName;
-  document.getElementById('dockProfileTag').textContent = '#' + (me.id || '0000');
-
+  document.getElementById('dockProfile').textContent = (me.display_name || me.name || me.username || '?')[0].toUpperCase();
+  document.getElementById('dockProfile').style.background = me.color || '#444';
   connectNotifWS();
   loadData();
   checkJoinParam();
-  bindDockProfile();
 }
 
 function connectNotifWS() {
@@ -1175,12 +1148,9 @@ function showToast(title, sub, color) {
 function renderDock() {
   const container = document.getElementById('dockCircles');
   container.innerHTML = circles.map(c => {
-    return `<div class="dock-server" data-id="${c.id}" title="${c.name}">
-      <div class="dock-server-icon" style="background:${c.color}30;color:${c.color}">${c.name[0].toUpperCase()}</div>
-      ${c.unread ? `<div class="dock-server-pill">${c.unread}</div>` : ''}
-    </div>`;
+    return `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}</div>`;
   }).join('');
-  container.querySelectorAll('.dock-server').forEach(el => {
+  container.querySelectorAll('.dock-circle').forEach(el => {
     el.onclick = () => selectCircle(el.dataset.id);
   });
 }
@@ -1622,27 +1592,6 @@ function showTyping(user) {
 }
 
 function renderVoiceUsers(list) {}
-
-
-function bindDockProfile() {
-  const muteBtn = document.getElementById('btnMute');
-  const deafenBtn = document.getElementById('btnDeafen');
-  const settingsBtn = document.getElementById('btnSettings');
-
-  muteBtn.onclick = () => {
-    muteBtn.classList.toggle('active');
-    showToast('Microfone', muteBtn.classList.contains('active') ? 'Mutado' : 'Desmutado', '#a78bfa');
-  };
-
-  deafenBtn.onclick = () => {
-    deafenBtn.classList.toggle('active');
-    showToast('Áudio', deafenBtn.classList.contains('active') ? 'Surdo' : 'Ouvindo', '#a78bfa');
-  };
-
-  settingsBtn.onclick = () => {
-    showToast('Configurações', 'Em breve...', '#a78bfa');
-  };
-}
 
 function bindInputs() {
   const input = document.getElementById('msgInput');
