@@ -4,7 +4,7 @@ import sqlite3
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from passlib.context import CryptContext
@@ -229,7 +229,14 @@ class NotifManager:
 manager = RoomManager()
 notif_manager = NotifManager()
 
-def require_user(token):
+def get_token_from_request(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        return auth[7:]
+    return ""
+
+def require_user(request: Request):
+    token = get_token_from_request(request)
     payload = decode_token(token)
     if not payload:
         raise HTTPException(status_code=401, detail="Token invalido")
@@ -276,12 +283,12 @@ def login(username: str = Form(...), password: str = Form(...)):
     return {"token": token, "user": {"id": user["id"], "username": user["username"], "display_name": user["display_name"] or user["username"], "color": user["avatar_color"]}}
 
 @app.get("/api/me")
-def me(token: str):
-    return require_user(token)
+def me(request: Request):
+    return require_user(request)
 
 @app.get("/api/users/search")
-def search_users(token: str, q: str = ""):
-    require_user(token)
+def search_users(request: Request, q: str = ""):
+    require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 20",
@@ -291,8 +298,8 @@ def search_users(token: str, q: str = ""):
     return rows
 
 @app.get("/api/friends")
-def list_friends(token: str):
-    user = require_user(token)
+def list_friends(request: Request):
+    user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
@@ -307,8 +314,8 @@ def list_friends(token: str):
     return {"friends": sent + received, "pending_sent": pending_sent, "pending_received": pending_received}
 
 @app.post("/api/friends/request")
-async def add_friend(token: str = Form(...), username: str = Form(...)):
-    user = require_user(token)
+async def add_friend(request: Request, username: str = Form(...)):
+    user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username = ?", (username.lower(),))
@@ -339,8 +346,8 @@ async def add_friend(token: str = Form(...), username: str = Form(...)):
     return {"ok": True}
 
 @app.post("/api/friends/accept")
-async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
-    user = require_user(token)
+async def accept_friend(request: Request, friend_id: str = Form(...)):
+    user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("UPDATE friendships SET status = 'accepted' WHERE user_id = ? AND friend_id = ? AND status = 'pending'", (friend_id, user["id"]))
@@ -359,8 +366,8 @@ async def accept_friend(token: str = Form(...), friend_id: str = Form(...)):
     return {"ok": True}
 
 @app.post("/api/friends/reject")
-def reject_friend(token: str = Form(...), friend_id: str = Form(...)):
-    user = require_user(token)
+def reject_friend(request: Request, friend_id: str = Form(...)):
+    user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
     c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
@@ -370,8 +377,8 @@ def reject_friend(token: str = Form(...), friend_id: str = Form(...)):
     return {"ok": True}
 
 @app.get("/api/circles")
-def list_circles(token: str):
-    user = require_user(token)
+def list_circles(request: Request):
+    user = require_user(request)
     conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT c.* FROM circles c JOIN circle_members m ON m.circle_id = c.id WHERE m.user_id = ? ORDER BY c.created_at DESC", (user["id"],))
@@ -380,8 +387,8 @@ def list_circles(token: str):
     return circles
 
 @app.post("/api/circles")
-def create_circle(token: str = Form(...), name: str = Form(...), color: str = Form("#a78bfa")):
-    user = require_user(token)
+def create_circle(request: Request, name: str = Form(...), color: str = Form("#a78bfa")):
+    user = require_user(request)
     cid = str(uuid.uuid4())[:8]
     invite = str(uuid.uuid4())[:12]
     conn = get_db(CIRCLES_DB)
@@ -396,8 +403,8 @@ def create_circle(token: str = Form(...), name: str = Form(...), color: str = Fo
     return {"id": cid, "name": name, "color": color, "invite_code": invite}
 
 @app.post("/api/circles/join")
-def join_circle(token: str = Form(...), code: str = Form(...)):
-    user = require_user(token)
+def join_circle(request: Request, code: str = Form(...)):
+    user = require_user(request)
     conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT * FROM circles WHERE invite_code = ?", (code,))
@@ -416,8 +423,8 @@ def join_circle(token: str = Form(...), code: str = Form(...)):
     return {"id": circle["id"], "name": circle["name"]}
 
 @app.get("/api/circles/{circle_id}")
-def get_circle(circle_id: str, token: str):
-    user = require_user(token)
+def get_circle(circle_id: str, request: Request):
+    user = require_user(request)
     conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT * FROM circles WHERE id = ?", (circle_id,))
@@ -429,16 +436,36 @@ def get_circle(circle_id: str, token: str):
     if not c.fetchone():
         conn.close()
         raise HTTPException(status_code=403, detail="Nao e membro")
-    c.execute("SELECT u.id, u.username, u.display_name, u.avatar_color, m.role FROM circle_members m JOIN users u ON u.id = m.user_id WHERE m.circle_id = ?", (circle_id,))
-    members = [dict(r) for r in c.fetchall()]
+    # Busca membros do circles_db (so tem user_id e role)
+    c.execute("SELECT user_id, role FROM circle_members WHERE circle_id = ?", (circle_id,))
+    member_rows = c.fetchall()
     c.execute("SELECT * FROM topics WHERE circle_id = ? ORDER BY position", (circle_id,))
     topics = [dict(r) for r in c.fetchall()]
     conn.close()
+    # Busca dados dos usuarios no users_db
+    user_ids = [m["user_id"] for m in member_rows]
+    members = []
+    if user_ids:
+        conn2 = get_db(USERS_DB)
+        c2 = conn2.cursor()
+        placeholders = ','.join('?' * len(user_ids))
+        c2.execute(f"SELECT id, username, display_name, avatar_color FROM users WHERE id IN ({placeholders})", user_ids)
+        user_map = {u["id"]: dict(u) for u in c2.fetchall()}
+        conn2.close()
+        for m in member_rows:
+            u = user_map.get(m["user_id"], {})
+            members.append({
+                "id": m["user_id"],
+                "username": u.get("username", ""),
+                "display_name": u.get("display_name", ""),
+                "avatar_color": u.get("avatar_color", "#888"),
+                "role": m["role"]
+            })
     return {"circle": dict(circle), "members": members, "topics": topics}
 
 @app.post("/api/circles/{circle_id}/topics")
-def create_topic(circle_id: str, token: str = Form(...), name: str = Form(...), type: str = Form("text")):
-    user = require_user(token)
+def create_topic(circle_id: str, request: Request, name: str = Form(...), type: str = Form("text")):
+    user = require_user(request)
     conn = get_db(CIRCLES_DB)
     c = conn.cursor()
     c.execute("SELECT role FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user["id"]))
@@ -455,11 +482,16 @@ def create_topic(circle_id: str, token: str = Form(...), name: str = Form(...), 
     return {"id": tid, "name": name, "type": type}
 
 @app.get("/api/dm-chats")
-def list_dm_chats(token: str):
-    user = require_user(token)
+def list_dm_chats(request: Request):
+    user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
-    c.execute("SELECT d.id, d.user1_id, d.user2_id, CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id, u.display_name, u.username, u.avatar_color FROM direct_chats d JOIN users u ON u.id = CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END WHERE d.user1_id = ? OR d.user2_id = ?", (user["id"], user["id"], user["id"], user["id"]))
+    c.execute("""SELECT d.id, d.user1_id, d.user2_id,
+        CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id,
+        u.display_name, u.username, u.avatar_color
+        FROM direct_chats d
+        JOIN users u ON u.id = CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END
+        WHERE d.user1_id = ? OR d.user2_id = ?""", (user["id"], user["id"], user["id"], user["id"]))
     chats = [dict(r) for r in c.fetchall()]
     conn.close()
     conn2 = get_db(MESSAGES_DB)
@@ -472,8 +504,8 @@ def list_dm_chats(token: str):
     return chats
 
 @app.get("/api/dm-chats/{chat_id}/history")
-def dm_history(chat_id: str, token: str, limit: int = 50):
-    user = require_user(token)
+def dm_history(chat_id: str, request: Request, limit: int = 50):
+    user = require_user(request)
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
     c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + chat_id))
@@ -482,8 +514,8 @@ def dm_history(chat_id: str, token: str, limit: int = 50):
     return _get_history(f"dm:{chat_id}", limit)
 
 @app.get("/api/topics/{topic_id}/history")
-def topic_history(topic_id: str, token: str, limit: int = 50):
-    user = require_user(token)
+def topic_history(topic_id: str, request: Request, limit: int = 50):
+    user = require_user(request)
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
     c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "topic:" + topic_id))
@@ -492,8 +524,8 @@ def topic_history(topic_id: str, token: str, limit: int = 50):
     return _get_history(f"topic:{topic_id}", limit)
 
 @app.get("/api/unread")
-def get_unread(token: str):
-    user = require_user(token)
+def get_unread(request: Request):
+    user = require_user(request)
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
     c.execute("SELECT room_id, count FROM unread WHERE user_id = ?", (user["id"],))

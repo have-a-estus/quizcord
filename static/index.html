@@ -372,7 +372,6 @@ body {
   font-size: 10px; color: var(--text-muted);
 }
 
-/* Mensagem de sistema */
 .system-msg {
   align-self: center;
   display: flex;
@@ -622,7 +621,6 @@ body {
   width: 6px; height: 6px; border-radius: 50%;
 }
 
-/* Search dropdown */
 .search-dropdown {
   position: absolute;
   top: 100%; left: 0; right: 0;
@@ -668,6 +666,7 @@ body {
 }
 </style>
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 
@@ -693,7 +692,7 @@ body {
 
 <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
   <div class="dock">
-    <div class="dock-avatar home active" id="dockHome" title="Inicio">🏠</div>
+    <div class="dock-avatar home active" id="dockHome" title="Inicio">&#127968;</div>
     <div class="dock-divider"></div>
     <div id="dockCircles"></div>
     <div class="dock-btn" id="btnCreateCircle" title="Novo Circulo">+</div>
@@ -730,11 +729,11 @@ body {
 
     <div class="input-area hidden" id="inputArea">
       <label class="input-btn secondary" title="Enviar arquivo">
-        📎
+        &#128206;
         <input type="file" id="fileInput" style="display:none" accept="image/*">
       </label>
       <input type="text" class="input-box" id="msgInput" placeholder="Mensagem..." autocomplete="off">
-      <button class="input-btn" id="sendBtn">➤</button>
+      <button class="input-btn" id="sendBtn">&#10148;</button>
     </div>
   </div>
 </div>
@@ -769,7 +768,8 @@ let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
 
 const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
 
-// Som de notificacao (beep suave)
+const authHeader = () => ({ 'Authorization': 'Bearer ' + token });
+
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playNotifSound() {
   if (document.hidden) {
@@ -845,7 +845,7 @@ function bindAuth() {
 }
 
 async function verifyAndLoad() {
-  const res = await fetch(API + '/api/me?token=' + token);
+  const res = await fetch(API + '/api/me', { headers: authHeader() });
   if (!res.ok) { localStorage.removeItem('aurora_token'); token = null; showAuth(); return; }
   me = await res.json();
   enterApp();
@@ -865,7 +865,6 @@ function enterApp() {
   loadData();
 }
 
-// ─── NOTIFICACOES PERSISTENTES ───
 function connectNotifWS() {
   if (isGuest || !token) return;
   if (notifWs) { notifWs.close(); notifWs = null; }
@@ -900,10 +899,10 @@ function connectNotifWS() {
 async function loadData() {
   if (isGuest) { renderDock(); showHome(); return; }
   const [cRes, fRes, dRes, uRes] = await Promise.all([
-    fetch(API + '/api/circles?token=' + token),
-    fetch(API + '/api/friends?token=' + token),
-    fetch(API + '/api/dm-chats?token=' + token),
-    fetch(API + '/api/unread?token=' + token)
+    fetch(API + '/api/circles', { headers: authHeader() }),
+    fetch(API + '/api/friends', { headers: authHeader() }),
+    fetch(API + '/api/dm-chats', { headers: authHeader() }),
+    fetch(API + '/api/unread', { headers: authHeader() })
   ]);
   circles = cRes.ok ? await cRes.json() : [];
   friends = fRes.ok ? await fRes.json() : { friends: [], pending_sent: [], pending_received: [] };
@@ -948,9 +947,9 @@ function updatePendingBadge() {
   const existing = home.querySelector('.badge');
   if (existing) existing.remove();
   if (pendingCount > 0) {
-    home.innerHTML = '🏠<div class="badge">' + pendingCount + '</div>';
+    home.innerHTML = '&#127968;<div class="badge">' + pendingCount + '</div>';
   } else {
-    home.textContent = '🏠';
+    home.textContent = '\u{1F3E0}';
   }
 }
 
@@ -958,14 +957,13 @@ function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(async () => {
     if (isGuest || !token) return;
-    const res = await fetch(API + '/api/friends?token=' + token);
+    const res = await fetch(API + '/api/friends', { headers: authHeader() });
     if (!res.ok) return;
     const oldPending = friends.pending_received?.length || 0;
     friends = await res.json();
     const newPending = friends.pending_received?.length || 0;
     updatePendingBadge();
-    // Atualiza unread
-    const uRes = await fetch(API + '/api/unread?token=' + token);
+    const uRes = await fetch(API + '/api/unread', { headers: authHeader() });
     if (uRes.ok) { unreadMap = await uRes.json(); renderDock(); }
     if (newPending > oldPending && currentCircle === null && currentDM === null) {
       showHome();
@@ -988,16 +986,10 @@ function showToast(title, sub, color) {
   setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
 }
 
-// ─── DOCK ───
 function renderDock() {
   const container = document.getElementById('dockCircles');
   container.innerHTML = circles.map(c => {
-    let badge = '';
-    // Soma unread de todos os topicos do circulo
-    let totalUnread = 0;
-    // Precisamos saber os topicos... mas circles so tem os basicos aqui
-    // Vamos simplificar: nao mostrar badge no circulo por enquanto, so nos topicos
-    return `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}${badge}</div>`;
+    return `<div class="dock-circle" data-id="${c.id}" style="background:${c.color}20;color:${c.color};border-color:${c.color}40" title="${c.name}">${c.name[0].toUpperCase()}</div>`;
   }).join('');
   container.querySelectorAll('.dock-circle').forEach(el => {
     el.onclick = () => selectCircle(el.dataset.id);
@@ -1015,7 +1007,6 @@ function setActiveDock(id) {
   if (el) el.classList.add('active');
 }
 
-// ─── HOME ───
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null;
   closeWS();
@@ -1062,7 +1053,7 @@ function showHome() {
       const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
-        <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+        <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
             ${(f.display_name||f.username)[0].toUpperCase()}
             <div class="contact-status offline" data-uid="${f.fid}"></div>
@@ -1082,18 +1073,8 @@ function showHome() {
   }
 
   document.getElementById('panelContent').innerHTML = html.join('');
-  updateFriendStatuses();
 }
 
-async function updateFriendStatuses() {
-  // Busca status dos amigos
-  const friendIds = friends.friends?.map(f => f.fid) || [];
-  if (!friendIds.length) return;
-  // Nao temos endpoint especifico, vamos usar o search ou fazer polling
-  // Simplificacao: nao temos status real sem endpoint, deixa como placeholder
-}
-
-// ─── ADD FRIEND COM BUSCA ───
 function openAddFriend() {
   openModal('Adicionar Amigo', `
     <input type="text" id="friendSearch" class="modal-input" placeholder="Buscar usuario..." autocomplete="off">
@@ -1109,14 +1090,14 @@ function openAddFriend() {
     const q = input.value.trim();
     if (!q) { results.classList.add('hidden'); return; }
     searchTimer = setTimeout(async () => {
-      const res = await fetch(API + '/api/users/search?token=' + token + '&q=' + encodeURIComponent(q));
+      const res = await fetch(API + '/api/users/search?q=' + encodeURIComponent(q), { headers: authHeader() });
       if (!res.ok) return;
       const users = await res.json();
       const already = [...(friends.friends||[]), ...(friends.pending_sent||[]), ...(friends.pending_received||[])].map(f => f.fid || f.id);
       const filtered = users.filter(u => u.id !== me.id && !already.includes(u.id));
       if (!filtered.length) { results.classList.add('hidden'); return; }
       results.innerHTML = filtered.map(u => `
-        <div class="search-item" onclick="sendFriendRequest('${u.username}', '${(u.display_name||u.username).replace(/'/g,"\'")}')">
+        <div class="search-item" onclick="sendFriendRequest('${u.username}', '${(u.display_name||u.username).replace(/'/g,"\\'")}')">
           <div class="contact-avatar" style="background:${u.avatar_color}20;color:${u.avatar_color};width:28px;height:28px;font-size:12px;">${(u.display_name||u.username)[0].toUpperCase()}</div>
           <div><div style="font-weight:600;font-size:13px;">${u.display_name || u.username}</div><div style="font-size:11px;color:var(--text-muted);">@${u.username}</div></div>
         </div>
@@ -1129,36 +1110,32 @@ function openAddFriend() {
 async function sendFriendRequest(username, displayName) {
   closeModal();
   const fd = new FormData();
-  fd.append('token', token);
   fd.append('username', username);
-  const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd });
+  const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd, headers: authHeader() });
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); }
   else { showToast(displayName, 'Solicitacao enviada!', '#a78bfa'); loadData(); }
 }
 
 async function acceptFriend(fid) {
   const fd = new FormData();
-  fd.append('token', token);
   fd.append('friend_id', fid);
-  await fetch(API + '/api/friends/accept', { method: 'POST', body: fd });
+  await fetch(API + '/api/friends/accept', { method: 'POST', body: fd, headers: authHeader() });
   loadData();
 }
 
 async function rejectFriend(fid) {
   const fd = new FormData();
-  fd.append('token', token);
   fd.append('friend_id', fid);
-  await fetch(API + '/api/friends/reject', { method: 'POST', body: fd });
+  await fetch(API + '/api/friends/reject', { method: 'POST', body: fd, headers: authHeader() });
   loadData();
 }
 
-// ─── CIRCLE ───
 async function selectCircle(id) {
   setActiveDock(id);
   currentCircle = circles.find(c => c.id === id);
   currentDM = null;
   if (!currentCircle) return;
-  const res = await fetch(API + '/api/circles/' + id + '?token=' + token);
+  const res = await fetch(API + '/api/circles/' + id, { headers: authHeader() });
   if (!res.ok) return;
   const data = await res.json();
   currentCircle = data.circle;
@@ -1175,7 +1152,7 @@ async function selectCircle(id) {
   if (isOwner) {
     actions += `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`;
   }
-  actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">🔗 Convite</button>`;
+  actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">&#128279; Convite</button>`;
   document.getElementById('headerActions').innerHTML = actions;
 
   const tabs = document.getElementById('topicTabs');
@@ -1189,7 +1166,7 @@ async function selectCircle(id) {
 
   let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
   currentCircle.topics.forEach(t => {
-    const icon = t.type === 'voice' ? '🎤' : t.type === 'media' ? '📎' : '💬';
+    const icon = t.type === 'voice' ? '&#127908;' : t.type === 'media' ? '&#128206;' : '&#128172;';
     const unread = unreadMap['topic:' + t.id] || 0;
     html += `<div class="topic-tab ${currentTopic?.id===t.id?'active':''}" onclick="selectTopic('${t.id}')">
       <span class="topic-icon">${icon}</span> ${t.name}
@@ -1201,7 +1178,7 @@ async function selectCircle(id) {
     html += `<div class="contact-item">
       <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
       <div class="contact-info">
-        <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'👑':''}</div>
+        <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'&#128081;':''}</div>
         <div class="contact-sub">@${m.username}</div>
       </div>
     </div>`;
@@ -1247,7 +1224,6 @@ async function selectTopic(tid) {
   connectWS('topic:' + tid);
 }
 
-// ─── DM ───
 async function openDM(peerId, peerName, peerColor) {
   currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
@@ -1270,7 +1246,6 @@ async function openDM(peerId, peerName, peerColor) {
   connectWS('dm:' + chat.id);
 }
 
-// ─── WS CHAT ───
 function connectWS(roomId) {
   closeWS();
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1311,7 +1286,6 @@ function connectWS(roomId) {
 
 function closeWS() { if (ws) { ws.close(); ws = null; } }
 
-// ─── CHAT UI ───
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
@@ -1360,7 +1334,6 @@ function showTyping(user) {
 
 function renderVoiceUsers(list) {}
 
-// ─── INPUTS ───
 function bindInputs() {
   const input = document.getElementById('msgInput');
   const send = document.getElementById('sendBtn');
@@ -1395,7 +1368,6 @@ function sendMessage(text, fileUrl) {
   if (text === undefined) input.value = '';
 }
 
-// ─── MODAIS ───
 function openModal(title, bodyHtml, actionsHtml) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = bodyHtml;
@@ -1432,10 +1404,9 @@ async function doCreateCircle() {
   const name = document.getElementById('modalCircleName').value.trim();
   if (!name) return alert('Digite um nome');
   const fd = new FormData();
-  fd.append('token', token);
   fd.append('name', name);
   fd.append('color', window._circleColor ? window._circleColor() : '#a78bfa');
-  const res = await fetch(API + '/api/circles', { method: 'POST', body: fd });
+  const res = await fetch(API + '/api/circles', { method: 'POST', body: fd, headers: authHeader() });
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
   closeModal();
   loadData();
@@ -1461,10 +1432,9 @@ async function doCreateTopic() {
   const type = document.getElementById('modalTopicType').value;
   if (!name) return;
   const fd = new FormData();
-  fd.append('token', token);
   fd.append('name', name);
   fd.append('type', type);
-  const res = await fetch(API + '/api/circles/' + currentCircle.id + '/topics', { method: 'POST', body: fd });
+  const res = await fetch(API + '/api/circles/' + currentCircle.id + '/topics', { method: 'POST', body: fd, headers: authHeader() });
   if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
   closeModal();
   selectCircle(currentCircle.id);
