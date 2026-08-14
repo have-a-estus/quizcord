@@ -1,13 +1,11 @@
 import sys
 import os
 import json
-import time
 import subprocess
 import tempfile
 import shutil
 import zipfile
 import urllib.request
-from pathlib import Path
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QSystemTrayIcon, QMenu, QAction,
@@ -15,11 +13,8 @@ from PyQt5.QtWidgets import (
     QPushButton, QStackedWidget
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
-from PyQt5.QtCore import (
-    QUrl, Qt, QSettings, pyqtSignal, QObject, QTimer, QThread,
-    QPoint
-)
-from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent, QPainter, QBrush, QPen, QColor
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QThread, QPoint, QPropertyAnimation, QEasingCurve
+from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent
 
 # ============ CONFIG ============
 RENDER_URL = "https://luminachat.duckdns.org"
@@ -44,7 +39,6 @@ class SingleInstance:
             self.server = QLocalServer()
             self.server.listen(app_id)
 
-# ============ UTILS: RESOURCE PATH ============
 def resource_path(filename):
     if getattr(sys, "frozen", False):
         base = sys._MEIPASS
@@ -52,7 +46,7 @@ def resource_path(filename):
         base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, filename)
 
-# ============ AUTO UPDATER (ROBUSTO) ============
+# ============ AUTO UPDATER ============
 class UpdateChecker(QThread):
     update_available = pyqtSignal(str, str, str)
     no_update = pyqtSignal()
@@ -65,33 +59,27 @@ class UpdateChecker(QThread):
 
     def run(self):
         try:
-            req = urllib.request.Request(
-                self.update_url,
-                headers={"User-Agent": "LuminaChat-Updater/1.1"}
-            )
+            req = urllib.request.Request(self.update_url, headers={"User-Agent": "LuminaChat-Updater/1.1"})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status != 200:
                     self.error.emit(f"Servidor retornou status {resp.status}")
                     return
                 data = json.loads(resp.read().decode("utf-8"))
-            remote_version = data.get("version", "0.0.0")
-            download_url = data.get("download_url", DOWNLOAD_URL)
-            release_notes = data.get("release_notes", "")
-            if self._version_greater(remote_version, self.current_version):
-                self.update_available.emit(remote_version, download_url, release_notes)
+            remote = data.get("version", "0.0.0")
+            url = data.get("download_url", DOWNLOAD_URL)
+            notes = data.get("release_notes", "")
+            if self._version_greater(remote, self.current_version):
+                self.update_available.emit(remote, url, notes)
             else:
                 self.no_update.emit()
         except Exception as e:
             self.error.emit(str(e))
 
     def _version_greater(self, v1, v2):
-        def parse(v):
-            return [int(x) for x in v.split(".")]
         try:
-            return parse(v1) > parse(v2)
+            return [int(x) for x in v1.split(".")] > [int(x) for x in v2.split(".")]
         except:
             return False
-
 
 class UpdateDownloader(QThread):
     finished_download = pyqtSignal(str)
@@ -107,22 +95,17 @@ class UpdateDownloader(QThread):
             req = urllib.request.Request(self.url, headers={"User-Agent": "LuminaChat-Updater/1.1"})
             with urllib.request.urlopen(req, timeout=30) as resp:
                 if resp.status != 200:
-                    self.error.emit(f"Servidor retornou {resp.status}. O arquivo de atualizacao pode nao estar disponivel.")
-                    return
-                total = int(resp.headers.get('Content-Length', 0))
-                if total > 0 and total < 1000:
-                    self.error.emit("Arquivo de atualizacao muito pequeno. Verifique se o ZIP foi enviado ao servidor.")
+                    self.error.emit(f"Servidor retornou {resp.status}")
                     return
                 with open(self.dest, 'wb') as f:
                     f.write(resp.read())
             if not zipfile.is_zipfile(self.dest):
-                self.error.emit("O arquivo baixado nao e um ZIP valido. Verifique o servidor.")
+                self.error.emit("Arquivo baixado nao e um ZIP valido.")
                 os.remove(self.dest)
                 return
             self.finished_download.emit(self.dest)
         except Exception as e:
             self.error.emit(str(e))
-
 
 class AutoUpdater(QObject):
     check_done = pyqtSignal(bool, str, str, str)
@@ -131,28 +114,22 @@ class AutoUpdater(QObject):
         super().__init__(parent)
         self.current_version = current_version
         self.update_url = update_url
-        self.checker = None
-        self.downloader = None
 
     def check(self):
         self.checker = UpdateChecker(self.current_version, self.update_url)
-        self.checker.update_available.connect(self._on_update_available)
+        self.checker.update_available.connect(lambda v,u,n: self.check_done.emit(True, v, u, n))
         self.checker.no_update.connect(lambda: self.check_done.emit(False, "", "", ""))
         self.checker.error.connect(lambda e: self.check_done.emit(False, "", "", e))
         self.checker.start()
 
-    def _on_update_available(self, version, url, notes):
-        self.check_done.emit(True, version, url, notes)
-
     def download_and_install(self, url):
-        temp_dir = tempfile.gettempdir()
-        zip_path = os.path.join(temp_dir, "LuminaChat_update.zip")
+        zip_path = os.path.join(tempfile.gettempdir(), "LuminaChat_update.zip")
         self.downloader = UpdateDownloader(url, zip_path)
-        self.downloader.finished_download.connect(self._install_update)
-        self.downloader.error.connect(lambda e: QMessageBox.critical(None, "Erro de Atualizacao", e))
+        self.downloader.finished_download.connect(self._install)
+        self.downloader.error.connect(lambda e: QMessageBox.critical(None, "Erro", e))
         self.downloader.start()
 
-    def _install_update(self, zip_path):
+    def _install(self, zip_path):
         try:
             app_dir = os.path.dirname(sys.executable)
             if getattr(sys, "frozen", False):
@@ -161,45 +138,29 @@ class AutoUpdater(QObject):
                     shutil.rmtree(extract_dir)
                 with zipfile.ZipFile(zip_path, "r") as z:
                     z.extractall(extract_dir)
-
-                bat_path = os.path.join(tempfile.gettempdir(), "update_lumina.bat")
-                exe_path = os.path.join(app_dir, "LuminaChat.exe")
-
-                with open(bat_path, "w", encoding='utf-8') as f:
-                    f.write("@echo off\n")
-                    f.write("echo [Updater] Aguardando LuminaChat fechar...\n")
-                    f.write("timeout /t 5 /nobreak >nul\n")
-                    f.write('echo [Updater] Copiando arquivos...\n')
-                    f.write('xcopy /s /y /i "' + extract_dir + '\\*" "' + app_dir + '"\n')
-                    f.write("if errorlevel 1 (\n")
-                    f.write('  echo [Updater] ERRO ao copiar arquivos!\n')
-                    f.write('  pause\n')
-                    f.write('  exit /b 1\n')
-                    f.write(")\n")
-                    f.write('echo [Updater] Reiniciando LuminaChat...\n')
-                    f.write('start "" "' + exe_path + '"\n')
-                    f.write("echo [Updater] Limpeza...\n")
-                    f.write("rmdir /s /q \"" + extract_dir + "\"\n")
-                    f.write("del /f /q \"" + zip_path + "\"\n")
-                    f.write("del /f /q \"%~f0\"\n")
-
-                subprocess.Popen(["cmd", "/c", bat_path], shell=True,
-                                 creationflags=subprocess.CREATE_NEW_CONSOLE)
+                bat = os.path.join(tempfile.gettempdir(), "update_lumina.bat")
+                exe = os.path.join(app_dir, "LuminaChat.exe")
+                with open(bat, "w", encoding='utf-8') as f:
+                    f.write(f'@echo off\ntimeout /t 4 /nobreak >nul\n')
+                    f.write(f'xcopy /s /y /i "{extract_dir}\\*" "{app_dir}"\n')
+                    f.write(f'start "" "{exe}"\n')
+                    f.write(f'rmdir /s /q "{extract_dir}"\n')
+                    f.write(f'del /f /q "{zip_path}"\n')
+                    f.write(f'del /f /q "%~f0"\n')
+                subprocess.Popen(["cmd", "/c", bat], shell=True, creationflags=subprocess.CREATE_NEW_CONSOLE)
                 QApplication.instance().quit()
             else:
-                QMessageBox.information(None, "Update", "Nova versao baixada com sucesso. Reinicie o app para aplicar.")
+                QMessageBox.information(None, "Update", "Nova versao baixada. Reinicie o app.")
         except Exception as e:
-            QMessageBox.critical(None, "Erro", "Falha ao instalar atualizacao: " + str(e))
+            QMessageBox.critical(None, "Erro", "Falha ao instalar: " + str(e))
 
-
-# ============ BRIDGE JS <-> PYTHON ============
+# ============ BRIDGE ============
 class Bridge(QObject):
     notify = pyqtSignal(str, str, str)
     badge = pyqtSignal(int)
     flash = pyqtSignal()
 
-
-# ============ TITLE BAR (Frameless) ============
+# ============ TITLE BAR ============
 class TitleBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -207,35 +168,11 @@ class TitleBar(QWidget):
         self.drag_pos = None
         self.setFixedHeight(40)
         self.setStyleSheet("""
-            TitleBar {
-                background-color: rgba(10, 8, 30, 0.98);
-                border-top-left-radius: 12px;
-                border-top-right-radius: 12px;
-            }
-            QLabel {
-                color: #c4b5fd;
-                font-family: 'Segoe UI', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QPushButton {
-                background: transparent;
-                color: #a5b4fc;
-                border: none;
-                font-size: 16px;
-                font-weight: bold;
-                width: 46px;
-                height: 40px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: rgba(139, 92, 246, 0.25);
-                color: #e0e7ff;
-            }
-            QPushButton#closeBtn:hover {
-                background-color: #ef4444;
-                color: white;
-            }
+            TitleBar { background-color: rgba(10,8,30,0.98); border-top-left-radius:12px; border-top-right-radius:12px; }
+            QLabel { color:#c4b5fd; font-family:'Segoe UI'; font-size:13px; font-weight:600; }
+            QPushButton { background:transparent; color:#a5b4fc; border:none; font-size:16px; font-weight:bold; width:46px; height:40px; border-radius:6px; }
+            QPushButton:hover { background-color:rgba(139,92,246,0.25); color:#e0e7ff; }
+            QPushButton#closeBtn:hover { background-color:#ef4444; color:white; }
         """)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 0, 6, 0)
@@ -243,31 +180,28 @@ class TitleBar(QWidget):
 
         icon_path = resource_path("Icon.ico")
         if os.path.exists(icon_path):
-            icon_label = QLabel()
-            icon_label.setPixmap(QPixmap(icon_path).scaled(22, 22, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-            layout.addWidget(icon_label)
+            ico = QLabel()
+            ico.setPixmap(QPixmap(icon_path).scaled(22, 22, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            layout.addWidget(ico)
         layout.addSpacing(10)
 
-        title = QLabel("Lumina Chat")
-        layout.addWidget(title)
+        layout.addWidget(QLabel("Lumina Chat"))
         layout.addStretch()
 
         self.btn_min = QPushButton("\u2014")
-        self.btn_min.setObjectName("minBtn")
         self.btn_min.setToolTip("Minimizar")
-        self.btn_min.clicked.connect(self.parent.showMinimized)
+        self.btn_min.clicked.connect(parent.showMinimized)
         layout.addWidget(self.btn_min)
 
         self.btn_max = QPushButton("\u25a1")
-        self.btn_max.setObjectName("maxBtn")
-        self.btn_max.setToolTip("Maximizar / Restaurar")
+        self.btn_max.setToolTip("Maximizar")
         self.btn_max.clicked.connect(self._toggle_max)
         layout.addWidget(self.btn_max)
 
         self.btn_close = QPushButton("\u2715")
         self.btn_close.setObjectName("closeBtn")
         self.btn_close.setToolTip("Fechar")
-        self.btn_close.clicked.connect(self.parent._force_quit)
+        self.btn_close.clicked.connect(parent._force_quit)
         layout.addWidget(self.btn_close)
 
     def _toggle_max(self):
@@ -293,149 +227,80 @@ class TitleBar(QWidget):
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         self._toggle_max()
 
-
-# ============ ALPACA SPINNER (Animacao corrigida) ============
-class AlpacaSpinner(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFixedSize(140, 140)
-        self._angle = 0
-        self._pixmap = None
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._tick)
-        self._speed = 18  # graus por frame (ventilador)
-        self._blur = 0
-
-    def setPixmap(self, pixmap):
-        # Escala para caber no circulo (100x100 dentro do 140x140)
-        if pixmap:
-            self._pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        else:
-            self._pixmap = None
-        self.update()
-
-    def start(self):
-        self._timer.start(30)  # ~33fps
-
-    def stop(self):
-        self._timer.stop()
-
-    def setSpeed(self, speed):
-        self._speed = speed
-
-    def _tick(self):
-        self._angle = (self._angle + self._speed) % 360
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform)
-
-        # Fundo fixo - circulo com cor do tema espacial
-        painter.setBrush(QBrush(QColor("#1a103c")))
-        painter.setPen(QPen(QColor("rgba(139,92,246,0.3)"), 2))
-        painter.drawEllipse(5, 5, 130, 130)
-
-        if self._pixmap:
-            painter.save()
-            # Move para o centro do widget
-            painter.translate(70, 70)
-            # Rotaciona
-            painter.rotate(self._angle)
-            # Desenha o pixmap centralizado
-            painter.drawPixmap(-self._pixmap.width() // 2, -self._pixmap.height() // 2, self._pixmap)
-            painter.restore()
-
-
-# ============ LOADING SCREEN ============
+# ============ LOADING SCREEN (Estilo Discord) ============
 class LoadingScreen(QWidget):
     finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._cycle = 0
-        self._max_cycles = 2
-        self._is_dizzy = False
-
         self.setStyleSheet("""
             LoadingScreen {
                 background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
                     stop:0 #1a103c, stop:0.5 #0f0a1e, stop:1 #050310);
-            }
-            QLabel {
-                color: #c4b5fd;
-                font-family: 'Segoe UI', sans-serif;
             }
         """)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
         layout.setSpacing(24)
 
-        self.spinner = AlpacaSpinner(self)
+        self.icon_label = QLabel()
+        self.icon_label.setAlignment(Qt.AlignCenter)
+        self.icon_label.setFixedSize(140, 140)
+
         self.img_normal = self._load_img("Icon.ico")
         self.img_dizzy = self._load_img("Icon_dizzy.ico")
         if self.img_dizzy is None:
             self.img_dizzy = self.img_normal
-        self.spinner.setPixmap(self.img_normal)
-        layout.addWidget(self.spinner, alignment=Qt.AlignCenter)
 
-        self.text_label = QLabel("Verificando Atualizacoes...")
+        if self.img_normal:
+            self.icon_label.setPixmap(self.img_normal)
+        layout.addWidget(self.icon_label, alignment=Qt.AlignCenter)
+
+        self.text_label = QLabel("Verificando atualizacoes...")
         self.text_label.setAlignment(Qt.AlignCenter)
-        self.text_label.setStyleSheet("font-size: 15px; color: #a5b4fc; letter-spacing: 1px; font-weight: 500;")
+        self.text_label.setStyleSheet("font-size:15px; color:#a5b4fc; letter-spacing:1px; font-weight:500; font-family:'Segoe UI',sans-serif;")
         layout.addWidget(self.text_label)
 
         self.sub_label = QLabel("")
         self.sub_label.setAlignment(Qt.AlignCenter)
-        self.sub_label.setStyleSheet("font-size: 12px; color: #6366f1;")
+        self.sub_label.setStyleSheet("font-size:12px; color:#6366f1;")
         layout.addWidget(self.sub_label)
 
     def _load_img(self, name):
         path = resource_path(name)
         if os.path.exists(path):
-            return QPixmap(path)
-        path = resource_path(name.lower())
-        if os.path.exists(path):
-            return QPixmap(path)
+            return QPixmap(path).scaled(140, 140, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         return None
 
     def start_animation(self):
-        self._cycle = 0
-        self._is_dizzy = False
-        self.spinner.setPixmap(self.img_normal)
-        self.text_label.setText("Verificando Atualizacoes...")
-        self.sub_label.setText("")
-        self._start_spin_cycle()
+        self.text_label.setText("Verificando atualizacoes...")
+        # 3 segundos com icone normal
+        QTimer.singleShot(3000, self._bounce_dizzy)
 
-    def _start_spin_cycle(self):
-        if self._cycle >= self._max_cycles:
-            self.spinner.stop()
-            self.finished.emit()
-            return
-        self._cycle += 1
-        self.spinner.start()
-        # Para depois de 1.2 segundos (rapido como ventilador)
-        QTimer.singleShot(1200, self._on_spin_done)
+    def _bounce_dizzy(self):
+        if self.img_dizzy:
+            self.icon_label.setPixmap(self.img_dizzy)
+        self.text_label.setText("Quase la...")
 
-    def _on_spin_done(self):
-        self.spinner.stop()
-        self._is_dizzy = not self._is_dizzy
-        if self._is_dizzy:
-            self.spinner.setPixmap(self.img_dizzy)
-            self.text_label.setText("Carregando o universo...")
-        else:
-            self.spinner.setPixmap(self.img_normal)
-            self.text_label.setText("Verificando Atualizacoes...")
-        QTimer.singleShot(500, self._start_spin_cycle)
+        # Efeito bounce: sobe e desce
+        self._anim = QPropertyAnimation(self.icon_label, b"pos")
+        start = self.icon_label.pos()
+        self._anim.setDuration(700)
+        self._anim.setEasingCurve(QEasingCurve.OutBounce)
+        self._anim.setStartValue(start)
+        self._anim.setKeyValueAt(0.4, QPoint(start.x(), start.y() - 40))
+        self._anim.setEndValue(start)
+        self._anim.start()
+
+        QTimer.singleShot(1200, self.finished.emit)
 
     def show_error(self, msg):
         self.sub_label.setText(msg)
-        self.sub_label.setStyleSheet("font-size: 12px; color: #f87171;")
+        self.sub_label.setStyleSheet("font-size:12px; color:#f87171;")
 
     def show_reconnecting(self):
         self.text_label.setText("Conectando ao servidor...")
         self.sub_label.setText("O servidor esta offline. Tentando reconectar...")
-
 
 # ============ MAIN WINDOW ============
 class LuminaClient(QMainWindow):
@@ -509,37 +374,23 @@ class LuminaClient(QMainWindow):
     def _on_load_finished(self, ok):
         if ok:
             self._inject_bridge()
-            QTimer.singleShot(500, lambda: self.stack.setCurrentWidget(self.web_container))
+            QTimer.singleShot(400, lambda: self.stack.setCurrentWidget(self.web_container))
         else:
             self.loading.show_reconnecting()
             QTimer.singleShot(5000, lambda: self.browser.reload())
 
     def _inject_bridge(self):
         js = """
-        (function() {
-            if (window.quizcordNative) return;
-            window.quizcordNative = {
-                showNotification: function(title, body, color) {
-                    if (window.pybridge && window.pybridge.notify) {
-                        window.pybridge.notify(title, body, color || "#a78bfa");
-                    }
-                },
-                setBadge: function(count) {
-                    if (window.pybridge && window.pybridge.setBadge) {
-                        window.pybridge.setBadge(count);
-                    }
-                },
-                flashWindow: function() {
-                    if (window.pybridge && window.pybridge.flash) {
-                        window.pybridge.flash();
-                    }
-                },
-                getPlatform: function() { return "windows"; },
-                getVersion: function() { return "1.1.0"; }
+        (function(){
+            if(window.quizcordNative)return;
+            window.quizcordNative={
+                showNotification:function(t,b,c){if(window.pybridge&&window.pybridge.notify)window.pybridge.notify(t,b,c||"#a78bfa");},
+                setBadge:function(n){if(window.pybridge&&window.pybridge.setBadge)window.pybridge.setBadge(n);},
+                flashWindow:function(){if(window.pybridge&&window.pybridge.flash)window.pybridge.flash();},
+                getPlatform:function(){return"windows";},
+                getVersion:function(){return"1.1.0";}
             };
-            window.dispatchEvent(new CustomEvent("quizcord-native-ready", {
-                detail: { platform: "windows", version: "1.1.0" }
-            }));
+            window.dispatchEvent(new CustomEvent("quizcord-native-ready",{detail:{platform:"windows",version:"1.1.0"}}));
         })();
         """
         self.browser.page().runJavaScript(js)
@@ -551,7 +402,6 @@ class LuminaClient(QMainWindow):
             self.tray.setIcon(QIcon(icon_path))
         self.tray.setToolTip("Lumina Chat")
         self.tray.activated.connect(self._tray_activated)
-
         menu = QMenu()
         open_action = QAction("Abrir Lumina Chat", self)
         open_action.triggered.connect(self.showNormal)
@@ -560,7 +410,6 @@ class LuminaClient(QMainWindow):
         exit_action = QAction("Sair", self)
         exit_action.triggered.connect(self._force_quit)
         menu.addAction(exit_action)
-
         self.tray.setContextMenu(menu)
         self.tray.show()
 
@@ -575,10 +424,7 @@ class LuminaClient(QMainWindow):
             self.tray.showMessage(title, body, QSystemTrayIcon.Information, 3000)
 
     def _set_badge(self, count):
-        if count > 0:
-            self.tray.setToolTip("Lumina Chat (" + str(count) + " nao lidas)")
-        else:
-            self.tray.setToolTip("Lumina Chat")
+        self.tray.setToolTip("Lumina Chat (" + str(count) + " nao lidas)" if count > 0 else "Lumina Chat")
 
     def _flash_window(self):
         if self.isMinimized() or not self.isActiveWindow():
@@ -588,41 +434,31 @@ class LuminaClient(QMainWindow):
 
     def _on_update_check(self, has_update, version, url, notes_or_error):
         if has_update:
-            notes = notes_or_error if notes_or_error else "Novas melhorias disponiveis!"
-            reply = QMessageBox.question(
-                self, "Atualizacao Disponivel",
+            notes = notes_or_error or "Novas melhorias disponiveis!"
+            reply = QMessageBox.question(self, "Atualizacao Disponivel",
                 "Nova versao <b>" + version + "</b> disponivel!\n\n" + notes + "\n\nDeseja atualizar agora?",
-                QMessageBox.Yes | QMessageBox.No
-            )
+                QMessageBox.Yes | QMessageBox.No)
             if reply == QMessageBox.Yes:
                 self.updater.download_and_install(url)
         else:
             if notes_or_error:
-                print("[Updater] Erro na verificacao:", notes_or_error)
+                print("[Updater] Erro:", notes_or_error)
 
     def closeEvent(self, event):
         event.ignore()
         self.hide()
         if self.tray:
-            self.tray.showMessage(
-                "Lumina Chat",
-                "O app continua rodando na bandeja. Clique no icone para abrir.",
-                QSystemTrayIcon.Information, 2000
-            )
+            self.tray.showMessage("Lumina Chat", "O app continua rodando na bandeja.", QSystemTrayIcon.Information, 2000)
 
     def _force_quit(self):
         self.tray.hide()
         QApplication.instance().quit()
 
-
-# ============ MAIN ============
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Lumina Chat")
     app.setApplicationDisplayName("Lumina Chat")
-
-    font = QFont("Segoe UI", 10)
-    app.setFont(font)
+    app.setFont(QFont("Segoe UI", 10))
 
     single = SingleInstance(APP_ID)
     if single.is_running:
@@ -631,9 +467,7 @@ def main():
 
     window = LuminaClient()
     window.show()
-
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
