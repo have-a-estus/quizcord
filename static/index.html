@@ -329,10 +329,10 @@ body {
 
 .message-bubble {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   max-width: 85%;
+  padding: 4px 0;
   animation: msgFadeIn 0.2s ease;
-  padding: 1px 0;
   align-items: flex-start;
 }
 
@@ -341,107 +341,46 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.message-bubble.own {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
+.message-bubble.own { align-self: flex-end; flex-direction: row-reverse; }
 
-/* === GROUPED MESSAGES === */
-.message-bubble.grouped {
-  margin-top: -2px;
-}
-.message-bubble.grouped .msg-avatar {
-  visibility: hidden;
-  height: 0;
-  margin: 0;
-}
-.message-bubble.grouped .msg-author {
-  display: none;
-}
-.message-bubble.grouped .msg-time-inline {
-  display: none;
-}
+.message-bubble.grouped { margin-top: -2px; }
+.message-bubble.grouped .msg-avatar { visibility: hidden; height: 0; margin: 0; }
+.message-bubble.grouped .msg-header { display: none; }
 
 .msg-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px; height: 40px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; align-self: flex-start;
+  overflow: hidden;
+  background: var(--user-color, rgba(139,92,246,0.2));
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
 }
+.msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-.msg-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
+.msg-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 
-.msg-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 1px;
-}
-
-.msg-author {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.msg-time-inline {
-  font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.5;
-}
+.msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
+.msg-author { font-size: 14px; font-weight: 600; color: var(--text); }
+.msg-time-inline { font-size: 11px; color: var(--text-muted); opacity: 0.6; }
 
 .msg-content {
-  font-size: 14px;
-  line-height: 1.5;
-  word-break: break-word;
-  color: var(--text);
-  padding: 2px 0;
+  font-size: 14px; line-height: 1.5;
+  word-break: break-word; color: var(--text);
+  background: transparent; border: none; padding: 1px 0;
 }
-
-/* Own messages: subtle pill background */
 .message-bubble.own .msg-content {
   background: rgba(139, 92, 246, 0.12);
   padding: 6px 12px;
   border-radius: 14px 14px 4px 14px;
+  display: inline-block;
 }
+.message-bubble:not(.own) .msg-content { background: transparent; padding: 1px 0; }
 
-/* Other messages: no background, just text */
-.message-bubble:not(.own) .msg-content {
-  background: transparent;
-  padding: 2px 0;
-}
-
-.msg-content img {
-  max-width: 300px;
-  max-height: 300px;
-  border-radius: var(--radius-sm);
-  display: block;
-  margin-top: 6px;
-}
-
-.msg-time {
-  font-size: 10px;
-  color: var(--text-muted);
-  opacity: 0.4;
-  margin-top: 2px;
-  padding-left: 2px;
-}
-
-.message-bubble:hover .msg-time {
-  opacity: 0.8;
-}
+.msg-content img { max-width: 300px; max-height: 300px; border-radius: var(--radius-sm); display: block; margin-top: 6px; }
+.msg-time { font-size: 10px; color: var(--text-muted); opacity: 0.4; margin-top: 2px; padding-left: 2px; }
+.message-bubble:hover .msg-time { opacity: 0.8; }
 
 .system-msg {
   align-self: center;
@@ -1498,6 +1437,20 @@ let _lastMsgAuthor = null;
 let _lastMsgTime = 0;
 const _GROUP_THRESHOLD_MS = 5 * 60 * 1000;
 
+// Cores de fundo para avatares (variadas)
+const AVATAR_BG_COLORS = [
+  'rgba(139,92,246,0.25)', 'rgba(6,182,212,0.25)', 'rgba(236,72,153,0.25)',
+  'rgba(59,130,246,0.25)', 'rgba(16,185,129,0.25)', 'rgba(245,158,11,0.25)',
+  'rgba(239,68,68,0.25)', 'rgba(168,85,247,0.25)', 'rgba(14,165,233,0.25)',
+  'rgba(217,70,239,0.25)'
+];
+
+function _getUserColor(userName) {
+  let hash = 0;
+  for (let i = 0; i < userName.length; i++) hash = userName.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
+}
+
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
@@ -1529,9 +1482,11 @@ function appendMessage(m) {
     contentHtml = escapeHtml(m.content) + (m.file_url ? `<img src="${m.file_url}" onclick="window.open('${m.file_url}')">` : '');
   }
 
+  const userColor = _getUserColor(authorName);
+
   if (shouldGroup) {
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${authorName[0].toUpperCase()}</div>
+      <div class="msg-avatar" style="background:${userColor};--user-color:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
       <div class="msg-body">
         <div class="msg-content">${contentHtml}</div>
         <div class="msg-time">${timeStr}</div>
@@ -1539,7 +1494,7 @@ function appendMessage(m) {
     `;
   } else {
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${authorName[0].toUpperCase()}</div>
+      <div class="msg-avatar" style="background:${userColor};--user-color:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-author">${authorName}</span>
