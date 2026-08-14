@@ -422,6 +422,18 @@ def join_circle(request: Request, code: str = Form(...)):
     conn.close()
     return {"id": circle["id"], "name": circle["name"]}
 
+@app.get("/api/circles/by-invite/{code}")
+def get_circle_by_invite(code: str):
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, name, color, icon_url, invite_code FROM circles WHERE invite_code = ?", (code,))
+    circle = c.fetchone()
+    conn.close()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Codigo invalido")
+    return dict(circle)
+
+
 @app.get("/api/circles/{circle_id}")
 def get_circle(circle_id: str, request: Request):
     user = require_user(request)
