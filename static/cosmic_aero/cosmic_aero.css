@@ -63,49 +63,283 @@ body::after {
   -webkit-backdrop-filter: var(--glass-blur);
   border-right: 1px solid var(--glass-border);
   box-shadow: 4px 0 24px rgba(0,0,0,0.3);
+  padding: 16px 10px;
+  gap: 10px;
 }
 
-.dock-avatar {
+/* Logo Alpaca */
+.dock-logo {
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid transparent;
+  flex-shrink: 0;
+  align-self: center;
 }
-.dock-avatar:hover {
+.dock-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dock-logo:hover {
   border-color: var(--cosmic-accent-cyan);
   box-shadow: 0 0 16px rgba(6, 182, 212, 0.5);
   transform: scale(1.08);
 }
-.dock-avatar.active {
+.dock-logo.active {
   border-color: var(--cosmic-accent-purple);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
 }
 
-.dock-circle {
-  border-radius: 50%;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid transparent;
-}
-.dock-circle:hover {
-  border-color: var(--cosmic-accent-cyan);
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.5);
-  transform: scale(1.08);
-}
-.dock-circle.active {
-  border-color: var(--cosmic-accent-purple);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
+/* Divider */
+.dock-divider {
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+  border-radius: 1px;
+  margin: 4px 0;
 }
 
-.dock-btn {
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  border: 1px dashed var(--glass-border);
-  background: rgba(255,255,255,0.05);
+/* Barra de busca */
+.dock-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--cosmic-radius-sm);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  margin-bottom: 4px;
+}
+.dock-search-icon {
+  font-size: 14px;
+  color: var(--cosmic-text-muted);
+  opacity: 0.6;
+}
+.dock-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
   color: var(--cosmic-text-secondary);
+  font-size: 11px;
+  outline: none;
+  cursor: pointer;
+  width: 0;
+  min-width: 0;
+}
+.dock-search-input::placeholder {
+  color: var(--cosmic-text-muted);
+  opacity: 0.5;
+}
+.dock-search-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255,255,255,0.06);
+  border: 1px dashed rgba(139, 92, 246, 0.25);
+  color: var(--cosmic-text-secondary);
+  flex-shrink: 0;
+}
+.dock-search-btn:hover {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  transform: scale(1.1);
+}
+
+/* Servidores / Círculos - Estilo Botão Secundário (standby) */
+.dock-server {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dock-server-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Botão Secundário (standby) */
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  color: var(--cosmic-text-secondary);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* Hover / Active = Botão Primário (azul brilhante com glow) */
+.dock-server:hover .dock-server-icon,
+.dock-server.active .dock-server-icon {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: rgba(59, 130, 246, 0.6);
+  color: #fff;
+  box-shadow:
+    0 0 12px rgba(59, 130, 246, 0.4),
+    0 0 24px rgba(6, 182, 212, 0.2),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: scale(1.05);
+}
+
+/* Pill de notificação */
+.dock-server-pill {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid var(--cosmic-bg-deep);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  z-index: 2;
+}
+
+/* Botão criar círculo (estilo standalone) */
+.dock-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: rgba(255,255,255,0.04);
+  border: 1px dashed rgba(139, 92, 246, 0.25);
+  color: var(--cosmic-text-secondary);
+  font-size: 20px;
+  align-self: center;
 }
 .dock-btn:hover {
-  border-color: var(--cosmic-accent-cyan);
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+  transform: scale(1.08);
+}
+
+/* ===== RODAPÉ DE PERFIL ===== */
+.dock-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--cosmic-radius-sm);
+  background: rgba(10, 8, 30, 0.65);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  margin-top: auto;
+  width: 100%;
+}
+
+.dock-profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.dock-profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+}
+.dock-profile-status {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--cosmic-bg-deep);
+}
+.dock-profile-status.online {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+.dock-profile-status.away {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+.dock-profile-status.offline {
+  background: #6b7280;
+}
+
+.dock-profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dock-profile-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--cosmic-text-primary);
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dock-profile-tag {
+  font-size: 10px;
+  color: var(--cosmic-text-muted);
+  opacity: 0.7;
+}
+
+.dock-profile-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Botões do rodapé - Estilo Botão Secundário (standby) */
+.dock-profile-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  color: var(--cosmic-text-secondary);
+}
+
+/* Hover / Active = Botão Primário (azul brilhante com glow) */
+.dock-profile-btn:hover,
+.dock-profile-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+  transform: scale(1.08);
 }
 
 /* ===== PANEL ===== */
