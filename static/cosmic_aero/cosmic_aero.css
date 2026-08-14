@@ -17,10 +17,10 @@
   --cosmic-accent-blue: #3b82f6;
   --cosmic-radius: 16px;
   --cosmic-radius-sm: 10px;
-  --glass-bg: rgba(10, 8, 30, 0.18);
-  --glass-bg-strong: rgba(10, 8, 30, 0.28);
-  --glass-border: rgba(139, 92, 246, 0.30);
-  --glass-blur: blur(48px) saturate(200%);
+  --glass-bg: rgba(10, 8, 30, 0.55);
+  --glass-bg-strong: rgba(10, 8, 30, 0.68);
+  --glass-border: rgba(139, 92, 246, 0.22);
+  --glass-blur: blur(42px) saturate(170%);
 }
 
 * {
