@@ -253,6 +253,14 @@ def require_user(request: Request):
 def home():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
+@app.get("/api/version")
+def get_version():
+    return {
+        "version": "1.1.0",
+        "download_url": "https://luminachat.duckdns.org/static/download/LuminaChat.zip",
+        "release_notes": "Cosmic Aero theme, frameless client, alpaca loading animation"
+    }
+
 @app.post("/api/register")
 def register(username: str = Form(...), password: str = Form(...), display_name: str = Form(None), color: str = Form("#ff7b72")):
     uid = str(uuid.uuid4())[:8]
@@ -448,13 +456,11 @@ def get_circle(circle_id: str, request: Request):
     if not c.fetchone():
         conn.close()
         raise HTTPException(status_code=403, detail="Nao e membro")
-    # Busca membros do circles_db (so tem user_id e role)
     c.execute("SELECT user_id, role FROM circle_members WHERE circle_id = ?", (circle_id,))
     member_rows = c.fetchall()
     c.execute("SELECT * FROM topics WHERE circle_id = ? ORDER BY position", (circle_id,))
     topics = [dict(r) for r in c.fetchall()]
     conn.close()
-    # Busca dados dos usuarios no users_db
     user_ids = [m["user_id"] for m in member_rows]
     members = []
     if user_ids:
@@ -611,7 +617,8 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
                 user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "is_guest": False}
 
     if not user:
-        user = {"id": str(uuid.uuid4())[:8], "name": data.get("name", "Convidado")[:32], "color": data.get("color", "#ff7b72"), "is_guest": True}
+        await ws.close()
+        return
 
     manager.connect(room_id, ws, user)
 

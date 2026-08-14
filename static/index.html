@@ -766,7 +766,7 @@ body {
 }
 .chat-embed-btn:hover { filter: brightness(1.1); }
 
-/* Indicador de conexão WS */
+/* Indicador de conexao WS */
 .ws-status {
   position: fixed; bottom: 12px; right: 12px;
   padding: 6px 12px;
@@ -784,8 +784,6 @@ body {
 .ws-status-dot { width: 6px; height: 6px; border-radius: 50%; }
 </style>
 <base target="_blank">
-<base target="_blank">
-<base target="_blank">
 </head>
 <body>
 
@@ -793,7 +791,7 @@ body {
 
 <div id="authScreen" class="auth-screen">
   <div class="auth-card">
-    <h1>Aurora</h1>
+    <h1>Lumina</h1>
     <p id="authSubtitle">Entre na sua conta</p>
     <input type="text" id="authUser" class="auth-input" placeholder="Usuario" maxlength="20">
     <input type="password" id="authPass" class="auth-input" placeholder="Senha">
@@ -802,9 +800,6 @@ body {
       <div class="color-picker" id="colorPicker"></div>
     </div>
     <button class="auth-btn" id="authBtn">Entrar</button>
-    <div style="margin-top:12px">
-      <button class="btn-ghost btn-sm" id="guestBtn" style="width:100%">Entrar como Convidado</button>
-    </div>
     <span class="auth-link" id="authToggle">Criar conta</span>
   </div>
 </div>
@@ -841,7 +836,7 @@ body {
 
     <div class="chat-area" id="chatArea">
       <div class="welcome-screen" id="welcomeScreen">
-        <h1>Aurora</h1>
+        <h1>Lumina</h1>
         <p>Selecione um contato ou circulo para comecar a conversar.</p>
       </div>
     </div>
@@ -879,7 +874,6 @@ let currentDM = null;
 let ws = null;
 let notifWs = null;
 let typingTimer = null;
-let isGuest = false;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
 let pendingCount = 0;
@@ -925,7 +919,6 @@ function renderColorPicker() {
 function bindAuth() {
   const btn = document.getElementById('authBtn');
   const toggle = document.getElementById('authToggle');
-  const guest = document.getElementById('guestBtn');
   let mode = 'login';
 
   toggle.onclick = () => {
@@ -955,12 +948,6 @@ function bindAuth() {
     localStorage.setItem('aurora_token', token);
     enterApp();
   };
-
-  guest.onclick = () => {
-    isGuest = true;
-    me = { id: 'guest_' + Math.random().toString(36).slice(2,8), name: 'Convidado', color: '#888', is_guest: true };
-    enterApp();
-  };
 }
 
 async function verifyAndLoad() {
@@ -986,7 +973,6 @@ function enterApp() {
 }
 
 function connectNotifWS() {
-  if (isGuest || !token) return;
   if (notifWs) { notifWs.close(); notifWs = null; }
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = proto + '//' + location.host + '/ws/notifications';
@@ -1017,7 +1003,6 @@ function connectNotifWS() {
 }
 
 async function loadData() {
-  if (isGuest) { renderDock(); showHome(); return; }
   const [cRes, fRes, dRes, uRes] = await Promise.all([
     fetch(API + '/api/circles', { headers: authHeader() }),
     fetch(API + '/api/friends', { headers: authHeader() }),
@@ -1036,7 +1021,7 @@ async function loadData() {
 }
 
 function restoreSession() {
-  if (!lastSession || isGuest) return;
+  if (!lastSession) return;
   if (lastSession.type === 'dm' && lastSession.peerId) {
     const f = friends.friends?.find(x => x.fid === lastSession.peerId);
     if (f) openDM(lastSession.peerId, f.display_name || f.username, f.avatar_color);
@@ -1054,7 +1039,6 @@ function restoreSession() {
 }
 
 function saveSession() {
-  if (isGuest) return;
   const s = {};
   if (currentDM) { s.type = 'dm'; s.peerId = currentDM.peerId; }
   else if (currentCircle) { s.type = 'circle'; s.circleId = currentCircle.id; s.topicId = currentTopic?.id; }
@@ -1076,7 +1060,7 @@ function updatePendingBadge() {
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
   pollInterval = setInterval(async () => {
-    if (isGuest || !token) return;
+    if (!token) return;
     const res = await fetch(API + '/api/friends', { headers: authHeader() });
     if (!res.ok) return;
     const oldPending = friends.pending_received?.length || 0;
@@ -1090,7 +1074,6 @@ function startPolling() {
     }
   }, 8000);
 }
-
 
 /* ========== INTEGRACAO COM CLIENTE NATIVO ========== */
 let nativeClient = null;
@@ -1159,7 +1142,7 @@ function showHome() {
   `;
   document.getElementById('chatArea').innerHTML = `
     <div class="welcome-screen">
-      <h1>Aurora</h1>
+      <h1>Lumina</h1>
       <p>Selecione um amigo na lista ao lado ou entre em um Circulo.</p>
     </div>
   `;
@@ -1330,7 +1313,6 @@ async function selectCircle(id) {
 }
 
 
-
 async function selectTopic(tid) {
   currentTopic = currentCircle.topics.find(t => t.id === tid);
   currentDM = null;
@@ -1393,7 +1375,7 @@ function connectWS(roomId) {
     wsRetryCount = 0;
     setWsStatus('online', 'Conectado');
     ws.send(JSON.stringify({
-      token: isGuest ? undefined : token,
+      token: token,
       name: me.name || me.display_name || me.username,
       color: me.color || me.avatar_color || '#888'
     }));
@@ -1411,7 +1393,6 @@ function connectWS(roomId) {
     }
     else if (msg.type === 'system') {
       // Ignora mensagens de sistema de join/leave (privacidade)
-      // appendSystemMessage(msg.content);
     }
     else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
     else if (msg.type === 'users') renderUserList(msg.users);
@@ -1426,7 +1407,6 @@ function connectWS(roomId) {
   ws.onclose = () => {
     ws = null;
     setWsStatus('offline', 'Desconectado');
-    // Retry automático com backoff
     const delay = Math.min(3000 + wsRetryCount * 2000, 15000);
     wsRetryCount++;
     if (wsRetryTimer) clearTimeout(wsRetryTimer);
@@ -1436,7 +1416,7 @@ function connectWS(roomId) {
   };
 
   ws.onerror = () => {
-    setWsStatus('offline', 'Erro de conexão');
+    setWsStatus('offline', 'Erro de conexao');
   };
 }
 
@@ -1449,7 +1429,6 @@ function appendMessage(m) {
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble ' + (isOwn ? 'own' : '');
 
-  // Detecta link de convite no conteúdo
   const inviteMatch = m.content?.match(/\?join=([a-zA-Z0-9\-]+)/);
   let contentHtml = '';
   if (inviteMatch) {
@@ -1471,7 +1450,6 @@ function appendMessage(m) {
 }
 
 function renderChatEmbed(code, fallbackText) {
-  // Busca dados do círculo e atualiza o embed depois
   const placeholderId = 'embed-' + Math.random().toString(36).slice(2, 10);
   setTimeout(async () => {
     try {
@@ -1484,7 +1462,7 @@ function renderChatEmbed(code, fallbackText) {
           <div class="chat-embed-avatar" style="background:${data.color}20;color:${data.color}">${data.name[0].toUpperCase()}</div>
           <div class="chat-embed-info">
             <div class="chat-embed-name">${escapeHtml(data.name)}</div>
-            <div class="chat-embed-sub">Círculo · Clique para entrar</div>
+            <div class="chat-embed-sub">Circulo · Clique para entrar</div>
           </div>
           <button class="chat-embed-btn" onclick="doJoinCircle('${code}', '${data.id}')">Entrar</button>
         `;
@@ -1559,7 +1537,7 @@ function sendMessage(text, fileUrl) {
   const content = text !== undefined ? text : input.value.trim();
   if (!content && !fileUrl) return;
   if (!ws || ws.readyState !== 1) {
-    showToast('Desconectado', 'Aguarde a conexão ser restabelecida...', '#f87171');
+    showToast('Desconectado', 'Aguarde a conexao ser restabelecida...', '#f87171');
     return;
   }
   ws.send(JSON.stringify({ content: content || '', file_url: fileUrl || undefined }));
@@ -1642,7 +1620,6 @@ function handleVoiceOffer(msg) {}
 function handleVoiceAnswer(msg) {}
 function handleVoiceICE(msg) {}
 
-
 /* ========== SISTEMA DE CONVITE EMBED ========== */
 
 function checkJoinParam() {
@@ -1654,14 +1631,13 @@ function checkJoinParam() {
 }
 
 async function showJoinEmbed(code) {
-  // Busca dados públicos do círculo
   let circleData = null;
   try {
     const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
     if (res.ok) circleData = await res.json();
   } catch (e) {}
 
-  const name = circleData ? circleData.name : 'Círculo';
+  const name = circleData ? circleData.name : 'Circulo';
   const color = circleData ? circleData.color : '#a78bfa';
   const circleId = circleData ? circleData.id : null;
 
@@ -1669,53 +1645,44 @@ async function showJoinEmbed(code) {
     <div style="text-align:center;">
       <div class="invite-embed-avatar" style="background:${color}20;color:${color}">${name[0].toUpperCase()}</div>
       <div class="invite-embed-title">${escapeHtml(name)}</div>
-      <div class="invite-embed-sub">Você foi convidado a entrar neste círculo.</div>
-      ${circleData ? '' : '<div style="color:var(--accent);font-size:12px;margin-bottom:12px;">Código não encontrado ou expirado.</div>'}
+      <div class="invite-embed-sub">Voce foi convidado a entrar neste circulo.</div>
+      ${circleData ? '' : '<div style="color:var(--accent);font-size:12px;margin-bottom:12px;">Codigo nao encontrado ou expirado.</div>'}
     </div>
   `, `
     <button class="btn-sm btn-ghost" onclick="closeJoinEmbed()">Cancelar</button>
-    ${circleData ? `<button class="btn-sm btn-primary" onclick="doJoinCircle('${code}', '${circleId}')">Entrar no Círculo</button>` : ''}
+    ${circleData ? `<button class="btn-sm btn-primary" onclick="doJoinCircle('${code}', '${circleId}')">Entrar no Circulo</button>` : ''}
   `);
 }
 
 function closeJoinEmbed() {
   closeModal();
-  // Limpa o ?join= da URL sem recarregar
   const url = new URL(window.location.href);
   url.searchParams.delete('join');
   window.history.replaceState({}, '', url);
 }
 
 async function doJoinCircle(code, circleId) {
-  if (isGuest) {
-    alert('Faça login para entrar em um círculo.');
-    closeJoinEmbed();
-    showAuth();
-    return;
-  }
   const fd = new FormData();
   fd.append('code', code);
   const res = await fetch(API + '/api/circles/join', { method: 'POST', body: fd, headers: authHeader() });
   if (!res.ok) {
     const d = await res.json();
-    alert(d.detail || 'Erro ao entrar no círculo');
+    alert(d.detail || 'Erro ao entrar no circulo');
     return;
   }
   closeJoinEmbed();
-  showToast('Você entrou no círculo!', '', '#4ade80');
+  showToast('Voce entrou no circulo!', '', '#4ade80');
   await loadData();
-  // Entra direto no círculo
   if (circleId) selectCircle(circleId);
 }
 
-/* ========== MODIFICAÇÕES NAS FUNÇÕES EXISTENTES ========== */
+/* ========== MODIFICACOES NAS FUNCOES EXISTENTES ========== */
 
-// Sobrescreve showInviteCode para incluir link
 function showInviteCode() {
   if (!currentCircle) return;
   const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
   openModal('Convite para ' + currentCircle.name, `
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este código ou link para convidar amigos:</p>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este codigo ou link para convidar amigos:</p>
     <div class="invite-box">
       <span>${currentCircle.invite_code}</span>
       <button onclick="copyInviteCode()">Copiar</button>
@@ -1753,8 +1720,8 @@ function copyToClipboard(text) {
 function copyInviteCode() {
   if (currentCircle?.invite_code) {
     copyToClipboard(currentCircle.invite_code).then(() => {
-      showToast('Copiado!', 'Código de convite copiado', '#a78bfa');
-    }).catch(() => alert('Não foi possível copiar. Código: ' + currentCircle.invite_code));
+      showToast('Copiado!', 'Codigo de convite copiado', '#a78bfa');
+    }).catch(() => alert('Nao foi possivel copiar. Codigo: ' + currentCircle.invite_code));
   }
 }
 
@@ -1763,7 +1730,7 @@ function copyInviteLink() {
     const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
     copyToClipboard(shareUrl).then(() => {
       showToast('Link copiado!', 'Compartilhe com seus amigos', '#a78bfa');
-    }).catch(() => alert('Não foi possível copiar. Link: ' + shareUrl));
+    }).catch(() => alert('Nao foi possivel copiar. Link: ' + shareUrl));
   }
 }
 </script>

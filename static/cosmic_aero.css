@@ -1,8 +1,9 @@
 /* ============================================
-   LUMINA CHAT - Cosmic Aero Theme
+   LUMINA CHAT - Cosmic Aero Theme v2
+   Mapeado para as classes reais do index.html
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Nunito:wght@400;600;700&display=swap');
 
 :root {
   --cosmic-bg-deep: #050310;
@@ -30,131 +31,513 @@
 }
 
 /* Fundo espacial */
-body, #app, .app-container, .main-container {
+body {
   background: radial-gradient(ellipse at 20% 20%, #1a103c 0%, #0f0a1e 40%, #050310 100%) !important;
   background-attachment: fixed !important;
   color: var(--cosmic-text-primary) !important;
 }
 
-/* Painéis glassmorphism */
-.sidebar, .channel-sidebar, .member-list, .chat-container,
-.dock, #dockCircles, .circle-panel, .topic-panel,
-.modal, .popup, .dropdown, .context-menu,
-.friends-list, .dm-list, .settings-panel {
-  background: var(--cosmic-bg-glass) !important;
-  backdrop-filter: var(--cosmic-blur) !important;
-  -webkit-backdrop-filter: var(--cosmic-blur) !important;
-  border: 1px solid var(--cosmic-border) !important;
-  border-radius: var(--cosmic-radius) !important;
-  box-shadow: var(--cosmic-glow-purple), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-}
-
-/* Sidebar esquerda (dock) */
-#dockCircles, .dock, .server-sidebar {
+/* ===== DOCK ===== */
+.dock {
   background: rgba(10, 8, 30, 0.85) !important;
   border-right: 1px solid var(--cosmic-border) !important;
   border-radius: 0 var(--cosmic-radius) var(--cosmic-radius) 0 !important;
   box-shadow: 4px 0 24px rgba(139, 92, 246, 0.15) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
 }
 
-/* Círculos no dock */
-.circle-item, .server-icon, .dock-circle {
+.dock-avatar {
   border-radius: 50% !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   border: 2px solid transparent !important;
 }
-.circle-item:hover, .server-icon:hover, .dock-circle:hover {
+.dock-avatar:hover {
   border-color: var(--cosmic-accent-cyan) !important;
   box-shadow: 0 0 16px rgba(6, 182, 212, 0.5) !important;
   transform: scale(1.08) !important;
 }
-.circle-item.active, .server-icon.active, .dock-circle.active {
+.dock-avatar.active {
   border-color: var(--cosmic-accent-purple) !important;
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.6) !important;
 }
 
-/* Chat area */
-.chat-area, .messages-container, .message-list {
+.dock-circle {
+  border-radius: 50% !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border: 2px solid transparent !important;
+}
+.dock-circle:hover {
+  border-color: var(--cosmic-accent-cyan) !important;
+  box-shadow: 0 0 16px rgba(6, 182, 212, 0.5) !important;
+  transform: scale(1.08) !important;
+}
+.dock-circle.active {
+  border-color: var(--cosmic-accent-purple) !important;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6) !important;
+}
+
+.dock-btn {
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+  border: 1px dashed var(--cosmic-border) !important;
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--cosmic-text-secondary) !important;
+}
+.dock-btn:hover {
+  border-color: var(--cosmic-accent-cyan) !important;
+  color: var(--cosmic-text-primary) !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+/* ===== PANEL ===== */
+.panel {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  -webkit-backdrop-filter: var(--cosmic-blur) !important;
+  border-right: 1px solid var(--cosmic-border) !important;
+  box-shadow: var(--cosmic-glow-purple), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+.panel-header {
+  border-bottom: 1px solid var(--cosmic-border) !important;
+}
+.panel-header h2 {
+  color: var(--cosmic-text-primary) !important;
+  font-weight: 700 !important;
+}
+.panel-header p {
+  color: var(--cosmic-text-muted) !important;
+}
+
+/* ===== MAIN ===== */
+.main {
   background: transparent !important;
 }
 
-/* Mensagens */
-.message, .chat-message {
+.main-header {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: blur(16px) !important;
+  border-bottom: 1px solid var(--cosmic-border) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+}
+.main-header h3 {
+  color: var(--cosmic-text-primary) !important;
+}
+
+/* ===== HEADER TABS ===== */
+.header-tab {
+  color: var(--cosmic-text-secondary) !important;
+  transition: all 0.2s ease !important;
+}
+.header-tab:hover {
+  color: var(--cosmic-text-primary) !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+.header-tab.active {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: var(--cosmic-accent-purple) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* ===== CHAT AREA ===== */
+.chat-area {
+  background: transparent !important;
+}
+
+/* ===== MESSAGES ===== */
+.message-bubble {
   background: rgba(255, 255, 255, 0.03) !important;
   border: 1px solid rgba(139, 92, 246, 0.1) !important;
   border-radius: var(--cosmic-radius-sm) !important;
   transition: all 0.2s ease !important;
 }
-.message:hover, .chat-message:hover {
+.message-bubble:hover {
   background: rgba(139, 92, 246, 0.08) !important;
   border-color: rgba(139, 92, 246, 0.25) !important;
   box-shadow: 0 2px 12px rgba(139, 92, 246, 0.1) !important;
 }
 
-/* Input de mensagem */
-.message-input, .chat-input, input[type="text"], textarea {
+.message-bubble.own .msg-content {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.15)) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.msg-content {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  color: var(--cosmic-text-primary) !important;
+}
+
+.msg-author {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+.msg-time {
+  color: var(--cosmic-text-muted) !important;
+}
+
+.system-msg {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  color: var(--cosmic-text-muted) !important;
+}
+
+/* ===== INPUT ===== */
+.input-area {
+  border-top: 1px solid var(--cosmic-border) !important;
+  background: rgba(10, 8, 30, 0.6) !important;
+}
+
+.input-box {
   background: rgba(10, 8, 30, 0.8) !important;
   border: 1px solid var(--cosmic-border) !important;
   border-radius: var(--cosmic-radius) !important;
   color: var(--cosmic-text-primary) !important;
-  padding: 12px 16px !important;
   box-shadow: inset 0 2px 8px rgba(0,0,0,0.3) !important;
 }
-.message-input:focus, .chat-input:focus, input:focus, textarea:focus {
+.input-box:focus {
   border-color: var(--cosmic-accent-cyan) !important;
   box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2), inset 0 2px 8px rgba(0,0,0,0.3) !important;
   outline: none !important;
 }
 
-/* Botões */
-button, .btn, .button {
+.input-btn {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-blue)) !important;
+  border: none !important;
+  border-radius: 50% !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+.input-btn:hover {
+  transform: translateY(-2px) scale(1.05) !important;
+  box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5) !important;
+}
+
+.input-btn.secondary {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  box-shadow: none !important;
+  color: var(--cosmic-text-secondary) !important;
+}
+.input-btn.secondary:hover {
+  background: rgba(255,255,255,0.12) !important;
+  border-color: var(--cosmic-accent-cyan) !important;
+  color: var(--cosmic-text-primary) !important;
+}
+
+/* ===== CONTACTS / TOPICS ===== */
+.contact-item {
+  transition: all 0.15s ease !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+}
+.contact-item:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+
+.contact-name {
+  color: var(--cosmic-text-primary) !important;
+}
+.contact-sub {
+  color: var(--cosmic-text-muted) !important;
+}
+
+.contact-badge {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-pink)) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3) !important;
+}
+
+.topic-tab {
+  transition: all 0.15s ease !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+}
+.topic-tab:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+.topic-tab.active {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: var(--cosmic-accent-purple) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15) !important;
+}
+
+.topic-badge {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-pink)) !important;
+  color: white !important;
+}
+
+/* ===== AVATARS ===== */
+.contact-avatar,
+.msg-avatar,
+.toast-avatar,
+.invite-embed-avatar,
+.chat-embed-avatar {
+  border-radius: 50% !important;
+  border: 2px solid rgba(139, 92, 246, 0.3) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* ===== STATUS ===== */
+.contact-status.online {
+  background: #10b981 !important;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
+}
+.contact-status.away {
+  background: #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
+}
+.contact-status.offline {
+  background: #6b7280 !important;
+}
+
+/* ===== BUTTONS ===== */
+.btn-primary,
+.auth-btn {
   background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-blue)) !important;
   border: none !important;
   border-radius: var(--cosmic-radius-sm) !important;
   color: white !important;
   font-weight: 600 !important;
-  padding: 10px 20px !important;
-  transition: all 0.3s ease !important;
   box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+  transition: all 0.3s ease !important;
 }
-button:hover, .btn:hover, .button:hover {
+.btn-primary:hover,
+.auth-btn:hover {
   transform: translateY(-2px) !important;
   box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5) !important;
-}
-button:active, .btn:active {
-  transform: translateY(0) !important;
+  filter: brightness(1.1) !important;
 }
 
-/* Botão secundário */
-.btn-secondary, button.secondary {
+.btn-ghost {
   background: rgba(255,255,255,0.08) !important;
   border: 1px solid var(--cosmic-border) !important;
-  box-shadow: none !important;
+  color: var(--cosmic-text-primary) !important;
+  transition: all 0.2s ease !important;
 }
-.btn-secondary:hover, button.secondary:hover {
+.btn-ghost:hover {
   background: rgba(255,255,255,0.12) !important;
   border-color: var(--cosmic-accent-cyan) !important;
 }
 
-/* Títulos */
-h1, h2, h3, h4, .title, .header {
-  color: var(--cosmic-text-primary) !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.02em !important;
+.btn-sm {
+  border-radius: var(--cosmic-radius-sm) !important;
+  font-weight: 600 !important;
 }
 
-/* Links */
-a, .link {
+/* ===== AUTH SCREEN ===== */
+.auth-screen {
+  background: radial-gradient(ellipse at 50% 30%, #1a103c 0%, #0f0a1e 50%, #050310 100%) !important;
+}
+
+.auth-card {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  -webkit-backdrop-filter: var(--cosmic-blur) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius) !important;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), var(--cosmic-glow-purple) !important;
+}
+
+.auth-card h1 {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-cyan)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  font-weight: 700 !important;
+}
+
+.auth-input {
+  background: rgba(10, 8, 30, 0.8) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  color: var(--cosmic-text-primary) !important;
+}
+.auth-input:focus {
+  border-color: var(--cosmic-accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2) !important;
+  outline: none !important;
+}
+
+.auth-link {
   color: var(--cosmic-accent-cyan) !important;
-  text-decoration: none !important;
   transition: all 0.2s ease !important;
 }
-a:hover, .link:hover {
+.auth-link:hover {
   color: var(--cosmic-accent-pink) !important;
   text-shadow: 0 0 8px rgba(236, 72, 153, 0.4) !important;
 }
 
-/* Scrollbar */
+.color-dot {
+  border-radius: 50% !important;
+  border: 2px solid transparent !important;
+  transition: all 0.15s ease !important;
+}
+.color-dot:hover {
+  transform: scale(1.15) !important;
+}
+.color-dot.selected {
+  border-color: #fff !important;
+  box-shadow: 0 0 0 2px var(--cosmic-accent-purple) !important;
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  background: rgba(5, 3, 16, 0.92) !important;
+  backdrop-filter: blur(30px) !important;
+}
+
+.modal {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  -webkit-backdrop-filter: var(--cosmic-blur) !important;
+  border: 1px solid var(--cosmic-border-glow) !important;
+  border-radius: var(--cosmic-radius) !important;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), var(--cosmic-glow-purple) !important;
+}
+
+.modal h3 {
+  color: var(--cosmic-text-primary) !important;
+  font-weight: 700 !important;
+}
+
+.modal-input {
+  background: rgba(10, 8, 30, 0.8) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  color: var(--cosmic-text-primary) !important;
+}
+.modal-input:focus {
+  border-color: var(--cosmic-accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2) !important;
+  outline: none !important;
+}
+
+/* ===== TOAST ===== */
+.toast {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  border: 1px solid var(--cosmic-border-glow) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  box-shadow: var(--cosmic-glow-cyan) !important;
+}
+
+.toast-title {
+  color: var(--cosmic-text-primary) !important;
+}
+
+.toast-sub {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+/* ===== WELCOME SCREEN ===== */
+.welcome-screen h1 {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-cyan)) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+.welcome-screen p {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+/* ===== EMBEDS ===== */
+.invite-embed-card {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius) !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15) !important;
+}
+
+.invite-embed-title {
+  color: var(--cosmic-text-primary) !important;
+}
+
+.invite-embed-sub {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+.invite-box,
+.invite-link-box {
+  background: rgba(10, 8, 30, 0.6) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  color: var(--cosmic-text-secondary) !important;
+}
+
+.chat-embed {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+}
+
+.chat-embed-name {
+  color: var(--cosmic-text-primary) !important;
+}
+
+.chat-embed-sub {
+  color: var(--cosmic-text-secondary) !important;
+}
+
+.chat-embed-btn {
+  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-blue)) !important;
+  border: none !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+.chat-embed-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 24px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* ===== REQUEST ITEM ===== */
+.request-item {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+}
+
+/* ===== SEARCH ===== */
+.search-dropdown {
+  background: var(--cosmic-bg-glass) !important;
+  backdrop-filter: var(--cosmic-blur) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  border-radius: var(--cosmic-radius-sm) !important;
+}
+
+.search-item:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+
+/* ===== USER CHIPS ===== */
+.user-chip {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--cosmic-border) !important;
+  color: var(--cosmic-text-secondary) !important;
+}
+
+/* ===== WS STATUS ===== */
+.ws-status.online {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #4ade80 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+.ws-status.offline {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+}
+.ws-status.connecting {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+}
+
+/* ===== SCROLLBAR ===== */
 ::-webkit-scrollbar {
   width: 8px !important;
 }
@@ -170,95 +553,46 @@ a:hover, .link:hover {
   background: linear-gradient(180deg, var(--cosmic-accent-pink), var(--cosmic-accent-cyan)) !important;
 }
 
-/* Avatar */
-.avatar, .user-avatar, .profile-pic {
-  border-radius: 50% !important;
-  border: 2px solid rgba(139, 92, 246, 0.3) !important;
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.2) !important;
-}
-
-/* Status indicators */
-.status-online {
-  background: #10b981 !important;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6) !important;
-}
-.status-away {
-  background: #f59e0b !important;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6) !important;
-}
-.status-dnd {
-  background: #ef4444 !important;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6) !important;
-}
-.status-offline {
-  background: #6b7280 !important;
-}
-
-/* Modais/Popups */
-.modal, .overlay, .dialog {
-  background: rgba(5, 3, 16, 0.92) !important;
-  backdrop-filter: blur(30px) !important;
-}
-.modal-content, .dialog-content {
-  background: var(--cosmic-bg-glass) !important;
-  border: 1px solid var(--cosmic-border-glow) !important;
-  border-radius: var(--cosmic-radius) !important;
-  box-shadow: 0 25px 50px rgba(0,0,0,0.5), var(--cosmic-glow-purple) !important;
-}
-
-/* Embed de convite */
-.invite-embed, .circle-embed {
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.1)) !important;
-  border: 1px solid var(--cosmic-border) !important;
-  border-radius: var(--cosmic-radius) !important;
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15) !important;
-}
-
-/* Efeito de brilho nos hover de cards */
-.card, .item, .row {
-  transition: all 0.3s ease !important;
-}
-.card:hover, .item:hover, .row:hover {
-  background: rgba(139, 92, 246, 0.06) !important;
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.1) !important;
-}
-
-/* Loading / Spinner */
-.spinner, .loader {
-  border: 3px solid rgba(139, 92, 246, 0.2) !important;
-  border-top-color: var(--cosmic-accent-cyan) !important;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.3) !important;
-}
-
-/* Notificações */
-.notification, .toast {
-  background: var(--cosmic-bg-glass) !important;
-  border: 1px solid var(--cosmic-border-glow) !important;
-  border-radius: var(--cosmic-radius-sm) !important;
-  box-shadow: var(--cosmic-glow-cyan) !important;
-  backdrop-filter: var(--cosmic-blur) !important;
-}
-
-/* Seleção de texto */
+/* ===== SELECTION ===== */
 ::selection {
   background: rgba(139, 92, 246, 0.4) !important;
   color: white !important;
 }
 
-/* Divider lines */
-hr, .divider {
-  border: none !important;
-  height: 1px !important;
+/* ===== DIVIDER ===== */
+.dock-divider,
+.system-msg::before,
+.system-msg::after {
   background: linear-gradient(90deg, transparent, var(--cosmic-border), transparent) !important;
 }
 
-/* Badges */
-.badge, .tag, .pill {
-  background: linear-gradient(135deg, var(--cosmic-accent-purple), var(--cosmic-accent-pink)) !important;
-  border-radius: 20px !important;
-  padding: 2px 10px !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  color: white !important;
-  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.3) !important;
+/* ===== TYPING ===== */
+.typing-indicator {
+  color: var(--cosmic-text-muted) !important;
+}
+
+/* ===== PANEL SCROLL ===== */
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3) !important;
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(40px); }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
