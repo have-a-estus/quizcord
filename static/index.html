@@ -41,7 +41,7 @@ body {
 }
 
 .dock {
-  width: 72px;
+  width: 85px;
   background: var(--bg-glass);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border);
@@ -844,12 +844,14 @@ body {
     <!-- Barra de busca -->
     <div class="dock-search-row">
       <div class="dock-search-icon">&#9906;</div>
-      <input type="text" class="dock-search-input" placeholder="Buscar servidores" readonly>
-      <div class="dock-search-btn" id="btnCreateCircle" title="Novo Círculo">+</div>
+      <input type="text" class="dock-search-input" placeholder="Buscar" readonly>
     </div>
 
     <!-- Servidores / Círculos -->
     <div id="dockCircles"></div>
+
+    <!-- Botão criar círculo -->
+    <div class="dock-btn" id="btnCreateCircle" title="Novo Círculo">+</div>
 
     <div style="flex:1"></div>
 

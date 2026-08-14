@@ -63,14 +63,14 @@ body::after {
   -webkit-backdrop-filter: var(--glass-blur);
   border-right: 1px solid var(--glass-border);
   box-shadow: 4px 0 24px rgba(0,0,0,0.3);
-  padding: 16px 10px;
+  padding: 14px 8px;
   gap: 10px;
 }
 
 /* Logo Alpaca */
 .dock-logo {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   overflow: hidden;
   cursor: pointer;
@@ -78,11 +78,27 @@ body::after {
   border: 2px solid transparent;
   flex-shrink: 0;
   align-self: center;
+  position: relative;
+}
+.dock-logo::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
+  opacity: 0;
+  filter: blur(4px);
+  transition: opacity 0.3s;
+  z-index: -1;
+}
+.dock-logo:hover::after {
+  opacity: 0.5;
 }
 .dock-logo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 .dock-logo:hover {
   border-color: var(--cosmic-accent-cyan);
@@ -96,35 +112,36 @@ body::after {
 
 /* Divider */
 .dock-divider {
-  width: 32px;
+  width: 36px;
   height: 2px;
   background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
   border-radius: 1px;
-  margin: 4px 0;
+  margin: 2px 0;
 }
 
 /* Barra de busca */
 .dock-search-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
+  gap: 4px;
+  padding: 5px 8px;
   border-radius: var(--cosmic-radius-sm);
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(139, 92, 246, 0.12);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .dock-search-icon {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--cosmic-text-muted);
   opacity: 0.6;
+  flex-shrink: 0;
 }
 .dock-search-input {
   flex: 1;
   background: transparent;
   border: none;
   color: var(--cosmic-text-secondary);
-  font-size: 11px;
+  font-size: 10px;
   outline: none;
   cursor: pointer;
   width: 0;
@@ -133,29 +150,6 @@ body::after {
 .dock-search-input::placeholder {
   color: var(--cosmic-text-muted);
   opacity: 0.5;
-}
-.dock-search-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: 300;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: rgba(255,255,255,0.06);
-  border: 1px dashed rgba(139, 92, 246, 0.25);
-  color: var(--cosmic-text-secondary);
-  flex-shrink: 0;
-}
-.dock-search-btn:hover {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
-  transform: scale(1.1);
 }
 
 /* Servidores / Círculos - Estilo Botão Secundário (standby) */
@@ -166,6 +160,7 @@ body::after {
   position: relative;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 6px;
 }
 
 .dock-server-icon {
@@ -201,8 +196,8 @@ body::after {
 /* Pill de notificação */
 .dock-server-pill {
   position: absolute;
-  top: -2px;
-  right: -2px;
+  top: -3px;
+  right: 8px;
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
@@ -219,7 +214,7 @@ body::after {
   z-index: 2;
 }
 
-/* Botão criar círculo (estilo standalone) */
+/* Botão criar círculo */
 .dock-btn {
   width: 48px;
   height: 48px;
@@ -234,6 +229,7 @@ body::after {
   color: var(--cosmic-text-secondary);
   font-size: 20px;
   align-self: center;
+  margin-top: 4px;
 }
 .dock-btn:hover {
   background: linear-gradient(135deg, #3b82f6, #06b6d4);
@@ -247,15 +243,33 @@ body::after {
 .dock-profile-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--cosmic-radius-sm);
-  background: rgba(10, 8, 30, 0.65);
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(10, 8, 30, 0.75);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.4),
+    0 0 30px rgba(139, 92, 246, 0.08);
   margin-top: auto;
-  width: 100%;
+  width: calc(100% + 4px);
+  margin-left: -2px;
+  position: relative;
+}
+
+/* Glow de mesclagem com a barra de servidores */
+.dock-profile-bar::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 30px;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 .dock-profile-avatar-wrap {
@@ -263,16 +277,16 @@ body::after {
   flex-shrink: 0;
 }
 .dock-profile-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(139, 92, 246, 0.3);
 }
 .dock-profile-status {
   position: absolute;
-  bottom: 0;
-  right: 0;
+  bottom: -1px;
+  right: -1px;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -295,41 +309,46 @@ body::after {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
+  overflow: hidden;
 }
 .dock-profile-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--cosmic-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 .dock-profile-tag {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--cosmic-text-muted);
   opacity: 0.7;
+  line-height: 1.2;
 }
 
 .dock-profile-actions {
   display: flex;
-  gap: 4px;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 /* Botões do rodapé - Estilo Botão Secundário (standby) */
 .dock-profile-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.2s ease;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(139, 92, 246, 0.15);
   color: var(--cosmic-text-secondary);
+  padding: 0;
 }
 
 /* Hover / Active = Botão Primário (azul brilhante com glow) */
