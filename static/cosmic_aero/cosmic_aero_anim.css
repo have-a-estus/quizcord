@@ -1,0 +1,262 @@
+/* ============================================
+ COSMIC AERO - Animation Layer
+ Estrelas cadentes, pulse, flutuação, entradas
+ ============================================ */
+
+/* ===== ESTRELA CADENTE ===== */
+.shooting-star {
+  position: fixed;
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9), rgba(139,92,246,0.6));
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: rotate(-45deg);
+  animation: shootingStar 6s linear infinite;
+}
+
+.shooting-star::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: -2px;
+  width: 4px;
+  height: 4px;
+  background: rgba(255,255,255,0.95);
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px rgba(255,255,255,0.6), 0 0 20px 4px rgba(139, 92, 246, 0.3);
+}
+
+@keyframes shootingStar {
+  0% {
+    transform: translateX(0) translateY(0) rotate(-45deg);
+    opacity: 0;
+  }
+  5% { opacity: 1; }
+  15% {
+    transform: translateX(300px) translateY(300px) rotate(-45deg);
+    opacity: 0;
+  }
+  100% { opacity: 0; }
+}
+
+/* Múltiplas estrelas cadentes */
+.shooting-star:nth-child(2) { animation-delay: 2s; top: 20%; left: 60%; }
+.shooting-star:nth-child(3) { animation-delay: 4s; top: 40%; left: 30%; animation-duration: 8s; }
+.shooting-star:nth-child(4) { animation-delay: 1s; top: 60%; left: 80%; animation-duration: 5s; }
+
+/* ===== FLOAT (flutuação sutil) ===== */
+.float {
+  animation: float 6s ease-in-out infinite !important;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.float-slow {
+  animation: floatSlow 8s ease-in-out infinite !important;
+}
+
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-6px) rotate(1deg); }
+  66% { transform: translateY(-3px) rotate(-1deg); }
+}
+
+/* ===== PULSE (badges, notificações) ===== */
+.pulse {
+  animation: pulse 2s ease-in-out infinite !important;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.pulse-ring {
+  position: relative;
+}
+.pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  animation: pulseRing 2s ease-out infinite;
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ===== ENTRADAS SUAVES ===== */
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out !important;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.3s ease-out !important;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out !important;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ===== SPIN SUTIL (loading, icones) ===== */
+.spin-slow {
+  animation: spinSlow 8s linear infinite !important;
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ===== BREATHE (respiração em cards) ===== */
+.breathe {
+  animation: breathe 4s ease-in-out infinite !important;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* ===== SHIMMER (efeito de brilho passando) ===== */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  50% { left: 100%; }
+  100% { left: 100%; }
+}
+
+/* ===== TYPING DOTS ===== */
+.typing-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  background: var(--cosmic-accent-purple);
+  border-radius: 50%;
+  animation: typingDot 1.4s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingDot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ===== HOVER LIFT ===== */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+.hover-lift:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3) !important;
+}
+
+/* ===== HOVER SCALE ===== */
+.hover-scale {
+  transition: all 0.2s ease !important;
+}
+.hover-scale:hover {
+  transform: scale(1.08) !important;
+}
+
+/* ===== GLITCH TEXT (opcional, para efeitos especiais) ===== */
+.glitch {
+  position: relative;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}
+.glitch:hover::before {
+  animation: glitch1 0.3s ease;
+  color: #ec4899;
+  opacity: 0.8;
+}
+.glitch:hover::after {
+  animation: glitch2 0.3s ease;
+  color: #06b6d4;
+  opacity: 0.8;
+}
+
+@keyframes glitch1 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  60% { transform: translate(-2px, -2px); }
+  80% { transform: translate(2px, 2px); }
+}
+
+@keyframes glitch2 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(2px, -2px); }
+  40% { transform: translate(-2px, 2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(-2px, -2px); }
+}
