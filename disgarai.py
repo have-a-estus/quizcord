@@ -615,7 +615,6 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
     manager.connect(room_id, ws, user)
 
-    await manager.broadcast(room_id, {"type": "system", "content": f"{user['name']} entrou no chat"}, exclude=ws)
     await ws.send_text(json.dumps({"type": "handshake", "user_id": user["id"], "user": user}))
     await manager.broadcast(room_id, {"type": "user_joined", "user": user, "users": manager.get_users(room_id)}, exclude=ws)
     await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
@@ -685,7 +684,6 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
     finally:
         user_left = manager.disconnect(room_id, ws)
         await manager.broadcast(room_id, {"type": "user_left", "user": user_left, "users": manager.get_users(room_id)})
-        await manager.broadcast(room_id, {"type": "system", "content": f"{user_left.get('name', 'Alguem')} saiu do chat"})
         if room_id in manager.voice_users and user_left.get("id") in manager.voice_users.get(room_id, {}):
             del manager.voice_users[room_id][user_left["id"]]
             if not manager.voice_users[room_id]:

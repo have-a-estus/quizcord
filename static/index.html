@@ -720,6 +720,59 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
+
+
+/* Embed de convite no chat */
+.chat-embed {
+  max-width: 400px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+.chat-embed-avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 20px;
+  flex-shrink: 0;
+}
+.chat-embed-info { flex: 1; min-width: 0; }
+.chat-embed-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.chat-embed-sub { font-size: 12px; color: var(--text-muted); }
+.chat-embed-btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent-2);
+  color: #fff;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  flex-shrink: 0;
+}
+.chat-embed-btn:hover { filter: brightness(1.1); }
+
+/* Indicador de conexão WS */
+.ws-status {
+  position: fixed; bottom: 12px; right: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600;
+  z-index: 200;
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  transition: all 0.3s;
+}
+.ws-status.online { background: rgba(74,222,128,0.12); color: #4ade80; }
+.ws-status.offline { background: rgba(248,113,113,0.12); color: #f87171; }
+.ws-status.connecting { background: rgba(251,191,36,0.12); color: #fbbf24; }
+.ws-status-dot { width: 6px; height: 6px; border-radius: 50%; }
 </style>
 <base target="_blank">
 <base target="_blank">
@@ -1286,13 +1339,31 @@ async function openDM(peerId, peerName, peerColor) {
   connectWS('dm:' + chat.id);
 }
 
+let wsRetryCount = 0;
+let wsRetryTimer = null;
+
+function setWsStatus(status, text) {
+  const el = document.getElementById('wsStatus');
+  const txt = document.getElementById('wsStatusText');
+  if (!el) return;
+  el.style.display = 'flex';
+  el.className = 'ws-status ' + status;
+  if (txt) txt.textContent = text;
+  if (status === 'online') {
+    setTimeout(() => { if (ws && ws.readyState === 1) el.style.display = 'none'; }, 2000);
+  }
+}
+
 function connectWS(roomId) {
   closeWS();
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = proto + '//' + location.host + '/ws/' + roomId;
   ws = new WebSocket(url);
+  setWsStatus('connecting', 'Conectando...');
 
   ws.onopen = () => {
+    wsRetryCount = 0;
+    setWsStatus('online', 'Conectado');
     ws.send(JSON.stringify({
       token: isGuest ? undefined : token,
       name: me.name || me.display_name || me.username,
@@ -1310,7 +1381,10 @@ function connectWS(roomId) {
       appendMessage(msg);
       if (msg.user?.id !== me.id && document.hidden) playNotifSound();
     }
-    else if (msg.type === 'system') appendSystemMessage(msg.content);
+    else if (msg.type === 'system') {
+      // Ignora mensagens de sistema de join/leave (privacidade)
+      // appendSystemMessage(msg.content);
+    }
     else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
     else if (msg.type === 'users') renderUserList(msg.users);
     else if (msg.type === 'typing') showTyping(msg.user);
@@ -1321,7 +1395,21 @@ function connectWS(roomId) {
     else if (msg.type === 'voice_ice') handleVoiceICE(msg);
   };
 
-  ws.onclose = () => { ws = null; };
+  ws.onclose = () => {
+    ws = null;
+    setWsStatus('offline', 'Desconectado');
+    // Retry automático com backoff
+    const delay = Math.min(3000 + wsRetryCount * 2000, 15000);
+    wsRetryCount++;
+    if (wsRetryTimer) clearTimeout(wsRetryTimer);
+    wsRetryTimer = setTimeout(() => {
+      if ((currentTopic || currentDM) && !ws) connectWS(roomId);
+    }, delay);
+  };
+
+  ws.onerror = () => {
+    setWsStatus('offline', 'Erro de conexão');
+  };
 }
 
 function closeWS() { if (ws) { ws.close(); ws = null; } }
@@ -1332,16 +1420,56 @@ function appendMessage(m) {
   const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble ' + (isOwn ? 'own' : '');
+
+  // Detecta link de convite no conteúdo
+  const inviteMatch = m.content?.match(/\?join=([a-zA-Z0-9\-]+)/);
+  let contentHtml = '';
+  if (inviteMatch) {
+    contentHtml = renderChatEmbed(inviteMatch[1], m.content);
+  } else {
+    contentHtml = escapeHtml(m.content) + (m.file_url ? `<img src="${m.file_url}" onclick="window.open('${m.file_url}')">` : '');
+  }
+
   bubble.innerHTML = `
     <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${(m.user?.name||'?')[0].toUpperCase()}</div>
     <div class="msg-body">
       <div class="msg-author">${m.user?.name||'?'}</div>
-      <div class="msg-content">${escapeHtml(m.content)}${m.file_url ? `<img src="${m.file_url}" onclick="window.open('${m.file_url}')">` : ''}</div>
+      <div class="msg-content">${contentHtml}</div>
       <div class="msg-time">${time}</div>
     </div>
   `;
   area.appendChild(bubble);
   area.scrollTop = area.scrollHeight;
+}
+
+function renderChatEmbed(code, fallbackText) {
+  // Busca dados do círculo e atualiza o embed depois
+  const placeholderId = 'embed-' + Math.random().toString(36).slice(2, 10);
+  setTimeout(async () => {
+    try {
+      const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
+      if (!res.ok) return;
+      const data = await res.json();
+      const el = document.getElementById(placeholderId);
+      if (el) {
+        el.innerHTML = `
+          <div class="chat-embed-avatar" style="background:${data.color}20;color:${data.color}">${data.name[0].toUpperCase()}</div>
+          <div class="chat-embed-info">
+            <div class="chat-embed-name">${escapeHtml(data.name)}</div>
+            <div class="chat-embed-sub">Círculo · Clique para entrar</div>
+          </div>
+          <button class="chat-embed-btn" onclick="doJoinCircle('${code}', '${data.id}')">Entrar</button>
+        `;
+      }
+    } catch (e) {}
+  }, 0);
+  return `<div class="chat-embed" id="${placeholderId}">
+    <div class="chat-embed-avatar" style="background:#444;color:#888">?</div>
+    <div class="chat-embed-info">
+      <div class="chat-embed-name">Carregando...</div>
+      <div class="chat-embed-sub">${escapeHtml(fallbackText)}</div>
+    </div>
+  </div>`;
 }
 
 function appendSystemMessage(content) {
@@ -1402,9 +1530,11 @@ function sendMessage(text, fileUrl) {
   const input = document.getElementById('msgInput');
   const content = text !== undefined ? text : input.value.trim();
   if (!content && !fileUrl) return;
-  if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ content: content || '', file_url: fileUrl || undefined }));
+  if (!ws || ws.readyState !== 1) {
+    showToast('Desconectado', 'Aguarde a conexão ser restabelecida...', '#f87171');
+    return;
   }
+  ws.send(JSON.stringify({ content: content || '', file_url: fileUrl || undefined }));
   if (text === undefined) input.value = '';
 }
 
@@ -1571,20 +1701,45 @@ function showInviteCode() {
   `);
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      resolve();
+    } catch (e) {
+      reject(e);
+    }
+    document.body.removeChild(ta);
+  });
+}
+
 function copyInviteCode() {
   if (currentCircle?.invite_code) {
-    navigator.clipboard.writeText(currentCircle.invite_code);
-    showToast('Copiado!', 'Código de convite copiado', '#a78bfa');
+    copyToClipboard(currentCircle.invite_code).then(() => {
+      showToast('Copiado!', 'Código de convite copiado', '#a78bfa');
+    }).catch(() => alert('Não foi possível copiar. Código: ' + currentCircle.invite_code));
   }
 }
 
 function copyInviteLink() {
   if (currentCircle?.invite_code) {
     const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
-    navigator.clipboard.writeText(shareUrl);
-    showToast('Link copiado!', 'Compartilhe com seus amigos', '#a78bfa');
+    copyToClipboard(shareUrl).then(() => {
+      showToast('Link copiado!', 'Compartilhe com seus amigos', '#a78bfa');
+    }).catch(() => alert('Não foi possível copiar. Link: ' + shareUrl));
   }
 }
 </script>
-</body>
+<div class="ws-status offline" id="wsStatus" style="display:none;">
+  <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>
+</div></body>
 </html>
