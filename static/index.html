@@ -114,6 +114,14 @@ body {
 
 .dock-btn:hover { color: var(--text); border-color: var(--text-muted); }
 
+#dockCircles {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
 .panel {
   width: 280px;
   background: var(--bg-glass);
@@ -1082,6 +1090,24 @@ function startPolling() {
   }, 8000);
 }
 
+
+/* ========== INTEGRACAO COM CLIENTE NATIVO ========== */
+let nativeClient = null;
+function initNativeBridge() {
+  if (window.quizcordNative) {
+    nativeClient = window.quizcordNative;
+    console.log('[Native] Cliente detectado:', nativeClient.getPlatform());
+  }
+}
+window.addEventListener('quizcord-native-ready', (e) => { initNativeBridge(); });
+setTimeout(initNativeBridge, 500);
+function nativeNotify(title, body, color) {
+  if (nativeClient) { nativeClient.showNotification(title, body, color || '#a78bfa'); }
+  else if ('Notification' in window && Notification.permission === 'granted') { new Notification(title, { body }); }
+}
+function nativeBadge(count) { if (nativeClient) nativeClient.setBadge(count); }
+function nativeFlash() { if (nativeClient) nativeClient.flashWindow(); }
+
 function showToast(title, sub, color) {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
@@ -1095,6 +1121,7 @@ function showToast(title, sub, color) {
   `;
   container.appendChild(toast);
   setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
+  if (document.hidden) nativeNotify(title, sub, color);
 }
 
 function renderDock() {
@@ -1379,7 +1406,7 @@ function connectWS(roomId) {
     }
     else if (msg.type === 'message') {
       appendMessage(msg);
-      if (msg.user?.id !== me.id && document.hidden) playNotifSound();
+      if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
     }
     else if (msg.type === 'system') {
       // Ignora mensagens de sistema de join/leave (privacidade)
