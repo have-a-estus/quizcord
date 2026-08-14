@@ -664,7 +664,64 @@ body {
   font-size: 12px;
   font-weight: 600;
 }
+
+
+/* Embed de convite */
+.invite-embed-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  text-align: center;
+  max-width: 380px;
+  width: 90vw;
+  animation: modalIn 0.25s ease;
+}
+.invite-embed-avatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 28px;
+  margin: 0 auto 16px;
+}
+.invite-embed-title {
+  font-size: 20px; font-weight: 700;
+  font-family: 'Nunito', sans-serif;
+  margin-bottom: 6px;
+}
+.invite-embed-sub {
+  font-size: 13px; color: var(--text-muted);
+  margin-bottom: 24px;
+}
+.invite-embed-actions {
+  display: flex; gap: 10px; justify-content: center;
+}
+.invite-link-box {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin-top: 12px;
+}
+.invite-link-box button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
 </style>
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 </head>
@@ -863,6 +920,7 @@ function enterApp() {
   document.getElementById('dockProfile').style.background = me.color || '#444';
   connectNotifWS();
   loadData();
+  checkJoinParam();
 }
 
 function connectNotifWS() {
@@ -1190,25 +1248,7 @@ async function selectCircle(id) {
   }
 }
 
-function showInviteCode() {
-  if (!currentCircle) return;
-  openModal('Convite para ' + currentCircle.name, `
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este codigo para convidar amigos:</p>
-    <div class="invite-box">
-      <span>${currentCircle.invite_code}</span>
-      <button onclick="copyInvite()">Copiar</button>
-    </div>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>
-  `);
-}
 
-function copyInvite() {
-  if (currentCircle?.invite_code) {
-    navigator.clipboard.writeText(currentCircle.invite_code);
-    showToast('Copiado!', 'Codigo de convite copiado', '#a78bfa');
-  }
-}
 
 async function selectTopic(tid) {
   currentTopic = currentCircle.topics.find(t => t.id === tid);
@@ -1443,6 +1483,108 @@ async function doCreateTopic() {
 function handleVoiceOffer(msg) {}
 function handleVoiceAnswer(msg) {}
 function handleVoiceICE(msg) {}
+
+
+/* ========== SISTEMA DE CONVITE EMBED ========== */
+
+function checkJoinParam() {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('join');
+  if (code) {
+    showJoinEmbed(code);
+  }
+}
+
+async function showJoinEmbed(code) {
+  // Busca dados públicos do círculo
+  let circleData = null;
+  try {
+    const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
+    if (res.ok) circleData = await res.json();
+  } catch (e) {}
+
+  const name = circleData ? circleData.name : 'Círculo';
+  const color = circleData ? circleData.color : '#a78bfa';
+  const circleId = circleData ? circleData.id : null;
+
+  openModal('Convite', `
+    <div style="text-align:center;">
+      <div class="invite-embed-avatar" style="background:${color}20;color:${color}">${name[0].toUpperCase()}</div>
+      <div class="invite-embed-title">${escapeHtml(name)}</div>
+      <div class="invite-embed-sub">Você foi convidado a entrar neste círculo.</div>
+      ${circleData ? '' : '<div style="color:var(--accent);font-size:12px;margin-bottom:12px;">Código não encontrado ou expirado.</div>'}
+    </div>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeJoinEmbed()">Cancelar</button>
+    ${circleData ? `<button class="btn-sm btn-primary" onclick="doJoinCircle('${code}', '${circleId}')">Entrar no Círculo</button>` : ''}
+  `);
+}
+
+function closeJoinEmbed() {
+  closeModal();
+  // Limpa o ?join= da URL sem recarregar
+  const url = new URL(window.location.href);
+  url.searchParams.delete('join');
+  window.history.replaceState({}, '', url);
+}
+
+async function doJoinCircle(code, circleId) {
+  if (isGuest) {
+    alert('Faça login para entrar em um círculo.');
+    closeJoinEmbed();
+    showAuth();
+    return;
+  }
+  const fd = new FormData();
+  fd.append('code', code);
+  const res = await fetch(API + '/api/circles/join', { method: 'POST', body: fd, headers: authHeader() });
+  if (!res.ok) {
+    const d = await res.json();
+    alert(d.detail || 'Erro ao entrar no círculo');
+    return;
+  }
+  closeJoinEmbed();
+  showToast('Você entrou no círculo!', '', '#4ade80');
+  await loadData();
+  // Entra direto no círculo
+  if (circleId) selectCircle(circleId);
+}
+
+/* ========== MODIFICAÇÕES NAS FUNÇÕES EXISTENTES ========== */
+
+// Sobrescreve showInviteCode para incluir link
+function showInviteCode() {
+  if (!currentCircle) return;
+  const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
+  openModal('Convite para ' + currentCircle.name, `
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este código ou link para convidar amigos:</p>
+    <div class="invite-box">
+      <span>${currentCircle.invite_code}</span>
+      <button onclick="copyInviteCode()">Copiar</button>
+    </div>
+    <div class="invite-link-box">
+      <span>${shareUrl}</span>
+      <button onclick="copyInviteLink()">Copiar Link</button>
+    </div>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>
+  `);
+}
+
+function copyInviteCode() {
+  if (currentCircle?.invite_code) {
+    navigator.clipboard.writeText(currentCircle.invite_code);
+    showToast('Copiado!', 'Código de convite copiado', '#a78bfa');
+  }
+}
+
+function copyInviteLink() {
+  if (currentCircle?.invite_code) {
+    const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
+    navigator.clipboard.writeText(shareUrl);
+    showToast('Link copiado!', 'Compartilhe com seus amigos', '#a78bfa');
+  }
+}
 </script>
 </body>
 </html>
