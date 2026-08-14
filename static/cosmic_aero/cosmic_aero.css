@@ -17,10 +17,10 @@
   --cosmic-accent-blue: #3b82f6;
   --cosmic-radius: 16px;
   --cosmic-radius-sm: 10px;
-  --glass-bg: rgba(10, 8, 30, 0.28);
-  --glass-bg-strong: rgba(10, 8, 30, 0.40);
-  --glass-border: rgba(139, 92, 246, 0.22);
-  --glass-blur: blur(40px) saturate(180%);
+  --glass-bg: rgba(10, 8, 30, 0.38);
+  --glass-bg-strong: rgba(10, 8, 30, 0.52);
+  --glass-border: rgba(139, 92, 246, 0.25);
+  --glass-blur: blur(36px) saturate(160%);
 }
 
 * {
@@ -51,7 +51,7 @@ body::after {
   content: '';
   position: fixed;
   inset: 0;
-  background: rgba(5, 3, 16, 0.30);
+  background: rgba(5, 3, 16, 0.38);
   z-index: -1;
   pointer-events: none;
 }
