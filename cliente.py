@@ -6,6 +6,7 @@ import tempfile
 import shutil
 import zipfile
 import urllib.request
+import random
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QSystemTrayIcon, QMenu, QAction,
@@ -13,8 +14,8 @@ from PyQt5.QtWidgets import (
     QPushButton, QStackedWidget
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
-from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QThread, QPoint, QPropertyAnimation, QEasingCurve
-from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent
+from PyQt5.QtCore import Qt, pyqtSignal, QObject, QTimer, QThread, QPoint, QPropertyAnimation, QEasingCurve, QUrl, QElapsedTimer
+from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent, QColor
 
 # ============ CONFIG ============
 RENDER_URL = "https://luminachat.duckdns.org"
@@ -22,6 +23,27 @@ CURRENT_VERSION = "1.1.0"
 UPDATE_URL = RENDER_URL + "/api/version"
 DOWNLOAD_URL = RENDER_URL + "/static/download/LuminaChat.zip"
 APP_ID = "LuminaChat_v1"
+
+# ============ FRASES ============
+FRASES_NORMAL = [
+    "A alpaca esta carregando. Ela nao sabe o que isso significa.",
+    "Espera! A alpaca esta pensando...",
+    "Quieto! Ela vai falar algo! Deixa pra la...",
+    "A culpa e da gravidade.",
+    "A alpaca esta contando estrelas...",
+    "Conectando os pontos cosmicos...",
+    "A alpaca esta ajustando o telescopio...",
+]
+
+FRASES_LENTO = [
+    "Eu acho que a Alpaca bateu numa estrela.",
+    "Erro 418: alpaca virou bule.",
+    "Isso esta demorando tanto que Plutao foi promovido de novo.",
+    "Mano... Cade a Alpaca?",
+    "Estamos indo na velocidade da luz. Aparentemente ela nao e tao rapida assim.",
+    "A alpaca parou para tomar um chimarrao no espaco.",
+    "Acho que a Alpaca foi dar um passeio na Via Lactea.",
+]
 
 # ============ SINGLE INSTANCE ============
 from PyQt5.QtNetwork import QLocalSocket, QLocalServer
@@ -46,7 +68,7 @@ def resource_path(filename):
         base = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base, filename)
 
-# ============ AUTO UPDATER ============
+# ============ UPDATER ============
 class UpdateChecker(QThread):
     update_available = pyqtSignal(str, str, str)
     no_update = pyqtSignal()
@@ -160,19 +182,44 @@ class Bridge(QObject):
     badge = pyqtSignal(int)
     flash = pyqtSignal()
 
-# ============ TITLE BAR ============
+# ============ TITLE BAR (100% OPACA) ============
 class TitleBar(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent = parent
         self.drag_pos = None
-        self.setFixedHeight(40)
+        self.setFixedHeight(32)
         self.setStyleSheet("""
-            TitleBar { background-color: rgba(10,8,30,0.98); border-top-left-radius:12px; border-top-right-radius:12px; }
-            QLabel { color:#c4b5fd; font-family:'Segoe UI'; font-size:13px; font-weight:600; }
-            QPushButton { background:transparent; color:#a5b4fc; border:none; font-size:16px; font-weight:bold; width:46px; height:40px; border-radius:6px; }
-            QPushButton:hover { background-color:rgba(139,92,246,0.25); color:#e0e7ff; }
-            QPushButton#closeBtn:hover { background-color:#ef4444; color:white; }
+            TitleBar {
+                background-color: #0a081e;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+                border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+            }
+            QLabel {
+                color: #c4b5fd;
+                font-family: 'Segoe UI', sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+            }
+            QPushButton {
+                background: transparent;
+                color: #a5b4fc;
+                border: none;
+                font-size: 14px;
+                font-weight: bold;
+                width: 38px;
+                height: 32px;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: rgba(139, 92, 246, 0.25);
+                color: #e0e7ff;
+            }
+            QPushButton#closeBtn:hover {
+                background-color: #ef4444;
+                color: white;
+            }
         """)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 0, 6, 0)
@@ -227,7 +274,7 @@ class TitleBar(QWidget):
     def mouseDoubleClickEvent(self, event: QMouseEvent):
         self._toggle_max()
 
-# ============ LOADING SCREEN (Estilo Discord) ============
+# ============ LOADING SCREEN ============
 class LoadingScreen(QWidget):
     finished = pyqtSignal()
 
@@ -235,72 +282,161 @@ class LoadingScreen(QWidget):
         super().__init__(parent)
         self.setStyleSheet("""
             LoadingScreen {
-                background: qradialgradient(cx:0.5, cy:0.5, radius:0.8,
-                    stop:0 #1a103c, stop:0.5 #0f0a1e, stop:1 #050310);
+                background-color: #110f36;
             }
         """)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
-        layout.setSpacing(24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
+        self.card = QWidget()
+        self.card.setFixedSize(640, 720)
+        self.card.setStyleSheet("""
+            QWidget {
+                background-color: #110f36;
+                border-radius: 24px;
+                border: none;
+            }
+        """)
+        card_layout = QVBoxLayout(self.card)
+        card_layout.setAlignment(Qt.AlignCenter)
+        card_layout.setSpacing(20)
+        card_layout.setContentsMargins(40, 50, 40, 50)
+
+        # Icone
         self.icon_label = QLabel()
         self.icon_label.setAlignment(Qt.AlignCenter)
-        self.icon_label.setFixedSize(140, 140)
+        self.icon_label.setFixedSize(180, 180)
 
-        self.img_normal = self._load_img("Icon.ico")
-        self.img_dizzy = self._load_img("Icon_dizzy.ico")
+        self.img_normal = self._load_img("Icon.png")
+        self.img_dizzy = self._load_img("Icon_dizzy.png")
         if self.img_dizzy is None:
             self.img_dizzy = self.img_normal
 
         if self.img_normal:
             self.icon_label.setPixmap(self.img_normal)
-        layout.addWidget(self.icon_label, alignment=Qt.AlignCenter)
+        card_layout.addWidget(self.icon_label, alignment=Qt.AlignCenter)
 
+        # === LABEL 1: Titulo principal ===
         self.text_label = QLabel("Verificando atualizacoes...")
         self.text_label.setAlignment(Qt.AlignCenter)
-        self.text_label.setStyleSheet("font-size:15px; color:#a5b4fc; letter-spacing:1px; font-weight:500; font-family:'Segoe UI',sans-serif;")
-        layout.addWidget(self.text_label)
+        self.text_label.setWordWrap(True)
+        self.text_label.setMinimumWidth(500)
+        self.text_label.setStyleSheet("""
+            font-size: 20px;
+            color: #a5b4fc;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            font-family: 'Segoe UI', sans-serif;
+        """)
+        card_layout.addWidget(self.text_label, alignment=Qt.AlignCenter)
 
-        self.sub_label = QLabel("")
-        self.sub_label.setAlignment(Qt.AlignCenter)
-        self.sub_label.setStyleSheet("font-size:12px; color:#6366f1;")
-        layout.addWidget(self.sub_label)
+        # === LABEL 2: Status fixo (offline/erro) ===
+        self.status_label = QLabel("")
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setWordWrap(True)
+        self.status_label.setMinimumWidth(500)
+        self.status_label.setStyleSheet("""
+            font-size: 14px;
+            color: #818cf8;
+            font-family: 'Segoe UI', sans-serif;
+        """)
+        card_layout.addWidget(self.status_label, alignment=Qt.AlignCenter)
+
+        # === LABEL 3: Frases engracadas ===
+        self.phrase_label = QLabel("")
+        self.phrase_label.setAlignment(Qt.AlignCenter)
+        self.phrase_label.setWordWrap(True)
+        self.phrase_label.setMinimumWidth(500)
+        self.phrase_label.setStyleSheet("""
+            font-size: 13px;
+            color: #a5b4fc;
+            font-family: 'Segoe UI', sans-serif;
+            font-style: italic;
+            padding-top: 8px;
+            line-height: 1.5;
+        """)
+        card_layout.addWidget(self.phrase_label, alignment=Qt.AlignCenter)
+
+        layout.addWidget(self.card, alignment=Qt.AlignCenter)
+
+        self._phrase_timer = QTimer(self)
+        self._phrase_timer.timeout.connect(self._rotate_phrase)
+        self._elapsed = None
 
     def _load_img(self, name):
-        path = resource_path(name)
-        if os.path.exists(path):
-            return QPixmap(path).scaled(140, 140, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        png_path = resource_path(name)
+        if os.path.exists(png_path):
+            pm = QPixmap(png_path)
+            if not pm.isNull():
+                if pm.width() > 180 or pm.height() > 180:
+                    pm = pm.scaled(180, 180, Qt.KeepAspectRatio, Qt.FastTransformation)
+                return pm
+        ico_name = name.replace('.png', '.ico')
+        ico_path = resource_path(ico_name)
+        if os.path.exists(ico_path):
+            icon = QIcon(ico_path)
+            pm = icon.pixmap(180, 180)
+            if not pm.isNull():
+                return pm
         return None
 
     def start_animation(self):
         self.text_label.setText("Verificando atualizacoes...")
-        # 3 segundos com icone normal
+        self.status_label.setText("")
+        self.phrase_label.setText("")
+        self._elapsed = QElapsedTimer()
+        self._elapsed.start()
+        if self._phrase_timer.isActive():
+            self._phrase_timer.stop()
+        self._rotate_phrase()
+        self._phrase_timer.start(6000)
         QTimer.singleShot(3000, self._bounce_dizzy)
+
+    def _rotate_phrase(self):
+        if self._elapsed and self._elapsed.elapsed() > 60000:
+            phrase = random.choice(FRASES_LENTO)
+        else:
+            phrase = random.choice(FRASES_NORMAL)
+        self.phrase_label.setText(phrase)
+
+    def show_offline(self):
+        self.text_label.setText("Tentando Novamente...")
+        self.status_label.setText("O servidor esta offline")
+        if self.img_dizzy:
+            self.icon_label.setPixmap(self.img_dizzy)
+        if not self._phrase_timer.isActive():
+            self._phrase_timer.start(6000)
 
     def _bounce_dizzy(self):
         if self.img_dizzy:
             self.icon_label.setPixmap(self.img_dizzy)
         self.text_label.setText("Quase la...")
+        self.status_label.setText("")
+        self._phrase_timer.stop()
 
-        # Efeito bounce: sobe e desce
-        self._anim = QPropertyAnimation(self.icon_label, b"pos")
-        start = self.icon_label.pos()
+        self._anim = QPropertyAnimation(self.card, b"pos")
+        start = self.card.pos()
         self._anim.setDuration(700)
         self._anim.setEasingCurve(QEasingCurve.OutBounce)
         self._anim.setStartValue(start)
-        self._anim.setKeyValueAt(0.4, QPoint(start.x(), start.y() - 40))
+        self._anim.setKeyValueAt(0.4, QPoint(start.x(), start.y() - 60))
         self._anim.setEndValue(start)
         self._anim.start()
 
         QTimer.singleShot(1200, self.finished.emit)
 
     def show_error(self, msg):
-        self.sub_label.setText(msg)
-        self.sub_label.setStyleSheet("font-size:12px; color:#f87171;")
+        self.status_label.setText(msg)
+        self.status_label.setStyleSheet("""
+            font-size: 14px;
+            color: #f87171;
+            font-family: 'Segoe UI', sans-serif;
+        """)
 
-    def show_reconnecting(self):
-        self.text_label.setText("Conectando ao servidor...")
-        self.sub_label.setText("O servidor esta offline. Tentando reconectar...")
+    def stop_phrases(self):
+        self._phrase_timer.stop()
 
 # ============ MAIN WINDOW ============
 class LuminaClient(QMainWindow):
@@ -308,10 +444,12 @@ class LuminaClient(QMainWindow):
         super().__init__()
         self.setWindowTitle("Lumina Chat")
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        # REMOVIDO: WA_TranslucentBackground
+        self.setStyleSheet("background-color: #0a081e;")
         self.resize(1280, 800)
 
         self.central = QWidget()
+        self.central.setStyleSheet("background-color: #0a081e;")
         self.setCentralWidget(self.central)
         self.layout = QVBoxLayout(self.central)
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -321,12 +459,14 @@ class LuminaClient(QMainWindow):
         self.layout.addWidget(self.title_bar)
 
         self.stack = QStackedWidget()
+        self.stack.setStyleSheet("background-color: #0a081e;")
         self.layout.addWidget(self.stack)
 
         self.loading = LoadingScreen()
         self.stack.addWidget(self.loading)
 
         self.web_container = QWidget()
+        self.web_container.setStyleSheet("background-color: #0f0f12;")
         web_layout = QVBoxLayout(self.web_container)
         web_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -369,15 +509,44 @@ class LuminaClient(QMainWindow):
         self.move(qr.topLeft())
 
     def _after_loading(self):
-        self.updater.check()
+        if getattr(self, '_page_ok', False):
+            self.loading.stop_phrases()
+            self.updater.check()
 
     def _on_load_finished(self, ok):
         if ok:
+            check_js = """
+            (function(){
+                var hasApp = document.getElementById('app') !== null;
+                var hasAuth = document.querySelector('.auth-screen') !== null;
+                var title = document.title || '';
+                var body = document.body ? document.body.innerText : '';
+                var isError = title.toLowerCase().indexOf('error') !== -1 
+                    || body.indexOf('502') !== -1 
+                    || body.indexOf('ERR_') !== -1
+                    || body.indexOf('nao consegue atender') !== -1
+                    || document.querySelector('.error-code') !== null;
+                return {hasApp: hasApp, hasAuth: hasAuth, isError: isError, title: title};
+            })()
+            """
+            self.browser.page().runJavaScript(check_js, self._on_page_check)
+        else:
+            self._handle_offline()
+
+    def _on_page_check(self, result):
+        if result and result.get('isError'):
+            self._handle_offline()
+        elif result and (result.get('hasApp') or result.get('hasAuth')):
+            self._page_ok = True
             self._inject_bridge()
             QTimer.singleShot(400, lambda: self.stack.setCurrentWidget(self.web_container))
         else:
-            self.loading.show_reconnecting()
-            QTimer.singleShot(5000, lambda: self.browser.reload())
+            self._handle_offline()
+
+    def _handle_offline(self):
+        self._page_ok = False
+        self.loading.show_offline()
+        QTimer.singleShot(5000, lambda: self.browser.reload())
 
     def _inject_bridge(self):
         js = """

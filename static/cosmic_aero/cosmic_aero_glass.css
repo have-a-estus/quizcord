@@ -1,0 +1,207 @@
+/* ============================================
+ COSMIC AERO - Glassmorphism Layer
+ Painéis, cards, inputs com efeito de vidro
+ ============================================ */
+
+/* ===== VARIÁVEIS GLASS ===== */
+:root {
+  --glass-bg: rgba(20, 15, 60, 0.45);
+  --glass-bg-strong: rgba(15, 10, 40, 0.75);
+  --glass-bg-light: rgba(255, 255, 255, 0.03);
+  --glass-border: rgba(139, 92, 246, 0.2);
+  --glass-border-glow: rgba(99, 102, 241, 0.35);
+  --glass-blur: blur(20px) saturate(180%);
+  --glass-blur-strong: blur(30px) saturate(200%);
+  --glass-radius: 16px;
+  --glass-radius-sm: 10px;
+}
+
+/* ===== DOCK (Sidebar esquerda) ===== */
+.dock {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-right: 1px solid var(--glass-border) !important;
+  border-radius: 0 var(--glass-radius) var(--glass-radius) 0 !important;
+  box-shadow: 4px 0 24px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+/* ===== PANEL (Lista de canais/amigos) ===== */
+.panel {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-right: 1px solid var(--glass-border) !important;
+  box-shadow: var(--cosmic-glow-purple), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+}
+
+.panel-header {
+  background: rgba(255,255,255,0.02) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* ===== MAIN HEADER ===== */
+.main-header {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important;
+}
+
+/* ===== CHAT AREA ===== */
+.chat-area {
+  background: transparent !important;
+}
+
+/* ===== INPUT AREA ===== */
+.input-area {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border-top: 1px solid var(--glass-border) !important;
+}
+
+.input-box {
+  background: rgba(10, 8, 30, 0.8) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  color: var(--cosmic-text-primary) !important;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.input-box:focus {
+  border-color: var(--cosmic-accent-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.2), inset 0 2px 8px rgba(0,0,0,0.3) !important;
+  outline: none !important;
+}
+
+/* ===== MESSAGE BUBBLES ===== */
+.message-bubble {
+  background: var(--glass-bg-light) !important;
+  border: 1px solid rgba(139, 92, 246, 0.1) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  transition: all 0.2s ease !important;
+}
+
+.message-bubble:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+  box-shadow: 0 2px 12px rgba(139, 92, 246, 0.1) !important;
+}
+
+.message-bubble.own .msg-content {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(6, 182, 212, 0.15)) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.msg-content {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius-sm) !important;
+}
+
+/* ===== AUTH CARD ===== */
+.auth-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur-strong) !important;
+  -webkit-backdrop-filter: var(--glass-blur-strong) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 30px rgba(139, 92, 246, 0.15) !important;
+}
+
+/* ===== MODAL ===== */
+.modal {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur-strong) !important;
+  -webkit-backdrop-filter: var(--glass-blur-strong) !important;
+  border: 1px solid var(--glass-border-glow) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 30px rgba(139, 92, 246, 0.15) !important;
+}
+
+.modal-overlay {
+  background: rgba(5, 3, 16, 0.92) !important;
+  backdrop-filter: blur(30px) !important;
+}
+
+/* ===== TOAST ===== */
+.toast {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border-glow) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.2) !important;
+}
+
+/* ===== EMBEDS ===== */
+.invite-embed-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15) !important;
+}
+
+.chat-embed {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius-sm) !important;
+}
+
+/* ===== SEARCH DROPDOWN ===== */
+.search-dropdown {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+}
+
+/* ===== CONTACT ITEMS ===== */
+.contact-item {
+  transition: all 0.15s ease !important;
+  border-radius: var(--glass-radius-sm) !important;
+}
+
+.contact-item:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+
+/* ===== TOPIC TABS ===== */
+.topic-tab {
+  transition: all 0.15s ease !important;
+  border-radius: var(--glass-radius-sm) !important;
+}
+
+.topic-tab:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+}
+
+.topic-tab.active {
+  background: rgba(139, 92, 246, 0.15) !important;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15) !important;
+}
+
+/* ===== REQUEST ITEM ===== */
+.request-item {
+  background: var(--glass-bg-light) !important;
+  border: 1px solid var(--glass-border) !important;
+  border-radius: var(--glass-radius-sm) !important;
+}
+
+/* ===== USER CHIPS ===== */
+.user-chip {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+/* ===== SYSTEM MESSAGE ===== */
+.system-msg {
+  background: var(--glass-bg-light) !important;
+  border: 1px solid var(--glass-border) !important;
+}
