@@ -12,14 +12,14 @@ from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QSystemTrayIcon, QMenu, QAction,
     QMessageBox, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-    QPushButton, QGraphicsBlurEffect, QStackedWidget
+    QPushButton, QStackedWidget
 )
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage, QWebEngineProfile
 from PyQt5.QtCore import (
     QUrl, Qt, QSettings, pyqtSignal, QObject, QTimer, QThread,
-    QPropertyAnimation, QEasingCurve, QPoint, pyqtProperty
+    QPoint
 )
-from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent, QTransform
+from PyQt5.QtGui import QIcon, QFont, QPixmap, QMouseEvent, QPainter, QBrush, QPen, QColor
 
 # ============ CONFIG ============
 RENDER_URL = "https://luminachat.duckdns.org"
@@ -54,7 +54,7 @@ def resource_path(filename):
 
 # ============ AUTO UPDATER (ROBUSTO) ============
 class UpdateChecker(QThread):
-    update_available = pyqtSignal(str, str, str)  # version, url, release_notes
+    update_available = pyqtSignal(str, str, str)
     no_update = pyqtSignal()
     error = pyqtSignal(str)
 
@@ -115,7 +115,6 @@ class UpdateDownloader(QThread):
                     return
                 with open(self.dest, 'wb') as f:
                     f.write(resp.read())
-            # Verifica se eh um ZIP valido
             if not zipfile.is_zipfile(self.dest):
                 self.error.emit("O arquivo baixado nao e um ZIP valido. Verifique o servidor.")
                 os.remove(self.dest)
@@ -126,7 +125,7 @@ class UpdateDownloader(QThread):
 
 
 class AutoUpdater(QObject):
-    check_done = pyqtSignal(bool, str, str, str)  # has_update, version, url, notes
+    check_done = pyqtSignal(bool, str, str, str)
 
     def __init__(self, parent, current_version, update_url):
         super().__init__(parent)
@@ -206,12 +205,12 @@ class TitleBar(QWidget):
         super().__init__(parent)
         self.parent = parent
         self.drag_pos = None
-        self.setFixedHeight(36)
+        self.setFixedHeight(40)
         self.setStyleSheet("""
             TitleBar {
-                background-color: rgba(10, 8, 30, 0.95);
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
+                background-color: rgba(10, 8, 30, 0.98);
+                border-top-left-radius: 12px;
+                border-top-right-radius: 12px;
             }
             QLabel {
                 color: #c4b5fd;
@@ -223,13 +222,14 @@ class TitleBar(QWidget):
                 background: transparent;
                 color: #a5b4fc;
                 border: none;
-                font-size: 14px;
+                font-size: 16px;
                 font-weight: bold;
-                width: 40px;
-                height: 36px;
+                width: 46px;
+                height: 40px;
+                border-radius: 6px;
             }
             QPushButton:hover {
-                background-color: rgba(139, 92, 246, 0.2);
+                background-color: rgba(139, 92, 246, 0.25);
                 color: #e0e7ff;
             }
             QPushButton#closeBtn:hover {
@@ -238,15 +238,15 @@ class TitleBar(QWidget):
             }
         """)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(14, 0, 6, 0)
+        layout.setSpacing(2)
 
         icon_path = resource_path("Icon.ico")
         if os.path.exists(icon_path):
             icon_label = QLabel()
-            icon_label.setPixmap(QPixmap(icon_path).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            icon_label.setPixmap(QPixmap(icon_path).scaled(22, 22, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             layout.addWidget(icon_label)
-        layout.addSpacing(8)
+        layout.addSpacing(10)
 
         title = QLabel("Lumina Chat")
         layout.addWidget(title)
@@ -254,24 +254,29 @@ class TitleBar(QWidget):
 
         self.btn_min = QPushButton("\u2014")
         self.btn_min.setObjectName("minBtn")
+        self.btn_min.setToolTip("Minimizar")
         self.btn_min.clicked.connect(self.parent.showMinimized)
         layout.addWidget(self.btn_min)
 
         self.btn_max = QPushButton("\u25a1")
         self.btn_max.setObjectName("maxBtn")
+        self.btn_max.setToolTip("Maximizar / Restaurar")
         self.btn_max.clicked.connect(self._toggle_max)
         layout.addWidget(self.btn_max)
 
         self.btn_close = QPushButton("\u2715")
         self.btn_close.setObjectName("closeBtn")
+        self.btn_close.setToolTip("Fechar")
         self.btn_close.clicked.connect(self.parent._force_quit)
         layout.addWidget(self.btn_close)
 
     def _toggle_max(self):
         if self.parent.isMaximized():
             self.parent.showNormal()
+            self.btn_max.setText("\u25a1")
         else:
             self.parent.showMaximized()
+            self.btn_max.setText("\u2750")
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.LeftButton:
@@ -280,6 +285,8 @@ class TitleBar(QWidget):
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons() == Qt.LeftButton and self.drag_pos is not None:
+            if self.parent.isMaximized():
+                self.parent.showNormal()
             self.parent.move(event.globalPos() - self.drag_pos)
             event.accept()
 
@@ -287,17 +294,69 @@ class TitleBar(QWidget):
         self._toggle_max()
 
 
-# ============ LOADING SCREEN (Alpaca Animation) ============
+# ============ ALPACA SPINNER (Animacao corrigida) ============
+class AlpacaSpinner(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(140, 140)
+        self._angle = 0
+        self._pixmap = None
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self._speed = 18  # graus por frame (ventilador)
+        self._blur = 0
+
+    def setPixmap(self, pixmap):
+        # Escala para caber no circulo (100x100 dentro do 140x140)
+        if pixmap:
+            self._pixmap = pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        else:
+            self._pixmap = None
+        self.update()
+
+    def start(self):
+        self._timer.start(30)  # ~33fps
+
+    def stop(self):
+        self._timer.stop()
+
+    def setSpeed(self, speed):
+        self._speed = speed
+
+    def _tick(self):
+        self._angle = (self._angle + self._speed) % 360
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+
+        # Fundo fixo - circulo com cor do tema espacial
+        painter.setBrush(QBrush(QColor("#1a103c")))
+        painter.setPen(QPen(QColor("rgba(139,92,246,0.3)"), 2))
+        painter.drawEllipse(5, 5, 130, 130)
+
+        if self._pixmap:
+            painter.save()
+            # Move para o centro do widget
+            painter.translate(70, 70)
+            # Rotaciona
+            painter.rotate(self._angle)
+            # Desenha o pixmap centralizado
+            painter.drawPixmap(-self._pixmap.width() // 2, -self._pixmap.height() // 2, self._pixmap)
+            painter.restore()
+
+
+# ============ LOADING SCREEN ============
 class LoadingScreen(QWidget):
     finished = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._angle = 0
         self._cycle = 0
         self._max_cycles = 2
         self._is_dizzy = False
-        self._spinning = False
 
         self.setStyleSheet("""
             LoadingScreen {
@@ -311,102 +370,67 @@ class LoadingScreen(QWidget):
         """)
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
-        layout.setSpacing(20)
+        layout.setSpacing(24)
 
-        self.alpaca_label = QLabel()
-        self.alpaca_label.setAlignment(Qt.AlignCenter)
-        self.alpaca_label.setFixedSize(128, 128)
-
+        self.spinner = AlpacaSpinner(self)
         self.img_normal = self._load_img("Icon.ico")
         self.img_dizzy = self._load_img("Icon_dizzy.ico")
         if self.img_dizzy is None:
             self.img_dizzy = self.img_normal
-
-        self.alpaca_label.setPixmap(self.img_normal)
-        layout.addWidget(self.alpaca_label, alignment=Qt.AlignCenter)
-
-        self.blur = QGraphicsBlurEffect()
-        self.blur.setBlurRadius(0)
-        self.alpaca_label.setGraphicsEffect(self.blur)
+        self.spinner.setPixmap(self.img_normal)
+        layout.addWidget(self.spinner, alignment=Qt.AlignCenter)
 
         self.text_label = QLabel("Verificando Atualizacoes...")
         self.text_label.setAlignment(Qt.AlignCenter)
-        self.text_label.setStyleSheet("font-size: 14px; color: #a5b4fc; letter-spacing: 1px;")
+        self.text_label.setStyleSheet("font-size: 15px; color: #a5b4fc; letter-spacing: 1px; font-weight: 500;")
         layout.addWidget(self.text_label)
 
         self.sub_label = QLabel("")
         self.sub_label.setAlignment(Qt.AlignCenter)
-        self.sub_label.setStyleSheet("font-size: 11px; color: #6366f1;")
+        self.sub_label.setStyleSheet("font-size: 12px; color: #6366f1;")
         layout.addWidget(self.sub_label)
-
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._on_frame)
 
     def _load_img(self, name):
         path = resource_path(name)
         if os.path.exists(path):
-            return QPixmap(path).scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            return QPixmap(path)
         path = resource_path(name.lower())
         if os.path.exists(path):
-            return QPixmap(path).scaled(128, 128, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            return QPixmap(path)
         return None
-
-    def _on_frame(self):
-        if not self._spinning:
-            return
-        self._angle += 12
-        if self._angle >= 360:
-            self._angle = 0
-            self._spinning = False
-            self._timer.stop()
-            self.blur.setBlurRadius(0)
-            self._on_spin_done()
-            return
-
-        if 90 <= self._angle <= 270:
-            self.blur.setBlurRadius(8 + abs(180 - self._angle) / 22)
-        else:
-            self.blur.setBlurRadius(0)
-
-        orig = self.img_dizzy if self._is_dizzy else self.img_normal
-        if orig:
-            t = QTransform().rotate(self._angle)
-            rotated = orig.transformed(t, Qt.SmoothTransformation)
-            self.alpaca_label.setPixmap(rotated)
 
     def start_animation(self):
         self._cycle = 0
         self._is_dizzy = False
-        if self.img_normal:
-            self.alpaca_label.setPixmap(self.img_normal)
+        self.spinner.setPixmap(self.img_normal)
         self.text_label.setText("Verificando Atualizacoes...")
         self.sub_label.setText("")
         self._start_spin_cycle()
 
     def _start_spin_cycle(self):
         if self._cycle >= self._max_cycles:
+            self.spinner.stop()
             self.finished.emit()
             return
         self._cycle += 1
-        self._angle = 0
-        self._spinning = True
-        self._timer.start(25)
+        self.spinner.start()
+        # Para depois de 1.2 segundos (rapido como ventilador)
+        QTimer.singleShot(1200, self._on_spin_done)
 
     def _on_spin_done(self):
+        self.spinner.stop()
         self._is_dizzy = not self._is_dizzy
         if self._is_dizzy:
-            if self.img_dizzy:
-                self.alpaca_label.setPixmap(self.img_dizzy)
+            self.spinner.setPixmap(self.img_dizzy)
             self.text_label.setText("Carregando o universo...")
         else:
-            if self.img_normal:
-                self.alpaca_label.setPixmap(self.img_normal)
+            self.spinner.setPixmap(self.img_normal)
             self.text_label.setText("Verificando Atualizacoes...")
-        QTimer.singleShot(400, self._start_spin_cycle)
+        QTimer.singleShot(500, self._start_spin_cycle)
 
     def show_error(self, msg):
         self.sub_label.setText(msg)
-        self.sub_label.setStyleSheet("font-size: 11px; color: #f87171;")
+        self.sub_label.setStyleSheet("font-size: 12px; color: #f87171;")
 
     def show_reconnecting(self):
         self.text_label.setText("Conectando ao servidor...")
@@ -574,7 +598,6 @@ class LuminaClient(QMainWindow):
                 self.updater.download_and_install(url)
         else:
             if notes_or_error:
-                # Erro na verificacao (nao mostra popup, so loga)
                 print("[Updater] Erro na verificacao:", notes_or_error)
 
     def closeEvent(self, event):

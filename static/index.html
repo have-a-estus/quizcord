@@ -34,6 +34,8 @@ body {
   height: 100vh;
   overflow: hidden;
   display: flex;
+  margin: 0;
+  padding: 0;
 }
 
 .dock {
@@ -533,10 +535,21 @@ body {
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
 
 .auth-screen {
-  position: fixed; inset: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 200;
+}
+
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, #1a103c 0%, #0f0a1e 50%, #050310 100%);
+  z-index: -1;
 }
 
 .auth-card {
@@ -546,7 +559,10 @@ body {
   border-radius: var(--radius-lg);
   padding: 40px;
   width: 380px;
+  max-width: 90vw;
   text-align: center;
+  margin: auto;
+  position: relative;
 }
 
 .auth-card h1 {
