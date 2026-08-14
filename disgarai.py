@@ -686,7 +686,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             conn.commit()
             conn.close()
 
-            await manager.broadcast(room_id, {"type": "message", "user": user, "content": content, "file_url": file_url, "msg_type": db_type, "timestamp": datetime.now().isoformat()})
+            await manager.broadcast(room_id, {"type": "message", "user": user, "content": content, "file_url": file_url, "msg_type": db_type, "timestamp": datetime.utcnow().isoformat() + "Z"})
 
     except WebSocketDisconnect:
         pass
