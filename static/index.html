@@ -34,6 +34,7 @@ body {
   height: 100vh;
   overflow: hidden;
   display: flex;
+  position: relative;
 }
 
 .dock {
@@ -787,6 +788,11 @@ body {
 <base target="_blank">
 </head>
 <body>
+<div class="stars"></div>
+<div class="comet"></div>
+<div class="comet"></div>
+<div class="comet"></div>
+
 
 <div class="toast-container" id="toastContainer"></div>
 
@@ -803,11 +809,7 @@ body {
     <button class="auth-btn" id="authBtn">Entrar</button>
     <span class="auth-link" id="authToggle">Criar conta</span>
   </div>
-</div>
-
-<div class="comet"></div>
-  <div class="comet"></div>
-  <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
+</div><div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
   <div class="dock">
     <div class="dock-avatar home active" id="dockHome" title="Inicio">&#127968;</div>
     <div class="dock-divider"></div>
