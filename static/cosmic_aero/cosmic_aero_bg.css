@@ -1,28 +1,13 @@
 /* ============================================
- COSMIC AERO - Background Layer v5
- Fundo com nebulosa real + overlay fumegado
- ============================================ */
-
-.nebula-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat;
-  pointer-events: none;
-}
-
-.smoke-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  background: rgba(5, 3, 16, 0.40);
-  pointer-events: none;
-}
+   COSMIC AERO - Background Layer
+   Nebulosa já está no body do cosmic_aero.css
+   Esta camada adiciona estrelas twinkling
+   ============================================ */
 
 .stars {
   position: fixed;
   inset: 0;
-  z-index: 2;
+  z-index: 0;
   pointer-events: none;
   background-image:
     radial-gradient(1.5px 1.5px at 15% 25%, rgba(255,255,255,0.8) 50%, transparent 50%),
