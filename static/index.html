@@ -329,36 +329,48 @@ body {
 
 .message-bubble {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   max-width: 85%;
-  animation: fadeIn 0.2s ease;
-  padding: 2px 0;
+  animation: msgFadeIn 0.2s ease;
+  padding: 1px 0;
+  align-items: flex-start;
 }
 
-@keyframes fadeIn {
+@keyframes msgFadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-.message-bubble.own { align-self: flex-end; flex-direction: row-reverse; }
+.message-bubble.own {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
 
-/* Grouped messages: no avatar, tighter spacing */
+/* === GROUPED MESSAGES === */
 .message-bubble.grouped {
   margin-top: -2px;
-  padding-top: 0;
 }
 .message-bubble.grouped .msg-avatar {
   visibility: hidden;
+  height: 0;
+  margin: 0;
 }
 .message-bubble.grouped .msg-author {
   display: none;
 }
+.message-bubble.grouped .msg-time-inline {
+  display: none;
+}
 
 .msg-avatar {
-  width: 36px; height: 36px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
   flex-shrink: 0;
   align-self: flex-start;
   margin-top: 2px;
@@ -367,55 +379,68 @@ body {
 .msg-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  min-width: 0;
+}
+
+.msg-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 1px;
 }
 
 .msg-author {
-  font-size: 13px; font-weight: 600;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 2px;
+}
+
+.msg-time-inline {
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 .msg-content {
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  background: transparent;
-  border: none;
-  font-size: 14px; line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.5;
   word-break: break-word;
   color: var(--text);
+  padding: 2px 0;
 }
 
-/* Only own messages get a subtle background */
+/* Own messages: subtle pill background */
 .message-bubble.own .msg-content {
-  background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.08));
-  border-radius: 16px 16px 4px 16px;
+  background: rgba(139, 92, 246, 0.12);
+  padding: 6px 12px;
+  border-radius: 14px 14px 4px 14px;
 }
 
-/* Other people's messages: no background, just text */
+/* Other messages: no background, just text */
 .message-bubble:not(.own) .msg-content {
-  background: rgba(255,255,255,0.03);
-  border-radius: 16px 16px 16px 4px;
+  background: transparent;
+  padding: 2px 0;
 }
 
 .msg-content img {
   max-width: 300px;
   max-height: 300px;
   border-radius: var(--radius-sm);
-  display: block; margin-top: 6px;
+  display: block;
+  margin-top: 6px;
 }
 
 .msg-time {
-  font-size: 10px; color: var(--text-muted);
-  opacity: 0.7;
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.4;
   margin-top: 2px;
+  padding-left: 2px;
 }
 
-.message-bubble.grouped .msg-time {
-  display: none;
-}
 .message-bubble:hover .msg-time {
-  opacity: 1;
+  opacity: 0.8;
 }
 
 .system-msg {
@@ -1368,7 +1393,7 @@ async function selectTopic(tid) {
   document.querySelectorAll('.header-tab').forEach(t => t.classList.toggle('active', t.dataset.tid === tid));
   document.querySelectorAll('.topic-tab').forEach(t => t.classList.toggle('active', t.textContent.includes(currentTopic.name)));
   document.getElementById('mainTitle').textContent = currentCircle.name + ' / ' + currentTopic.name;
-  document.getElementById('chatArea').innerHTML = ''; lastMsgAuthor = null; lastMsgTime = 0; lastMsgAuthor = null; lastMsgTime = 0;
+  document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.remove('hidden');
   connectWS('topic:' + tid);
@@ -1384,7 +1409,7 @@ async function openDM(peerId, peerName, peerColor) {
   document.getElementById('mainTitle').textContent = peerName;
   document.getElementById('topicTabs').classList.add('hidden');
   document.getElementById('headerActions').innerHTML = '';
-  document.getElementById('chatArea').innerHTML = ''; lastMsgAuthor = null; lastMsgTime = 0; lastMsgAuthor = null; lastMsgTime = 0;
+  document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.add('hidden');
   let chat = dmChats.find(d => d.peer_id === peerId);
@@ -1431,7 +1456,7 @@ function connectWS(roomId) {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'history') {
-      document.getElementById('chatArea').innerHTML = ''; lastMsgAuthor = null; lastMsgTime = 0; lastMsgAuthor = null; lastMsgTime = 0;
+      document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
       msg.messages.forEach(m => appendMessage(m));
     }
     else if (msg.type === 'message') {
@@ -1469,27 +1494,29 @@ function connectWS(roomId) {
 
 function closeWS() { if (ws) { ws.close(); ws = null; } }
 
-let lastMsgAuthor = null;
-let lastMsgTime = 0;
-const GROUP_THRESHOLD_MS = 5 * 60 * 1000;
+let _lastMsgAuthor = null;
+let _lastMsgTime = 0;
+const _GROUP_THRESHOLD_MS = 5 * 60 * 1000;
 
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
 
-  let time = '';
+  let timeStr = '';
   let msgTime = 0;
   if (m.timestamp) {
     const d = new Date(m.timestamp);
-    time = d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    timeStr = d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     msgTime = d.getTime();
   }
 
-  const shouldGroup = lastMsgAuthor === (m.user?.name || '?') && 
-                      (msgTime - lastMsgTime) < GROUP_THRESHOLD_MS;
+  const authorName = m.user?.name || '?';
+  const shouldGroup = _lastMsgAuthor === authorName && 
+                      (msgTime - _lastMsgTime) < _GROUP_THRESHOLD_MS &&
+                      msgTime > 0;
 
-  lastMsgAuthor = m.user?.name || '?';
-  lastMsgTime = msgTime;
+  _lastMsgAuthor = authorName;
+  _lastMsgTime = msgTime;
 
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble ' + (isOwn ? 'own' : '') + (shouldGroup ? ' grouped' : '');
@@ -1504,25 +1531,56 @@ function appendMessage(m) {
 
   if (shouldGroup) {
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${(m.user?.name||'?')[0].toUpperCase()}</div>
+      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${authorName[0].toUpperCase()}</div>
       <div class="msg-body">
         <div class="msg-content">${contentHtml}</div>
-        <div class="msg-time">${time}</div>
+        <div class="msg-time">${timeStr}</div>
       </div>
     `;
   } else {
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${(m.user?.name||'?')[0].toUpperCase()}</div>
+      <div class="msg-avatar" style="background:${m.user?.color||'#444'}20;color:${m.user?.color||'#fff'}">${authorName[0].toUpperCase()}</div>
       <div class="msg-body">
-        <div class="msg-author">${m.user?.name||'?'}</div>
+        <div class="msg-header">
+          <span class="msg-author">${authorName}</span>
+          <span class="msg-time-inline">${timeStr}</span>
+        </div>
         <div class="msg-content">${contentHtml}</div>
-        <div class="msg-time">${time}</div>
       </div>
     `;
   }
 
   area.appendChild(bubble);
   area.scrollTop = area.scrollHeight;
+}
+
+function renderChatEmbed(code, fallbackText) {
+  const placeholderId = 'embed-' + Math.random().toString(36).slice(2, 10);
+  setTimeout(async () => {
+    try {
+      const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
+      if (!res.ok) return;
+      const data = await res.json();
+      const el = document.getElementById(placeholderId);
+      if (el) {
+        el.innerHTML = `
+          <div class="chat-embed-avatar" style="background:${data.color}20;color:${data.color}">${data.name[0].toUpperCase()}</div>
+          <div class="chat-embed-info">
+            <div class="chat-embed-name">${escapeHtml(data.name)}</div>
+            <div class="chat-embed-sub">Circulo · Clique para entrar</div>
+          </div>
+          <button class="chat-embed-btn" onclick="doJoinCircle('${code}', '${data.id}')">Entrar</button>
+        `;
+      }
+    } catch (e) {}
+  }, 0);
+  return `<div class="chat-embed" id="${placeholderId}">
+    <div class="chat-embed-avatar" style="background:#444;color:#888">?</div>
+    <div class="chat-embed-info">
+      <div class="chat-embed-name">Carregando...</div>
+      <div class="chat-embed-sub">${escapeHtml(fallbackText)}</div>
+    </div>
+  </div>`;
 }
 
 function appendSystemMessage(content) {
