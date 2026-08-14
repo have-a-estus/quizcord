@@ -96,9 +96,8 @@
 }
 
 .message-bubble.own .msg-content {
-  background: transparent !important;
-  border: none !important;
-  padding: 1px 0 !important;
+  background: rgba(139, 92, 246, 0.15) !important;
+  border-radius: 14px 14px 4px 14px !important;
 }
 
 /* ===== AUTH CARD ===== */

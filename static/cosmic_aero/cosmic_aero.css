@@ -1,9 +1,31 @@
 /* ============================================
    LUMINA CHAT - Cosmic Aero Theme vFinal
-   Baseado em BetterDiscord themes (Ocean, Midnight)
+   Inspirado em BetterDiscord themes
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Nunito:wght@400;600;700&display=swap');
+
+/* ===== VARIÁVEIS ===== */
+:root {
+  /* Cores base */
+  --cosmic-bg-deep: #050310;
+  --cosmic-bg-dark: #0a0a1e;
+  --cosmic-text-primary: #e0e7ff;
+  --cosmic-text-secondary: #a5b4fc;
+  --cosmic-text-muted: #6366f1;
+  --cosmic-accent-purple: #8b5cf6;
+  --cosmic-accent-cyan: #06b6d4;
+  --cosmic-accent-pink: #ec4899;
+  --cosmic-accent-blue: #3b82f6;
+  --cosmic-radius: 16px;
+  --cosmic-radius-sm: 10px;
+
+  /* Glass */
+  --glass-bg: rgba(10, 8, 30, 0.55);
+  --glass-bg-strong: rgba(10, 8, 30, 0.68);
+  --glass-border: rgba(139, 92, 246, 0.22);
+  --glass-blur: blur(42px) saturate(170%);
+}
 
 /* ===== NEBULOSA BACKGROUND ===== */
 html, body {
@@ -132,7 +154,7 @@ body::after {
   opacity: 0.5;
 }
 
-/* Servidores / Círculos - Estilo Botão Secundário (standby) */
+/* Servidores - Estilo Botão Secundário (standby) */
 .dock-server {
   display: flex;
   align-items: center;
@@ -313,7 +335,7 @@ body::after {
   flex-shrink: 0;
 }
 
-/* Botões do rodapé - Estilo Botão Secundário (standby) */
+/* Botões do rodapé - Estilo Secundário (standby) */
 .dock-profile-btn {
   width: 24px;
   height: 24px;
@@ -330,7 +352,7 @@ body::after {
   padding: 0;
 }
 
-/* Hover / Active = Botão Primário (azul brilhante com glow) */
+/* Hover / Active = Primário (azul brilhante com glow) */
 .dock-profile-btn:hover,
 .dock-profile-btn.active {
   background: linear-gradient(135deg, #3b82f6, #06b6d4);
