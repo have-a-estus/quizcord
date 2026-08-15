@@ -155,7 +155,19 @@ def init_messages_db():
         content TEXT NOT NULL,
         msg_type TEXT DEFAULT 'text',
         file_url TEXT,
+        reply_to_id INTEGER,
+        reply_to_user TEXT,
+        reply_to_content TEXT,
+        edited_at TIMESTAMP,
         timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(message_id, user_id, emoji)
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS unread (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,14 +190,34 @@ migrate_users_db()
 def _get_history(room_id: str, limit: int = 50):
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
-    c.execute("SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url, timestamp FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?", (room_id, limit))
+    c.execute("""SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url,
+        reply_to_id, reply_to_user, reply_to_content, edited_at, timestamp
+        FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?""", (room_id, limit))
     rows = c.fetchall()
-    conn.close()
     msgs = []
+    msg_ids = []
     for r in rows:
         d = dict(r)
         d["user"] = {"name": d.pop("user_name"), "color": d.pop("user_color")}
+        msg_ids.append(d["id"])
         msgs.append(d)
+    # Buscar reações
+    if msg_ids:
+        placeholders = ','.join('?' * len(msg_ids))
+        c.execute(f"SELECT message_id, user_id, emoji FROM reactions WHERE message_id IN ({placeholders})", msg_ids)
+        reactions = {}
+        for r in c.fetchall():
+            mid = r["message_id"]
+            if mid not in reactions:
+                reactions[mid] = {}
+            emoji = r["emoji"]
+            if emoji not in reactions[mid]:
+                reactions[mid][emoji] = {"count": 0, "users": []}
+            reactions[mid][emoji]["count"] += 1
+            reactions[mid][emoji]["users"].append(r["user_id"])
+        for m in msgs:
+            m["reactions"] = reactions.get(m["id"], {})
+    conn.close()
     return list(reversed(msgs))
 
 
@@ -693,6 +725,79 @@ def get_unread(request: Request):
     return rows
 
 
+@app.post("/api/messages/{msg_id}/react")
+def react_to_message(msg_id: int, request: Request, emoji: str = Form(...)):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        c.execute("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", (msg_id, user["id"], emoji))
+        conn.commit()
+    # Retornar reações atualizadas
+    c.execute("SELECT user_id, emoji FROM reactions WHERE message_id = ?", (msg_id,))
+    reactions = {}
+    for r in c.fetchall():
+        emoji = r["emoji"]
+        if emoji not in reactions:
+            reactions[emoji] = {"count": 0, "users": []}
+        reactions[emoji]["count"] += 1
+        reactions[emoji]["users"].append(r["user_id"])
+    conn.close()
+    return {"reactions": reactions}
+
+
+@app.patch("/api/messages/{msg_id}")
+def edit_message(msg_id: int, request: Request, content: str = Form(...)):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Sem permissao")
+    c.execute("UPDATE messages SET content = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?", (content, msg_id))
+    conn.commit()
+    c.execute("SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url, reply_to_id, reply_to_user, reply_to_content, edited_at, timestamp FROM messages WHERE id = ?", (msg_id,))
+    msg = dict(c.fetchone())
+    msg["user"] = {"name": msg.pop("user_name"), "color": msg.pop("user_color")}
+    conn.close()
+    return msg
+
+
+@app.delete("/api/messages/{msg_id}")
+def delete_message(msg_id: int, request: Request):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Sem permissao")
+    c.execute("DELETE FROM messages WHERE id = ?", (msg_id,))
+    c.execute("DELETE FROM reactions WHERE message_id = ?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/users/{user_id}/profile")
+def get_user_profile(user_id: str, request: Request):
+    require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image, bio, status FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    return dict(row)
+
+
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     ext = os.path.splitext(file.filename)[1]
@@ -808,14 +913,72 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
                 await manager.send_to_user(data["target"], {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
                 continue
 
+            if mtype == "edit_message":
+                msg_id = data.get("msg_id")
+                new_content = data.get("content", "")
+                conn = sqlite3.connect(MESSAGES_DB)
+                c = conn.cursor()
+                c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+                row = c.fetchone()
+                if row and row["user_id"] == user["id"]:
+                    c.execute("UPDATE messages SET content = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?", (new_content, msg_id))
+                    conn.commit()
+                    await manager.broadcast(room_id, {"type": "message_edited", "msg_id": msg_id, "content": new_content})
+                conn.close()
+                continue
+
+            if mtype == "delete_message":
+                msg_id = data.get("msg_id")
+                conn = sqlite3.connect(MESSAGES_DB)
+                c = conn.cursor()
+                c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+                row = c.fetchone()
+                if row and row["user_id"] == user["id"]:
+                    c.execute("DELETE FROM messages WHERE id = ?", (msg_id,))
+                    c.execute("DELETE FROM reactions WHERE message_id = ?", (msg_id,))
+                    conn.commit()
+                    await manager.broadcast(room_id, {"type": "message_deleted", "msg_id": msg_id})
+                conn.close()
+                continue
+
+            if mtype == "reaction":
+                msg_id = data.get("msg_id")
+                emoji = data.get("emoji")
+                conn = sqlite3.connect(MESSAGES_DB)
+                c = conn.cursor()
+                try:
+                    c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
+                    conn.commit()
+                    added = True
+                except sqlite3.IntegrityError:
+                    c.execute("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", (msg_id, user["id"], emoji))
+                    conn.commit()
+                    added = False
+                c.execute("SELECT user_id, emoji FROM reactions WHERE message_id = ?", (msg_id,))
+                reactions = {}
+                for r in c.fetchall():
+                    e = r["emoji"]
+                    if e not in reactions:
+                        reactions[e] = {"count": 0, "users": []}
+                    reactions[e]["count"] += 1
+                    reactions[e]["users"].append(r["user_id"])
+                conn.close()
+                await manager.broadcast(room_id, {"type": "reaction_update", "msg_id": msg_id, "reactions": reactions})
+                continue
+
             content = data.get("content", "")
             file_url = data.get("file_url")
             db_type = "image" if file_url else "text"
 
             conn = sqlite3.connect(MESSAGES_DB)
             c = conn.cursor()
-            c.execute("INSERT INTO messages (room_id, user_id, user_name, user_color, content, msg_type, file_url) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (room_id, user["id"] if not user.get("is_guest") else None, user["name"], user["color"], content, db_type, file_url))
+            reply_to_id = data.get("reply_to_id")
+            reply_to_user = data.get("reply_to_user")
+            reply_to_content = data.get("reply_to_content")
+            c.execute("""INSERT INTO messages (room_id, user_id, user_name, user_color, content, msg_type, file_url,
+                reply_to_id, reply_to_user, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (room_id, user["id"] if not user.get("is_guest") else None, user["name"], user["color"],
+                 content, db_type, file_url, reply_to_id, reply_to_user, reply_to_content))
             msg_id = c.lastrowid
             conn.commit()
             conn.close()
@@ -830,7 +993,11 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             conn.commit()
             conn.close()
 
-            await manager.broadcast(room_id, {"type": "message", "user": user, "content": content, "file_url": file_url, "msg_type": db_type, "timestamp": datetime.utcnow().isoformat() + "Z"})
+            msg_broadcast = {"type": "message", "id": msg_id, "user": user, "content": content,
+                "file_url": file_url, "msg_type": db_type,
+                "reply_to_id": reply_to_id, "reply_to_user": reply_to_user, "reply_to_content": reply_to_content,
+                "timestamp": datetime.utcnow().isoformat() + "Z"}
+            await manager.broadcast(room_id, msg_broadcast)
 
     except WebSocketDisconnect:
         pass
