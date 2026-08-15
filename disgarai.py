@@ -92,6 +92,27 @@ def init_users_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user1_id, user2_id)
     )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS friend_notes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        note TEXT DEFAULT '',
+        UNIQUE(user_id, friend_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS friend_nicknames (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        nickname TEXT DEFAULT '',
+        UNIQUE(user_id, friend_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS blocks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        blocked_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, blocked_id)
+    )""")
     conn.commit()
     conn.close()
 
@@ -382,6 +403,117 @@ async def upload_avatar(request: Request, file: UploadFile = File(...)):
     conn.commit()
     conn.close()
     return {"avatar_image": avatar_url}
+
+
+@app.get("/api/users/{user_id}/mutuals")
+def get_mutuals(user_id: str, request: Request):
+    me_user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    # Meus amigos
+    c.execute("""SELECT friend_id as fid FROM friendships WHERE user_id = ? AND status = 'accepted'
+        UNION
+        SELECT user_id as fid FROM friendships WHERE friend_id = ? AND status = 'accepted'""", (me_user["id"], me_user["id"]))
+    my_friend_ids = {r["fid"] for r in c.fetchall()}
+    # Amigos do target
+    c.execute("""SELECT friend_id as fid FROM friendships WHERE user_id = ? AND status = 'accepted'
+        UNION
+        SELECT user_id as fid FROM friendships WHERE friend_id = ? AND status = 'accepted'""", (user_id, user_id))
+    their_friend_ids = {r["fid"] for r in c.fetchall()}
+    mutual_ids = list(my_friend_ids & their_friend_ids)
+    mutual_friends = []
+    if mutual_ids:
+        placeholders = ','.join('?' * len(mutual_ids))
+        c.execute(f"SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id IN ({placeholders})", mutual_ids)
+        mutual_friends = [dict(r) for r in c.fetchall()]
+    # Círculos mútuos
+    c.execute("""SELECT c.id, c.name, c.color, c.icon_url 
+        FROM circle_members m1 
+        JOIN circle_members m2 ON m1.circle_id = m2.circle_id
+        JOIN circles c ON c.id = m1.circle_id
+        WHERE m1.user_id = ? AND m2.user_id = ?""", (me_user["id"], user_id))
+    mutual_circles = [dict(r) for r in c.fetchall()]
+    # Nota e apelido
+    c.execute("SELECT note FROM friend_notes WHERE user_id = ? AND friend_id = ?", (me_user["id"], user_id))
+    note_row = c.fetchone()
+    note = note_row["note"] if note_row else ""
+    c.execute("SELECT nickname FROM friend_nicknames WHERE user_id = ? AND friend_id = ?", (me_user["id"], user_id))
+    nick_row = c.fetchone()
+    nickname = nick_row["nickname"] if nick_row else ""
+    conn.close()
+    return {"friends": mutual_friends, "circles": mutual_circles, "note": note, "nickname": nickname}
+
+
+@app.post("/api/friends/{friend_id}/note")
+def set_friend_note(friend_id: str, request: Request, note: str = Form("")):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    try:
+        c.execute("""INSERT INTO friend_notes (id, user_id, friend_id, note) VALUES (?, ?, ?, ?)""",
+            (str(uuid.uuid4())[:8], user["id"], friend_id, note))
+    except sqlite3.IntegrityError:
+        c.execute("UPDATE friend_notes SET note = ? WHERE user_id = ? AND friend_id = ?", (note, user["id"], friend_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/friends/{friend_id}/nickname")
+def set_friend_nickname(friend_id: str, request: Request, nickname: str = Form("")):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    try:
+        c.execute("""INSERT INTO friend_nicknames (id, user_id, friend_id, nickname) VALUES (?, ?, ?, ?)""",
+            (str(uuid.uuid4())[:8], user["id"], friend_id, nickname))
+    except sqlite3.IntegrityError:
+        c.execute("UPDATE friend_nicknames SET nickname = ? WHERE user_id = ? AND friend_id = ?", (nickname, user["id"], friend_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/users/{user_id}/block")
+def block_user(user_id: str, request: Request):
+    user = require_user(request)
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Nao pode bloquear voce mesmo")
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+        (user["id"], user_id, user_id, user["id"]))
+    try:
+        c.execute("INSERT INTO blocks (id, user_id, blocked_id) VALUES (?, ?, ?)",
+            (str(uuid.uuid4())[:8], user["id"], user_id))
+    except sqlite3.IntegrityError:
+        pass
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/users/{user_id}/unblock")
+def unblock_user(user_id: str, request: Request):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?", (user["id"], user_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/blocks")
+def list_blocks(request: Request):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""SELECT b.blocked_id as id, u.username, u.display_name, u.avatar_color, u.avatar_image 
+        FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ?""", (user["id"],))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
 
 
 @app.get("/api/version")
