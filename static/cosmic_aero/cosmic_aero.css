@@ -630,3 +630,21 @@ body::before {
 .btn-ghost:hover {
   background: rgba(255,255,255,0.04) !important;
 }
+
+/* ===== KILLER: sem balão em NENHUMA mensagem ===== */
+.chat-area .message-bubble.own .msg-content,
+.chat-area .message-bubble .msg-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 1px 0 !important;
+}
+
+.chat-area .message-bubble.own,
+.chat-area .message-bubble {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
