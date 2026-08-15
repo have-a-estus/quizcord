@@ -1648,6 +1648,11 @@ function enterApp() {
   document.getElementById('dockProfileName').textContent = displayName;
   document.getElementById('dockProfileTag').textContent = '#' + (me.id || '0000');
 
+  // Avatar colorido da alpaca
+  const avatarUrl = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
+  document.querySelector('.panel-profile-avatar').src = avatarUrl;
+  document.querySelector('.dock-logo img').src = avatarUrl;
+
   connectNotifWS();
   loadData();
   checkJoinParam();
@@ -2129,6 +2134,9 @@ function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
 
+  // Avatar do usuário: usa avatar_image se disponível, senão alpaca cinza
+  const userAvatar = m.user?.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
+
   let timeStr = '';
   let msgTime = 0;
   if (m.timestamp) {
@@ -2161,7 +2169,7 @@ function appendMessage(m) {
   if (shouldGroup) {
     // Mensagem agrupada: só texto, sem avatar, sem header, sem timestamp
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
+      <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
       <div class="msg-body">
         <div class="msg-content">${contentHtml}</div>
       </div>
@@ -2169,7 +2177,7 @@ function appendMessage(m) {
   } else {
     // Primeira mensagem do grupo: avatar + nome + timestamp
     bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
+      <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-author">${authorName}</span>
