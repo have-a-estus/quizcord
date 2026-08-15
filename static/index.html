@@ -2396,18 +2396,7 @@ body {
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css?v=2">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css?v=2">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css?v=2">
-
-
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-
-
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css?v=2">  <base target="_blank">
 </head>
 <body>
 <div class="stars"></div>
@@ -3132,7 +3121,7 @@ function renderFriendRow(f) {
   const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
   const unread = unreadMap['dm:' + dmId] || 0;
   return `
-    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
       <div class="friends-row-avatar-wrap">
         <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
         <div class="friends-row-status ${f.user_status || 'offline'}"></div>
@@ -3142,7 +3131,7 @@ function renderFriendRow(f) {
         <div class="friends-row-sub">@${f.username}${unread > 0 ? ' · <strong style="color:#ef4444;">' + unread + ' mensagem' + (unread>1?'s':'') + ' nova' + (unread>1?'s':'') + '</strong>' : ''}</div>
       </div>
       <div class="friends-row-actions">
-        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
+        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
         <button class="friends-row-action" onclick="event.stopPropagation();" title="Mais">⋮</button>
       </div>
     </div>
@@ -3199,7 +3188,7 @@ function renderPanelFriends() {
       const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
-        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;">
             <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
             <div class="contact-status ${f.user_status || 'offline'}" data-uid="${f.fid}"></div>
@@ -3694,12 +3683,10 @@ function cancelEdit(msgId) {
   const bubble = document.querySelector(`[data-msg-id="${msgId}"]`);
   const contentEl = bubble?.querySelector('.msg-content');
   if (contentEl) {
-    // Recarrega do history - simples approach: recarrega a página ou busca a msg
-    // Vamos apenas remover o input e recarregar o conteúdo via fetch
-    fetch(API + '/api/messages/' + msgId + '/raw', { headers: authHeader() }).catch(() => {});
-    // Fallback: recarrega o chat
-    if (currentTopic) selectTopic(currentTopic.id);
-    else if (currentDM) openDM(currentDM.peerId, currentDM.peerName, currentDM.peerColor);
+    const input = bubble.querySelector('.msg-edit-input');
+    if (input) {
+      contentEl.innerHTML = escapeHtml(input.defaultValue || input.value);
+    }
   }
 }
 
@@ -4069,10 +4056,19 @@ function showMsgContextMenu(e, m) {
     items.push({ label: '&#128465; Deletar', action: () => deleteMessage(m.id), danger: true });
   }
   items.push({ label: '&#128203; Copiar texto', action: () => { navigator.clipboard?.writeText(m.content); showToast('Copiado!', 'Texto copiado', '#a5b4fc'); } });
-  menu.innerHTML = items.map((item, i) => {
-    const divider = i > 0 && items[i-1].danger && !item.danger ? '<div class="context-divider"></div>' : '';
-    return divider + '<div class="context-item ' + (item.danger ? 'danger' : '') + '" onclick="' + item.action.toString().replace(/"/g, '&quot;') + '; document.getElementById('contextMenu')?.remove();">' + item.label + '</div>';
-  }).join('');
+  var html2 = '';
+  for (var i = 0; i < items.length; i++) {
+    if (i > 0 && items[i-1].danger && !items[i].danger) html2 += '<div class="context-divider"></div>';
+    html2 += '<div class="context-item ' + (items[i].danger ? 'danger' : '') + '" data-idx="' + i + '">' + items[i].label + '</div>';
+  }
+  menu.innerHTML = html2;
+  menu.querySelectorAll('.context-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      var idx = parseInt(this.dataset.idx);
+      if (items[idx] && items[idx].action) items[idx].action();
+      closeContextMenu();
+    });
+  });
   document.body.appendChild(menu);
   setTimeout(() => { document.addEventListener('click', closeContextOnClick); }, 10);
 }
@@ -4149,13 +4145,7 @@ function renderUserList(users) {
   ).join('');
 }
 
-function showTyping(user) {
-  const el = document.getElementById('typingIndicator');
-  el.textContent = (user?.name || 'Alguem') + ' esta digitando...';
-  el.classList.remove('hidden');
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
-}
+
 
 function renderVoiceUsers(list) {}
 
