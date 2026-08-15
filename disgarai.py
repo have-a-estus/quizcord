@@ -613,6 +613,7 @@ def register(username: str = Form(...), password: str = Form(...), display_name:
     return {"token": token, "user": {"id": uid, "username": username, "display_name": display_name or username, "color": color, "avatar_image": alpaca_img}}
 
 
+@app.post("/api/login")
 def login(username: str = Form(...), password: str = Form(...)):
 
     conn = get_db(USERS_DB)
@@ -755,7 +756,7 @@ async def add_friend(request: Request, username: str = Form(...)):
 
         "type": "friend_request",
 
-        "from": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
+        "from": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72"), "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}
 
     })
 
@@ -795,7 +796,7 @@ async def accept_friend(request: Request, friend_id: str = Form(...)):
 
         "type": "friend_accepted",
 
-        "by": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72")}
+        "by": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72"), "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}
 
     })
 
@@ -1010,6 +1011,8 @@ def get_circle(circle_id: str, request: Request):
                 "display_name": u.get("display_name", ""),
 
                 "avatar_color": u.get("avatar_color", "#888"),
+
+                "avatar_image": u.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png"),
 
                 "role": m["role"]
 
