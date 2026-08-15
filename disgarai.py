@@ -170,6 +170,20 @@ def init_users_db():
 
 
 
+
+
+def migrate_users_db():
+    """Adiciona colunas novas se não existirem"""
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    # Verifica se avatar_image existe
+    c.execute("PRAGMA table_info(users)")
+    cols = [col[1] for col in c.fetchall()]
+    if 'avatar_image' not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN avatar_image TEXT DEFAULT '/static/cosmic_aero/alpacas/alpaca_gray.png'")
+        conn.commit()
+    conn.close()
+
 def init_circles_db():
 
     conn = sqlite3.connect(CIRCLES_DB)
@@ -490,7 +504,7 @@ def require_user(request: Request):
 
     c = conn.cursor()
 
-    c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE id = ?", (payload["sub"],))
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id = ?", (payload["sub"],))
 
     row = c.fetchone()
 
@@ -547,6 +561,31 @@ def get_version():
 
 def register(username: str = Form(...), password: str = Form(...), display_name: str = Form(None), color: str = Form("#ff7b72")):
 
+    # Pool de alpacas coloridas
+    ALPACA_POOL = [
+        '/static/cosmic_aero/alpacas/alpaca_gray.png',
+        '/static/cosmic_aero/alpacas/alpaca_pink.png',
+        '/static/cosmic_aero/alpacas/alpaca_blue.png',
+        '/static/cosmic_aero/alpacas/alpaca_green.png',
+        '/static/cosmic_aero/alpacas/alpaca_purple.png',
+        '/static/cosmic_aero/alpacas/alpaca_cyan.png',
+        '/static/cosmic_aero/alpacas/alpaca_red.png',
+        '/static/cosmic_aero/alpacas/alpaca_orange.png',
+        '/static/cosmic_aero/alpacas/alpaca_yellow.png',
+        '/static/cosmic_aero/alpacas/alpaca_emerald.png',
+        '/static/cosmic_aero/alpacas/alpaca_violet.png',
+        '/static/cosmic_aero/alpacas/alpaca_indigo.png',
+        '/static/cosmic_aero/alpacas/alpaca_lime.png',
+        '/static/cosmic_aero/alpacas/alpaca_magenta.png',
+        '/static/cosmic_aero/alpacas/alpaca_rose.png',
+        '/static/cosmic_aero/alpacas/alpaca_sky.png',
+        '/static/cosmic_aero/alpacas/alpaca_teal.png',
+        '/static/cosmic_aero/alpacas/alpaca_fuchsia.png',
+        '/static/cosmic_aero/alpacas/alpaca_amber.png',
+    ]
+    import random
+    alpaca_img = random.choice(ALPACA_POOL)
+
     uid = str(uuid.uuid4())[:8]
 
     conn = sqlite3.connect(USERS_DB)
@@ -555,9 +594,9 @@ def register(username: str = Form(...), password: str = Form(...), display_name:
 
     try:
 
-        c.execute("INSERT INTO users (id, username, display_name, password_hash, avatar_color) VALUES (?, ?, ?, ?, ?)",
+        c.execute("INSERT INTO users (id, username, display_name, password_hash, avatar_color, avatar_image) VALUES (?, ?, ?, ?, ?, ?)",
 
-            (uid, username.lower(), display_name or username, get_password_hash(password), color))
+            (uid, username.lower(), display_name or username, get_password_hash(password), color, alpaca_img))
 
         conn.commit()
 
@@ -571,11 +610,8 @@ def register(username: str = Form(...), password: str = Form(...), display_name:
 
     token = create_access_token({"sub": uid, "username": username.lower()})
 
-    return {"token": token, "user": {"id": uid, "username": username, "display_name": display_name or username, "color": color}}
+    return {"token": token, "user": {"id": uid, "username": username, "display_name": display_name or username, "color": color, "avatar_image": alpaca_img}}
 
-
-
-@app.post("/api/login")
 
 def login(username: str = Form(...), password: str = Form(...)):
 
@@ -597,7 +633,7 @@ def login(username: str = Form(...), password: str = Form(...)):
 
     token = create_access_token({"sub": user["id"], "username": user["username"]})
 
-    return {"token": token, "user": {"id": user["id"], "username": user["username"], "display_name": user["display_name"] or user["username"], "color": user["avatar_color"]}}
+    return {"token": token, "user": {"id": user["id"], "username": user["username"], "display_name": user["display_name"] or user["username"], "color": user["avatar_color"], "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}}
 
 
 
@@ -619,7 +655,7 @@ def search_users(request: Request, q: str = ""):
 
     c = conn.cursor()
 
-    c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 20",
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 20",
 
         (f"%{q}%", f"%{q}%"))
 
@@ -641,19 +677,19 @@ def list_friends(request: Request):
 
     c = conn.cursor()
 
-    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
 
     sent = [dict(r) for r in c.fetchall()]
 
-    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
 
     received = [dict(r) for r in c.fetchall()]
 
-    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
 
     pending_sent = [dict(r) for r in c.fetchall()]
 
-    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
 
     pending_received = [dict(r) for r in c.fetchall()]
 
@@ -673,7 +709,7 @@ async def add_friend(request: Request, username: str = Form(...)):
 
     c = conn.cursor()
 
-    c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE username = ?", (username.lower(),))
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE username = ?", (username.lower(),))
 
     target = c.fetchone()
 
@@ -955,7 +991,7 @@ def get_circle(circle_id: str, request: Request):
 
         placeholders = ','.join('?' * len(user_ids))
 
-        c2.execute(f"SELECT id, username, display_name, avatar_color FROM users WHERE id IN ({placeholders})", user_ids)
+        c2.execute(f"SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id IN ({placeholders})", user_ids)
 
         user_map = {u["id"]: dict(u) for u in c2.fetchall()}
 
@@ -1033,7 +1069,7 @@ def list_dm_chats(request: Request):
 
         CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id,
 
-        u.display_name, u.username, u.avatar_color
+        u.display_name, u.username, u.avatar_color, u.avatar_image
 
         FROM direct_chats d
 
@@ -1241,7 +1277,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
             c = conn.cursor()
 
-            c.execute("SELECT id, username, display_name, avatar_color FROM users WHERE id = ?", (payload["sub"],))
+            c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id = ?", (payload["sub"],))
 
             row = c.fetchone()
 
@@ -1249,7 +1285,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
             if row:
 
-                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "avatar_image": row.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png"), "is_guest": False}
+                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "avatar_image": row["avatar_image"] or "/static/cosmic_aero/alpacas/alpaca_gray.png", "is_guest": False}
 
 
 
