@@ -1665,6 +1665,121 @@ body {
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css?v=2">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css?v=2">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css?v=2">
+
+<!-- ===== SCROLLBAR AERO COSMIC ===== -->
+<style>
+/* Scrollbar base - estilo Windows 7 Aero + Cosmic */
+::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+/* Track - fundo escuro com borda sutil */
+::-webkit-scrollbar-track {
+  background: rgba(5, 3, 16, 0.6) !important;
+  border-left: 1px solid rgba(139, 92, 246, 0.1) !important;
+  border-radius: 0 !important;
+}
+
+/* Corner inferior direito */
+::-webkit-scrollbar-corner {
+  background: rgba(5, 3, 16, 0.6) !important;
+}
+
+/* Thumb - glassmorphism com gradiente cósmico */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, 
+    rgba(139, 92, 246, 0.7) 0%, 
+    rgba(6, 182, 212, 0.6) 50%,
+    rgba(139, 92, 246, 0.7) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 8px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 0 8px rgba(139, 92, 246, 0.3) !important;
+  min-height: 40px !important;
+}
+
+/* Thumb hover - glow intenso */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, 
+    rgba(139, 92, 246, 0.9) 0%, 
+    rgba(6, 182, 212, 0.8) 50%,
+    rgba(236, 72, 153, 0.8) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.3),
+    0 0 16px rgba(139, 92, 246, 0.5),
+    0 0 32px rgba(6, 182, 212, 0.3) !important;
+}
+
+/* Thumb active (arrastando) */
+::-webkit-scrollbar-thumb:active {
+  background: linear-gradient(180deg, 
+    rgba(59, 130, 246, 0.9) 0%, 
+    rgba(6, 182, 212, 0.9) 50%,
+    rgba(139, 92, 246, 0.9) 100%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.2),
+    0 0 20px rgba(59, 130, 246, 0.6),
+    0 0 40px rgba(6, 182, 212, 0.4) !important;
+}
+
+/* Botão de seta para cima */
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:start:increment {
+  display: block !important;
+  height: 16px !important;
+  background: linear-gradient(180deg, 
+    rgba(139, 92, 246, 0.3) 0%, 
+    rgba(10, 8, 30, 0.5) 100%) !important;
+  border: 1px solid rgba(139, 92, 246, 0.2) !important;
+  border-radius: 8px 8px 0 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1) !important;
+}
+
+/* Botão de seta para baixo */
+::-webkit-scrollbar-button:vertical:end:decrement,
+::-webkit-scrollbar-button:vertical:end:increment {
+  display: block !important;
+  height: 16px !important;
+  background: linear-gradient(180deg, 
+    rgba(10, 8, 30, 0.5) 0%, 
+    rgba(139, 92, 246, 0.3) 100%) !important;
+  border: 1px solid rgba(139, 92, 246, 0.2) !important;
+  border-radius: 0 0 8px 8px !important;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.1) !important;
+}
+
+/* Hover nos botões */
+::-webkit-scrollbar-button:hover {
+  background: linear-gradient(180deg, 
+    rgba(139, 92, 246, 0.5) 0%, 
+    rgba(6, 182, 212, 0.4) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    0 0 8px rgba(139, 92, 246, 0.3) !important;
+}
+
+/* Setas nos botões usando pseudo-elemento */
+::-webkit-scrollbar-button:vertical:start::before {
+  content: '▲';
+  display: block;
+  text-align: center;
+  font-size: 8px;
+  color: rgba(165, 180, 252, 0.6);
+  line-height: 14px;
+}
+::-webkit-scrollbar-button:vertical:end::before {
+  content: '▼';
+  display: block;
+  text-align: center;
+  font-size: 8px;
+  color: rgba(165, 180, 252, 0.6);
+  line-height: 14px;
+}
+</style>
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
