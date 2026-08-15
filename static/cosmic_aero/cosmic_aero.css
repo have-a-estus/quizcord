@@ -171,32 +171,59 @@ body::before {
   transform: scale(1.08);
 }
 
-/* ===== RODAPÉ DE PERFIL ===== */
-.dock-profile-bar {
+
+
+/* ===== RODAPÉ DE PERFIL NO PANEL ===== */
+.panel-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 0 12px 12px 12px;
+  border-radius: 14px;
   background: rgba(10, 8, 30, 0.75) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(139, 92, 246, 0.2) !important;
   box-shadow:
     0 4px 20px rgba(0,0,0,0.4),
     0 0 30px rgba(139, 92, 246, 0.08) !important;
+  position: relative;
+  flex-shrink: 0;
 }
 
-/* Glow de mesclagem com a barra de servidores */
-.dock-profile-bar::before {
+/* Glow de mesclagem com a lista de amigos */
+.panel-profile-bar::before {
   content: '';
   position: absolute;
-  top: -20px;
+  top: -16px;
   left: 50%;
   transform: translateX(-50%);
-  width: 60%;
-  height: 30px;
-  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15), transparent 70%);
+  width: 70%;
+  height: 24px;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12), transparent 70%);
   pointer-events: none;
   z-index: -1;
 }
 
+.dock-profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .dock-profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
   border: 2px solid rgba(139, 92, 246, 0.3) !important;
+}
+.dock-profile-status {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #050310;
 }
 .dock-profile-status.online {
   background: #10b981 !important;
@@ -210,16 +237,47 @@ body::before {
   background: #6b7280 !important;
 }
 
+.dock-profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
 .dock-profile-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--cosmic-text-primary) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 .dock-profile-tag {
+  font-size: 10px;
   color: var(--cosmic-text-muted) !important;
   opacity: 0.7;
+  line-height: 1.2;
+}
+
+.dock-profile-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 /* Botões do rodapé - Estilo Secundário (standby) */
 .dock-profile-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
   background: rgba(255,255,255,0.04) !important;
   border: 1px solid rgba(139, 92, 246, 0.15) !important;
   color: var(--cosmic-text-secondary) !important;
