@@ -1107,9 +1107,133 @@ body {
   background: #050310 url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat fixed !important;
 }
 
+/* ===== PANEL PROFILE BAR ===== */
+.panel-profile-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 0 12px 12px 12px;
+  border-radius: 14px;
+  background: rgba(20,20,24,0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+  position: relative;
+}
+.panel-profile-bar::before {
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 70%;
+  height: 24px;
+  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+.panel-profile-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.panel-profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+}
+.panel-profile-status {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #0f0f12;
+}
+.panel-profile-status.online { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+.panel-profile-status.away { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+.panel-profile-status.offline { background: #6b7280; }
+.panel-profile-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+.panel-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e2e2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.panel-profile-tag {
+  font-size: 10px;
+  color: #888;
+  opacity: 0.7;
+  line-height: 1.2;
+}
+.panel-profile-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.panel-profile-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  color: #a5b4fc;
+  transition: all 0.2s ease;
+}
+.panel-profile-btn:hover,
+.panel-profile-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+  transform: scale(1.08);
+}
+
+/* Badge no logo */
+.dock-pending-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid #0f0f12;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+  z-index: 2;
+}
+
+
 </style>
 
-<!-- CSS externos VÊM DEPOIS do inline = prioridade máxima com !important -->
+<!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css">
 <link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css">
@@ -1120,8 +1244,8 @@ body {
 <base target="_blank">
 </head>
 <body>
-
 <div class="stars"></div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <div id="authScreen" class="auth-screen">
@@ -1140,56 +1264,53 @@ body {
 </div>
 
 <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
+  <!-- DOCK -->
   <div class="dock">
-    <!-- Logo Alpaca -->
     <div class="dock-logo" id="dockHome" title="Início">
       <img src="/static/cosmic_aero/alpaca_avatar.png" alt="Lumina">
     </div>
 
     <div class="dock-divider"></div>
 
-    <!-- Barra de busca -->
     <div class="dock-search-row">
       <div class="dock-search-icon">&#9906;</div>
       <input type="text" class="dock-search-input" placeholder="Buscar" readonly>
     </div>
 
-    <!-- Servidores / Círculos -->
     <div id="dockCircles"></div>
 
-    <!-- Botão criar círculo -->
     <div class="dock-btn" id="btnCreateCircle" title="Novo Círculo">+</div>
 
     <div style="flex:1"></div>
-
-    <!-- Rodapé de perfil -->
-    
-      </div>
-      <div class="dock-profile-info">
-        <div class="dock-profile-name" id="dockProfileName">...</div>
-        <div class="dock-profile-tag" id="dockProfileTag">#0000</div>
-      </div>
-      <div class="dock-profile-actions">
-        <button class="dock-profile-btn" id="btnMute" title="Mutar">&#127908;</button>
-        <button class="dock-profile-btn" id="btnDeafen" title="Surdo">&#127911;</button>
-        <button class="dock-profile-btn" id="btnSettings" title="Configurações">&#9881;</button>
-      </div>
-    </div>
   </div>
 
+  <!-- PANEL -->
   <div class="panel" id="panel">
     <div class="panel-header">
       <h2 id="panelTitle">Contatos</h2>
       <p id="panelSubtitle">Amigos e conversas</p>
     </div>
     <div class="panel-scroll" id="panelContent"></div>
-  
+
+    <!-- Rodapé de perfil no panel -->
     <div class="panel-profile-bar" id="panelProfile">
-      <div class="dock-profile-avatar-wrap">
-        <img src="/static/cosmic_aero/alpaca_avatar.png" class="dock-profile-avatar" alt="">
-        <div class="dock-profile-status online" id="dockProfileStatus"></div>
+      <div class="panel-profile-avatar-wrap">
+        <img src="/static/cosmic_aero/alpaca_avatar.png" class="panel-profile-avatar" alt="">
+        <div class="panel-profile-status online" id="dockProfileStatus"></div>
+      </div>
+      <div class="panel-profile-info">
+        <div class="panel-profile-name" id="dockProfileName">...</div>
+        <div class="panel-profile-tag" id="dockProfileTag">#0000</div>
+      </div>
+      <div class="panel-profile-actions">
+        <button class="panel-profile-btn" id="btnMute" title="Mutar">&#127908;</button>
+        <button class="panel-profile-btn" id="btnDeafen" title="Surdo">&#127911;</button>
+        <button class="panel-profile-btn" id="btnSettings" title="Configurações">&#9881;</button>
+      </div>
+    </div>
   </div>
 
+  <!-- MAIN -->
   <div class="main">
     <div class="main-header">
       <div style="display:flex;align-items:center;gap:12px;">
@@ -1226,11 +1347,6 @@ body {
     <div id="modalBody"></div>
     <div class="modal-actions" id="modalActions"></div>
   </div>
-</div>
-
-
-<div class="ws-status offline" id="wsStatus" style="display:none;">
-  <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>
 </div>
 <script>
 
@@ -1425,7 +1541,6 @@ function saveSession() {
 function updatePendingBadge() {
   pendingCount = friends.pending_received?.length || 0;
   const home = document.getElementById('dockHome');
-  // NÃO toca no innerHTML do dockHome — só adiciona/remove badge
   let existing = home.querySelector('.dock-pending-badge');
   if (existing) existing.remove();
   if (pendingCount > 0) {

@@ -205,18 +205,18 @@ body::before {
   z-index: -1;
 }
 
-.dock-profile-avatar-wrap {
+.panel-profile-avatar-wrap {
   position: relative;
   flex-shrink: 0;
 }
-.dock-profile-avatar {
+.panel-profile-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid rgba(139, 92, 246, 0.3) !important;
 }
-.dock-profile-status {
+.panel-profile-status {
   position: absolute;
   bottom: -1px;
   right: -1px;
@@ -225,19 +225,19 @@ body::before {
   border-radius: 50%;
   border: 2px solid #050310;
 }
-.dock-profile-status.online {
+.panel-profile-status.online {
   background: #10b981 !important;
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.6) !important;
 }
-.dock-profile-status.away {
+.panel-profile-status.away {
   background: #f59e0b !important;
   box-shadow: 0 0 6px rgba(245, 158, 11, 0.6) !important;
 }
-.dock-profile-status.offline {
+.panel-profile-status.offline {
   background: #6b7280 !important;
 }
 
-.dock-profile-info {
+.panel-profile-info {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -245,7 +245,7 @@ body::before {
   gap: 0;
   overflow: hidden;
 }
-.dock-profile-name {
+.panel-profile-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--cosmic-text-primary) !important;
@@ -254,21 +254,21 @@ body::before {
   text-overflow: ellipsis;
   line-height: 1.3;
 }
-.dock-profile-tag {
+.panel-profile-tag {
   font-size: 10px;
   color: var(--cosmic-text-muted) !important;
   opacity: 0.7;
   line-height: 1.2;
 }
 
-.dock-profile-actions {
+.panel-profile-actions {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
 }
 
 /* Botões do rodapé - Estilo Secundário (standby) */
-.dock-profile-btn {
+.panel-profile-btn {
   width: 28px;
   height: 28px;
   border-radius: 8px;
@@ -285,8 +285,8 @@ body::before {
 }
 
 /* Hover / Active = Primário (azul brilhante com glow) */
-.dock-profile-btn:hover,
-.dock-profile-btn.active {
+.panel-profile-btn:hover,
+.panel-profile-btn.active {
   background: linear-gradient(135deg, #3b82f6, #06b6d4) !important;
   border-color: rgba(59, 130, 246, 0.5) !important;
   color: #fff !important;
