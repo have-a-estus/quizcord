@@ -126,6 +126,8 @@ def init_users_db():
 
         avatar_color TEXT DEFAULT '#ff7b72',
 
+        avatar_image TEXT DEFAULT '/static/cosmic_aero/alpacas/alpaca_gray.png',
+
         status TEXT DEFAULT 'offline',
 
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
