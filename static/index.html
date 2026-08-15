@@ -6,6 +6,7 @@
 <title>Lumina Chat</title>
 <style>
 
+
 :root {
   --bg: #0f0f12;
   --bg-elevated: rgba(255,255,255,0.03);
@@ -343,6 +344,9 @@ body {
   margin-top: -8px;
   padding-top: 0;
 }
+.message-bubble.grouped .msg-time {
+  display: none;
+}
 .message-bubble.grouped .msg-avatar {
   visibility: hidden;
   height: 0;
@@ -391,7 +395,7 @@ body {
 
 .msg-content img { max-width: 300px; max-height: 300px; border-radius: var(--radius-sm); display: block; margin-top: 6px; }
 .msg-time { font-size: 10px; color: var(--text-muted); opacity: 0.4; margin-top: 2px; padding-left: 2px; }
-.message-bubble:hover .msg-time { opacity: 0.8; }
+.message-bubble:not(.grouped):hover .msg-time { opacity: 0.8; }
 
 .system-msg {
   align-self: center;
@@ -1231,6 +1235,7 @@ body {
 }
 
 
+
 </style>
 
 <!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
@@ -1921,7 +1926,7 @@ function closeWS() { if (ws) { ws.close(); ws = null; } }
 
 let _lastMsgAuthor = null;
 let _lastMsgTime = 0;
-const _GROUP_THRESHOLD_MS = 5 * 60 * 1000;
+const _GROUP_THRESHOLD_MS = 15 * 60 * 1000;
 
 const AVATAR_BG_COLORS = [
   'rgba(139,92,246,0.25)', 'rgba(6,182,212,0.25)', 'rgba(236,72,153,0.25)',
@@ -1970,14 +1975,15 @@ function appendMessage(m) {
   const userColor = _getUserColor(authorName);
 
   if (shouldGroup) {
+    // Mensagem agrupada: só texto, sem avatar, sem header, sem timestamp
     bubble.innerHTML = `
       <div class="msg-avatar" style="background:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
       <div class="msg-body">
         <div class="msg-content">${contentHtml}</div>
-        <div class="msg-time">${timeStr}</div>
       </div>
     `;
   } else {
+    // Primeira mensagem do grupo: avatar + nome + timestamp
     bubble.innerHTML = `
       <div class="msg-avatar" style="background:${userColor}"><img src="/static/cosmic_aero/alpaca_avatar.png" alt=""></div>
       <div class="msg-body">
