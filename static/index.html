@@ -2569,7 +2569,7 @@ function renderPanelFriends() {
       html.push(`
         <div class="request-item">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div class="contact-avatar" style="background:${r.avatar_color}20;color:${r.avatar_color};overflow:hidden;padding:0;"><img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt=""></div>
+            <div class="contact-avatar" style="background:${r.avatar_color}20;"><img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt=""></div>
             <div><div class="contact-name">${r.display_name || r.username}</div><div class="contact-sub">@${r.username}</div></div>
           </div>
           <div class="request-actions">
@@ -2588,8 +2588,8 @@ function renderPanelFriends() {
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
         <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
-          <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color};overflow:hidden;padding:0;">
-            <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt="">
+          <div class="contact-avatar" style="background:${f.avatar_color}20;">
+            <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
             <div class="contact-status ${f.user_status || 'offline'}" data-uid="${f.fid}"></div>
           </div>
           <div class="contact-info">
@@ -4234,6 +4234,31 @@ document.addEventListener('keydown', (e) => {
   filter: brightness(1.15);
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(236, 72, 153, 0.4);
+}
+
+/* ===== FIX: Avatar images no panel ===== */
+.contact-avatar {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+}
+.contact-avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  display: block !important;
+}
+.contact-avatar .contact-status {
+  position: absolute !important;
+  bottom: -1px !important;
+  right: -1px !important;
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50% !important;
+  border: 2px solid #050310 !important;
+  z-index: 2 !important;
 }
 </style></body>
 </html>
