@@ -215,27 +215,39 @@ body {
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.4) !important;
 }
 
+.contact-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+}
 .contact-avatar {
-  width: 40px; height: 40px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px;
-  position: relative; flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
   overflow: hidden;
 }
 .contact-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
   display: block;
 }
 
 .contact-status {
-  position: absolute; bottom: 0; right: 0;
-  width: 12px; height: 12px;
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: 2px solid var(--bg);
+  z-index: 2;
 }
 
 .contact-status.online { background: var(--online); }
@@ -1809,6 +1821,7 @@ body {
 
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="stars"></div>
@@ -2577,7 +2590,7 @@ function renderPanelFriends() {
       html.push(`
         <div class="request-item">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div class="contact-avatar" style="background:${r.avatar_color}20;"><img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt=""></div>
+            <div class="contact-avatar-wrap"><div class="contact-avatar" style="background:${r.avatar_color}20;"><img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt=""></div></div>
             <div><div class="contact-name">${r.display_name || r.username}</div><div class="contact-sub">@${r.username}</div></div>
           </div>
           <div class="request-actions">
@@ -2596,8 +2609,10 @@ function renderPanelFriends() {
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
         <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
-          <div class="contact-avatar" style="background:${f.avatar_color}20;">
-            <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
+          <div class="contact-avatar-wrap">
+            <div class="contact-avatar" style="background:${f.avatar_color}20;">
+              <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
+            </div>
             <div class="contact-status ${f.user_status || 'offline'}" data-uid="${f.fid}"></div>
           </div>
           <div class="contact-info">
@@ -2724,7 +2739,9 @@ async function selectCircle(id) {
   html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
   currentCircle.members.forEach(m => {
     html += `<div class="contact-item">
-      <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
+      <div class="contact-avatar-wrap">
+        <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
+      </div>
       <div class="contact-info">
         <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'&#128081;':''}</div>
         <div class="contact-sub">@${m.username}</div>
