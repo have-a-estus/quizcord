@@ -3143,5 +3143,48 @@ function toggleStatusMenu() {
   background-color: rgba(139, 92, 246, 0.15) !important;
   border-color: rgba(139, 92, 246, 0.25) !important;
 }
+</style>
+
+<!-- ===== OVERRIDE: Topic & Header Tabs ===== -->
+<style>
+/* Vence os !important dos CSS externos */
+.topic-tab.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45)) !important;
+  border-color: rgba(96, 165, 250, 0.7) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 16px rgba(59, 130, 246, 0.35),
+    0 0 32px rgba(6, 182, 212, 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.12) !important;
+}
+
+.topic-tab.active .topic-icon {
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6)) !important;
+}
+
+.topic-tab:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+  box-shadow:
+    0 0 10px rgba(139, 92, 246, 0.1),
+    inset 0 1px 0 rgba(255,255,255,0.03) !important;
+}
+
+.header-tab.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45)) !important;
+  border-color: rgba(96, 165, 250, 0.7) !important;
+  color: #fff !important;
+  box-shadow:
+    0 0 12px rgba(59, 130, 246, 0.35),
+    0 0 24px rgba(6, 182, 212, 0.18),
+    inset 0 1px 0 rgba(255,255,255,0.12) !important;
+}
+
+.header-tab:hover {
+  background: rgba(139, 92, 246, 0.08) !important;
+  border-color: rgba(139, 92, 246, 0.25) !important;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.1) !important;
+  color: var(--text) !important;
+}
 </style></body>
 </html>
