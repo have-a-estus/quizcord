@@ -4,13 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lumina Chat</title>
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
 <style>
+
 :root {
   --bg: #0f0f12;
   --bg-elevated: rgba(255,255,255,0.03);
@@ -1111,20 +1106,22 @@ body {
 body {
   background: #050310 url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat fixed !important;
 }
+
 </style>
-<base target="_blank">
+
+<!-- CSS externos VÊM DEPOIS do inline = prioridade máxima com !important -->
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css">
+<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css">
 <base target="_blank">
 <base target="_blank">
 </head>
 <body>
+
 <div class="stars"></div>
-<div class="cosmic-orb orb-1"></div>
-<div class="cosmic-orb orb-2"></div>
-<div class="cosmic-orb orb-3"></div>
-<div class="cosmic-ring ring-1"></div>
-<div class="cosmic-ring ring-2"></div>
-
-
 <div class="toast-container" id="toastContainer"></div>
 
 <div id="authScreen" class="auth-screen">
@@ -1142,9 +1139,7 @@ body {
   </div>
 </div>
 
-<div class="comet"></div>
-  <div class="comet"></div>
-  <div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
+<div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
   <div class="dock">
     <!-- Logo Alpaca -->
     <div class="dock-logo" id="dockHome" title="Início">
@@ -1231,7 +1226,12 @@ body {
   </div>
 </div>
 
+
+<div class="ws-status offline" id="wsStatus" style="display:none;">
+  <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>
+</div>
 <script>
+
 const API = '';
 let token = localStorage.getItem('aurora_token');
 let me = null;
@@ -1423,12 +1423,14 @@ function saveSession() {
 function updatePendingBadge() {
   pendingCount = friends.pending_received?.length || 0;
   const home = document.getElementById('dockHome');
-  const existing = home.querySelector('.badge');
+  // NÃO toca no innerHTML do dockHome — só adiciona/remove badge
+  let existing = home.querySelector('.dock-pending-badge');
   if (existing) existing.remove();
   if (pendingCount > 0) {
-    home.innerHTML = '&#127968;<div class="badge">' + pendingCount + '</div>';
-  } else {
-    home.textContent = '\u{1F3E0}';
+    const badge = document.createElement('div');
+    badge.className = 'dock-pending-badge';
+    badge.textContent = pendingCount;
+    home.appendChild(badge);
   }
 }
 
@@ -1502,7 +1504,7 @@ document.getElementById('dockHome').onclick = () => {
 };
 
 function setActiveDock(id) {
-  document.querySelectorAll('.dock-avatar, .dock-circle').forEach(d => d.classList.remove('active'));
+  document.querySelectorAll('.dock-server, .dock-logo').forEach(d => d.classList.remove('active'));
   const el = document.getElementById(id) || document.querySelector(`[data-id="${id}"]`);
   if (el) el.classList.add('active');
 }
@@ -2179,8 +2181,10 @@ function copyInviteLink() {
     }).catch(() => alert('Nao foi possivel copiar. Link: ' + shareUrl));
   }
 }
+
 </script>
 <div class="ws-status offline" id="wsStatus" style="display:none;">
   <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>
-</div></body>
+</div>
+</body>
 </html>
