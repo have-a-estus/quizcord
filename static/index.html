@@ -419,28 +419,185 @@ body {
   background: var(--border);
 }
 
+/* ===== INPUT AREA - Discord Style ===== */
 .input-area {
   padding: 16px 24px;
   border-top: 1px solid var(--border);
-  display: flex; gap: 12px; align-items: center;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: transparent;
 }
 
+/* Barra principal - pill shape */
+.input-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 8, 30, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  border-radius: 24px;
+  padding: 6px 8px 6px 14px;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 2px 12px rgba(0,0,0,0.2);
+}
+
+/* Glow no hover */
+.input-bar:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 0 16px rgba(139, 92, 246, 0.15),
+    0 0 32px rgba(6, 182, 212, 0.08);
+}
+
+/* Glow intenso no focus */
+.input-bar.focused {
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 20px rgba(139, 92, 246, 0.25),
+    0 0 40px rgba(6, 182, 212, 0.12),
+    0 0 60px rgba(236, 72, 153, 0.06);
+  animation: inputBarGlow 2s ease-in-out infinite;
+}
+
+@keyframes inputBarGlow {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 0 20px rgba(139, 92, 246, 0.2),
+      0 0 40px rgba(6, 182, 212, 0.08),
+      0 0 60px rgba(236, 72, 153, 0.04);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.06),
+      0 0 28px rgba(139, 92, 246, 0.35),
+      0 0 50px rgba(6, 182, 212, 0.18),
+      0 0 70px rgba(236, 72, 153, 0.1);
+  }
+}
+
+/* Campo de texto */
 .input-box {
   flex: 1;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 12px 18px;
+  background: transparent;
+  border: none;
   color: var(--text);
   font-size: 14px;
-  outline: none; transition: all 0.2s;
+  outline: none;
+  padding: 6px 4px;
+  min-width: 0;
 }
 
-.input-box:focus {
-  border-color: rgba(255,123,114,0.3);
-  box-shadow: 0 0 0 3px rgba(255,123,114,0.08);
+.input-box::placeholder {
+  color: #6366f1;
+  opacity: 0.5;
+  transition: all 0.3s ease;
 }
 
+.input-bar.focused .input-box::placeholder {
+  opacity: 0.3;
+}
+
+/* Botão de anexo (clip) */
+.input-attach {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6366f1;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.input-attach:hover {
+  color: #a5b4fc;
+  background: rgba(139, 92, 246, 0.1);
+  transform: scale(1.1);
+}
+
+.input-attach svg {
+  transform: rotate(-45deg);
+}
+
+/* Ações à direita */
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.input-action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #6366f1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.input-action-btn:hover {
+  color: #a5b4fc;
+  background: rgba(139, 92, 246, 0.1);
+  transform: scale(1.12);
+}
+
+.input-action-btn:active {
+  transform: scale(0.95);
+}
+
+/* Botão GIF especial */
+.input-gif-btn {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Botão de enviar */
+.input-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3);
+  flex-shrink: 0;
+}
+
+.input-send:hover {
+  filter: brightness(1.15);
+  transform: scale(1.08) rotate(-5deg);
+  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.4);
+}
+
+.input-send:active {
+  transform: scale(0.95);
+}
+
+/* Input antigo - manter compatibilidade */
 .input-btn {
   width: 44px; height: 44px;
   border-radius: 50%;
@@ -1462,6 +1619,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="stars"></div>
@@ -1578,12 +1736,25 @@ body {
     </div>
 
     <div class="input-area hidden" id="inputArea">
-      <label class="input-btn secondary" title="Enviar arquivo">
-        &#128206;
-        <input type="file" id="fileInput" style="display:none" accept="image/*">
-      </label>
-      <input type="text" class="input-box" id="msgInput" placeholder="Mensagem..." autocomplete="off">
-      <button class="input-btn" id="sendBtn">&#10148;</button>
+      <div class="input-bar" id="inputBar">
+        <label class="input-attach" title="Enviar arquivo">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          <input type="file" id="fileInput" style="display:none" accept="image/*">
+        </label>
+        <input type="text" class="input-box" id="msgInput" placeholder="Conversar em #bate-papo..." autocomplete="off">
+        <div class="input-actions">
+          <button class="input-action-btn" id="btnGift" title="Presente">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+          </button>
+          <button class="input-action-btn input-gif-btn" id="btnGif" title="GIF">GIF</button>
+          <button class="input-action-btn" id="btnEmoji" title="Emoji">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="input-send" id="sendBtn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
     </div>
   </div>
 </div>
@@ -1919,6 +2090,7 @@ function showHome() {
   `;
   document.getElementById('inputArea').classList.add('hidden');
   document.getElementById('userList').classList.add('hidden');
+  document.getElementById('msgInput').placeholder = 'Conversar em #bate-papo...';
 
   const html = [];
 
@@ -2095,6 +2267,7 @@ async function selectTopic(tid) {
   document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.remove('hidden');
+  document.getElementById('msgInput').placeholder = 'Conversar em #' + currentTopic.name;
   connectWS('topic:' + tid);
 }
 
@@ -2111,6 +2284,7 @@ async function openDM(peerId, peerName, peerColor) {
   document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.add('hidden');
+  document.getElementById('msgInput').placeholder = 'Conversar com @' + peerName;
   let chat = dmChats.find(d => d.peer_id === peerId);
   if (!chat) {
     const u1 = [me.id, peerId].sort().join(':');
@@ -2355,12 +2529,17 @@ function bindInputs() {
   const input = document.getElementById('msgInput');
   const send = document.getElementById('sendBtn');
   const file = document.getElementById('fileInput');
+  const inputBar = document.getElementById('inputBar');
 
   send.onclick = () => sendMessage();
   input.onkeydown = (e) => {
     if (e.key === 'Enter') sendMessage();
     else if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'typing'}));
   };
+
+  // Focus glow na barra
+  input.onfocus = () => inputBar.classList.add('focused');
+  input.onblur = () => inputBar.classList.remove('focused');
 
   file.onchange = async () => {
     if (!file.files[0]) return;
@@ -2371,6 +2550,15 @@ function bindInputs() {
     sendMessage(null, data.url);
     file.value = '';
   };
+
+  // Botões de ação (placeholder)
+  const btnGift = document.getElementById('btnGift');
+  const btnGif = document.getElementById('btnGif');
+  const btnEmoji = document.getElementById('btnEmoji');
+
+  if (btnGift) btnGift.onclick = () => showToast('Presentes', 'Em breve...', '#ec4899');
+  if (btnGif) btnGif.onclick = () => showToast('GIFs', 'Em breve...', '#8b5cf6');
+  if (btnEmoji) btnEmoji.onclick = () => showToast('Emojis', 'Em breve...', '#fbbf24');
 
   document.getElementById('btnCreateCircle').onclick = openCreateCircle;
 }
