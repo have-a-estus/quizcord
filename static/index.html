@@ -757,82 +757,129 @@ body {
   gap: 10px;
 }
 
+/* ===== TOAST — Cosmic Aero ===== */
 .toast {
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  background: rgba(10, 8, 30, 0.8);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 16px;
   padding: 14px 18px;
-  min-width: 280px;
-  animation: toastIn 0.3s ease;
+  min-width: 300px;
+  animation: toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex; align-items: center; gap: 12px;
+  box-shadow:
+    0 8px 32px rgba(0,0,0,0.4),
+    0 0 20px rgba(6, 182, 212, 0.15),
+    0 0 40px rgba(139, 92, 246, 0.06),
+    inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-.toast.out { animation: toastOut 0.3s ease forwards; }
+.toast.out {
+  animation: toastOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(40px); }
-  to { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(50px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 @keyframes toastOut {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(40px); }
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to { opacity: 0; transform: translateX(50px) scale(0.95); }
 }
 
 .toast-avatar {
-  width: 36px; height: 36px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 13px;
+  font-weight: 700; font-size: 14px;
   flex-shrink: 0;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
 }
 
 .toast-body { flex: 1; }
-.toast-title { font-size: 13px; font-weight: 600; }
-.toast-sub { font-size: 12px; color: var(--text-muted); }
+.toast-title { font-size: 14px; font-weight: 600; color: #e0e7ff; }
+.toast-sub { font-size: 12px; color: #6366f1; }
 
+/* ===== MODAL OVERLAY — Cosmic Aero ===== */
 .modal-overlay {
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(5, 3, 16, 0.85);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   display: none; align-items: center; justify-content: center;
   z-index: 100;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.modal-overlay.show { display: flex; }
+.modal-overlay.show {
+  display: flex;
+  opacity: 1;
+}
 
+/* ===== MODAL — Cosmic Aero ===== */
 .modal {
-  background: var(--bg-glass);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  background: rgba(10, 8, 30, 0.75);
+  backdrop-filter: blur(32px) saturate(160%);
+  -webkit-backdrop-filter: blur(32px) saturate(160%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 20px;
   padding: 28px;
   width: 400px;
   max-width: 90vw;
-  animation: modalIn 0.25s ease;
+  animation: modalIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow:
+    0 25px 50px rgba(0,0,0,0.5),
+    0 0 40px rgba(139, 92, 246, 0.15),
+    0 0 80px rgba(139, 92, 246, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
 @keyframes modalIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-.modal h3 { font-size: 18px; margin-bottom: 16px; font-family: 'Nunito', sans-serif; }
+.modal h3 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
+/* ===== MODAL INPUT — Cosmic Aero ===== */
 .modal-input {
   width: 100%;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
+  background: rgba(10, 8, 30, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
   color: var(--text);
   font-size: 14px;
   margin-bottom: 12px;
   outline: none;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
 }
 
-.modal-input:focus { border-color: var(--accent); }
+.modal-input::placeholder {
+  color: #6366f1;
+  opacity: 0.5;
+}
+
+.modal-input:focus {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.1),
+    0 0 20px rgba(139, 92, 246, 0.1),
+    inset 0 2px 8px rgba(0,0,0,0.2);
+}
 
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
 
