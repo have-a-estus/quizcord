@@ -72,7 +72,7 @@ def init_users_db():
         password_hash TEXT NOT NULL,
         avatar_color TEXT DEFAULT '#ff7b72',
         avatar_image TEXT DEFAULT '/static/cosmic_aero/alpacas/alpaca_gray.png',
-        status TEXT DEFAULT 'offline',
+        status TEXT DEFAULT 'online',
         bio TEXT DEFAULT '',
         last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -438,13 +438,13 @@ def list_friends(request: Request):
     user = require_user(request)
     conn = get_db(USERS_DB)
     c = conn.cursor()
-    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
     sent = [dict(r) for r in c.fetchall()]
-    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
     received = [dict(r) for r in c.fetchall()]
-    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
     pending_sent = [dict(r) for r in c.fetchall()]
-    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
     pending_received = [dict(r) for r in c.fetchall()]
     conn.close()
     return {"friends": sent + received, "pending_sent": pending_sent, "pending_received": pending_received}
@@ -731,9 +731,11 @@ async def notif_ws(ws: WebSocket):
         pass
     finally:
         notif_manager.disconnect(user_id)
+        # NÃO seta offline aqui — o status persiste entre reinicios do servidor
+        # O usuário pode estar com status 'busy' ou 'away' e não queremos perder isso
         conn = sqlite3.connect(USERS_DB)
         c = conn.cursor()
-        c.execute("UPDATE users SET status = 'offline', last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+        c.execute("UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         conn.commit()
         conn.close()
 

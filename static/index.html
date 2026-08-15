@@ -2371,15 +2371,10 @@ function setActiveDock(id) {
 let friendsFilterTab = 'all';
 
 function showHome() {
-  currentCircle = null; currentTopic = null;
+  currentCircle = null; currentTopic = null; currentDM = null;
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
-      const peerId = item.dataset.peer;
-      if (currentDM && peerId === currentDM.peerId) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
-      }
+      item.classList.remove('active');
     });
   }, 0);
   closeWS();
@@ -2492,8 +2487,8 @@ function renderFriendsListContent(friendList, pendingCount) {
     });
   } else {
     if (friendList.length) {
-      const onlineList = friendList.filter(f => f.status === 'online');
-      const offlineList = friendList.filter(f => f.status !== 'online');
+      const onlineList = friendList.filter(f => (f.user_status || 'offline') === 'online');
+      const offlineList = friendList.filter(f => (f.user_status || 'offline') !== 'online');
 
       if (friendsFilterTab === 'online' && onlineList.length) {
         html += `<div class="friends-section-title">Online — ${onlineList.length}</div>`;
@@ -2525,7 +2520,7 @@ function renderFriendRow(f) {
     <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
       <div class="friends-row-avatar-wrap">
         <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
-        <div class="friends-row-status ${f.status || 'offline'}"></div>
+        <div class="friends-row-status ${f.user_status || 'offline'}"></div>
       </div>
       <div class="friends-row-info">
         <div class="friends-row-name">${f.display_name || f.username}</div>
@@ -2592,7 +2587,7 @@ function renderPanelFriends() {
         <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
             ${(f.display_name||f.username)[0].toUpperCase()}
-            <div class="contact-status offline" data-uid="${f.fid}"></div>
+            <div class="contact-status ${f.user_status || 'offline'}" data-uid="${f.fid}"></div>
           </div>
           <div class="contact-info">
             <div class="contact-name">${f.display_name || f.username}</div>
