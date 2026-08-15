@@ -1751,12 +1751,12 @@ function connectNotifWS() {
   notifWs.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'friend_request') {
-      showToast(msg.from.display_name || msg.from.username, 'Quer ser seu amigo!', msg.from.avatar_color || '#a78bfa', msg.from.avatar_image);
+      showToast(msg.from.display_name || msg.from.username, 'Quer ser seu amigo!', msg.from.avatar_color || '#a78bfa');
       playNotifSound();
       loadData();
     }
     else if (msg.type === 'friend_accepted') {
-      showToast(msg.by.display_name || msg.by.username, 'Aceitou sua solicitacao!', msg.by.avatar_color || '#4ade80', msg.by.avatar_image);
+      showToast(msg.by.display_name || msg.by.username, 'Aceitou sua solicitacao!', msg.by.avatar_color || '#4ade80');
       playNotifSound();
       loadData();
     }
@@ -1859,15 +1859,12 @@ function nativeNotify(title, body, color) {
 function nativeBadge(count) { if (nativeClient) nativeClient.setBadge(count); }
 function nativeFlash() { if (nativeClient) nativeClient.flashWindow(); }
 
-function showToast(title, sub, color, avatarImg) {
+function showToast(title, sub, color) {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = 'toast';
-  const avatarHtml = avatarImg 
-    ? `<img src="${avatarImg}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid ${color}40;" alt="">`
-    : `<div class="toast-avatar" style="background:${color}20;color:${color}">${title[0].toUpperCase()}</div>`;
   toast.innerHTML = `
-    ${avatarHtml}
+    <div class="toast-avatar" style="background:${color}20;color:${color}">${title[0].toUpperCase()}</div>
     <div class="toast-body">
       <div class="toast-title">${title}</div>
       <div class="toast-sub">${sub}</div>
@@ -1875,10 +1872,8 @@ function showToast(title, sub, color, avatarImg) {
   `;
   container.appendChild(toast);
   setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
-  if (document.hidden) {
-    showWindowsNotif(title, sub);
-    nativeNotify(title, sub, color);
-  }
+  showWindowsNotif(title, sub);
+  nativeNotify(title, sub, color);
 }
 
 function renderDock() {
@@ -1933,9 +1928,7 @@ function showHome() {
       html.push(`
         <div class="request-item">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div class="contact-avatar" style="background:${r.avatar_color}20;color:${r.avatar_color};overflow:hidden;padding:0;">
-              <img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt="">
-            </div>
+            <div class="contact-avatar" style="background:${r.avatar_color}20;color:${r.avatar_color}">${(r.display_name||r.username)[0].toUpperCase()}</div>
             <div><div class="contact-name">${r.display_name || r.username}</div><div class="contact-sub">@${r.username}</div></div>
           </div>
           <div class="request-actions">
@@ -1954,8 +1947,8 @@ function showHome() {
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
         <div class="contact-item" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
-          <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color};overflow:hidden;padding:0;">
-            <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt="">
+          <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
+            ${(f.display_name||f.username)[0].toUpperCase()}
             <div class="contact-status offline" data-uid="${f.fid}"></div>
           </div>
           <div class="contact-info">
@@ -1998,9 +1991,7 @@ function openAddFriend() {
       if (!filtered.length) { results.classList.add('hidden'); return; }
       results.innerHTML = filtered.map(u => `
         <div class="search-item" onclick="sendFriendRequest('${u.username}', '${(u.display_name||u.username).replace(/'/g,"\\'")}')">
-          <div class="contact-avatar" style="background:${u.avatar_color}20;color:${u.avatar_color};width:28px;height:28px;font-size:12px;overflow:hidden;padding:0;">
-          <img src="${u.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt="">
-        </div>
+          <div class="contact-avatar" style="background:${u.avatar_color}20;color:${u.avatar_color};width:28px;height:28px;font-size:12px;">${(u.display_name||u.username)[0].toUpperCase()}</div>
           <div><div style="font-weight:600;font-size:13px;">${u.display_name || u.username}</div><div style="font-size:11px;color:var(--text-muted);">@${u.username}</div></div>
         </div>
       `).join('');
@@ -2078,9 +2069,7 @@ async function selectCircle(id) {
   html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
   currentCircle.members.forEach(m => {
     html += `<div class="contact-item">
-      <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color};overflow:hidden;padding:0;">
-      <img src="${m.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" style="width:100%;height:100%;object-fit:cover;" alt="">
-    </div>
+      <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
       <div class="contact-info">
         <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'&#128081;':''}</div>
         <div class="contact-sub">@${m.username}</div>
@@ -2109,8 +2098,8 @@ async function selectTopic(tid) {
   connectWS('topic:' + tid);
 }
 
-async function openDM(peerId, peerName, peerColor, peerAvatar) {
-  currentDM = { peerId, peerName, peerColor, peerAvatar };
+async function openDM(peerId, peerName, peerColor) {
+  currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
   saveSession();
