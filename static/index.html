@@ -2193,7 +2193,7 @@ function enterApp() {
   // Avatar colorido da alpaca
   const avatarUrl = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
   document.querySelector('.panel-profile-avatar').src = avatarUrl;
-  document.querySelector('.dock-logo img').src = avatarUrl;
+  // Logo do app permanece como alpaca_avatar.png
 
   // Status
   updateStatusUI(me.status || 'online');
