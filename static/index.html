@@ -8,6 +8,7 @@
 
 
 
+
 :root {
   --bg: #0f0f12;
   --bg-elevated: rgba(255,255,255,0.03);
@@ -1390,6 +1391,62 @@ body {
   z-index: 2;
 }
 
+/* ===== STATUS MENU ===== */
+.status-menu {
+  background: rgba(10, 8, 30, 0.95);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 16px;
+  padding: 8px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(139, 92, 246, 0.1);
+  animation: statusMenuIn 0.2s ease;
+}
+
+@keyframes statusMenuIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.status-item:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.status-item.active {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e7ff;
+}
+
+.status-desc {
+  font-size: 11px;
+  color: #6366f1;
+  margin-top: 1px;
+}
 
 
 
@@ -1482,7 +1539,7 @@ body {
     <div class="panel-scroll" id="panelContent"></div>
 
     <!-- Rodapé de perfil no panel -->
-    <div class="panel-profile-bar" id="panelProfile">
+    <div class="panel-profile-bar" id="panelProfile" onclick="toggleStatusMenu()" style="cursor:pointer;">
       <div class="panel-profile-avatar-wrap">
         <img src="/static/cosmic_aero/alpaca_avatar.png" class="panel-profile-avatar" alt="">
         <div class="panel-profile-status online" id="dockProfileStatus"></div>
@@ -1561,17 +1618,33 @@ const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22
 
 const authHeader = () => ({ 'Authorization': 'Bearer ' + token });
 
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const notifAudio = new Audio('/static/cosmic_aero/notification.mp3');
+notifAudio.volume = 0.6;
+
 function playNotifSound() {
-  if (document.hidden) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.frequency.value = 800;
-    gain.gain.value = 0.05;
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.1);
+  if (document.hidden && me?.status !== 'busy') {
+    notifAudio.currentTime = 0;
+    notifAudio.play().catch(() => {});
+  }
+}
+
+function showWindowsNotif(title, body, icon) {
+  if (me?.status === 'busy' || me?.status === 'invisible') return;
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, {
+      body: body,
+      icon: icon || '/static/cosmic_aero/alpaca_avatar.png',
+      badge: '/static/cosmic_aero/alpaca_avatar.png',
+      tag: 'lumina-msg',
+      requireInteraction: false
+    });
+  }
+}
+
+// Pedir permissão de notificação ao entrar
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
   }
 }
 
@@ -1652,6 +1725,11 @@ function enterApp() {
   const avatarUrl = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
   document.querySelector('.panel-profile-avatar').src = avatarUrl;
   document.querySelector('.dock-logo img').src = avatarUrl;
+
+  // Status
+  updateStatusUI(me.status || 'online');
+  requestNotifPermission();
+  startAwayTimer();
 
   connectNotifWS();
   loadData();
@@ -1793,7 +1871,10 @@ function showToast(title, sub, color) {
   `;
   container.appendChild(toast);
   setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
-  if (document.hidden) nativeNotify(title, sub, color);
+  if (document.hidden) {
+    showWindowsNotif(title, sub);
+    nativeNotify(title, sub, color);
+  }
 }
 
 function renderDock() {
@@ -2497,6 +2578,106 @@ function copyInviteLink() {
   }
 }
 
+/* ===== STATUS SYSTEM ===== */
+let awayTimer = null;
+const AWAY_DELAY_MS = 5 * 60 * 1000; // 5 minutos
+
+function startAwayTimer() {
+  if (awayTimer) clearTimeout(awayTimer);
+  awayTimer = setTimeout(() => {
+    if (me && me.status === 'online') {
+      setStatus('away');
+    }
+  }, AWAY_DELAY_MS);
+}
+
+function resetAwayTimer() {
+  if (awayTimer) clearTimeout(awayTimer);
+  if (me && me.status === 'away') {
+    setStatus('online');
+  }
+  startAwayTimer();
+}
+
+// Reset timer em qualquer interação
+document.addEventListener('mousemove', resetAwayTimer);
+document.addEventListener('keydown', resetAwayTimer);
+document.addEventListener('click', resetAwayTimer);
+
+async function setStatus(newStatus) {
+  if (!me) return;
+  const fd = new FormData();
+  fd.append('status', newStatus);
+  const res = await fetch(API + '/api/status', { method: 'POST', body: fd, headers: authHeader() });
+  if (res.ok) {
+    me.status = newStatus;
+    updateStatusUI(newStatus);
+  }
+}
+
+function updateStatusUI(status) {
+  const statusEl = document.getElementById('dockProfileStatus');
+  if (!statusEl) return;
+  statusEl.className = 'panel-profile-status ' + status;
+
+  const statusMap = {
+    'online': { color: '#10b981', label: 'Online' },
+    'busy': { color: '#ef4444', label: 'Ocupado' },
+    'away': { color: '#f59e0b', label: 'Ausente' },
+    'invisible': { color: '#6b7280', label: 'Invisível' }
+  };
+  const info = statusMap[status] || statusMap['online'];
+  statusEl.style.background = info.color;
+  statusEl.style.boxShadow = `0 0 6px ${info.color}99`;
+}
+
+function toggleStatusMenu() {
+  const existing = document.getElementById('statusMenu');
+  if (existing) { existing.remove(); return; }
+
+  const bar = document.getElementById('panelProfile');
+  const rect = bar.getBoundingClientRect();
+
+  const menu = document.createElement('div');
+  menu.id = 'statusMenu';
+  menu.className = 'status-menu';
+  menu.style.cssText = `
+    position: fixed;
+    left: ${rect.left}px;
+    bottom: ${window.innerHeight - rect.top + 8}px;
+    width: ${rect.width}px;
+    z-index: 100;
+  `;
+
+  const statuses = [
+    { id: 'online', label: 'Online', desc: 'Recebe notificações', color: '#10b981' },
+    { id: 'busy', label: 'Ocupado', desc: 'Muta notificações', color: '#ef4444' },
+    { id: 'away', label: 'Ausente', desc: 'Sem movimento', color: '#f59e0b' },
+    { id: 'invisible', label: 'Invisível', desc: 'Aparece offline', color: '#6b7280' }
+  ];
+
+  menu.innerHTML = statuses.map(s => `
+    <div class="status-item ${me?.status === s.id ? 'active' : ''}" onclick="setStatus('${s.id}'); toggleStatusMenu();">
+      <div class="status-dot" style="background:${s.color};box-shadow:0 0 6px ${s.color}99"></div>
+      <div class="status-info">
+        <div class="status-label">${s.label}</div>
+        <div class="status-desc">${s.desc}</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.body.appendChild(menu);
+
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('click', function closeMenu(e) {
+      if (!menu.contains(e.target) && !bar.contains(e.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    });
+  }, 10);
+}
 </script>
 <div class="ws-status offline" id="wsStatus" style="display:none;">
   <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>

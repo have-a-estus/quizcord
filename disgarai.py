@@ -512,6 +512,21 @@ def home():
 
 
 
+
+
+@app.post("/api/status")
+def update_status(request: Request, status: str = Form(...)):
+    user = require_user(request)
+    valid_statuses = ['online', 'busy', 'away', 'invisible']
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Status invalido")
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE users SET status = ? WHERE id = ?", (status, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"status": status}
+
 @app.get("/api/version")
 
 def get_version():
@@ -1234,7 +1249,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
             if row:
 
-                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "is_guest": False}
+                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "avatar_image": row.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png"), "is_guest": False}
 
 
 
