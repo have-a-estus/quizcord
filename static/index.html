@@ -2368,10 +2368,10 @@ function setActiveDock(id) {
   if (el) el.classList.add('active');
 }
 
+let friendsFilterTab = 'all';
+
 function showHome() {
   currentCircle = null; currentTopic = null;
-  // NÃO zera currentDM — preserva o contato selecionado
-  // Limpa active dos contatos apenas se não houver DM ativo
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
       const peerId = item.dataset.peer;
@@ -2386,21 +2386,183 @@ function showHome() {
   saveSession();
   document.getElementById('panelTitle').textContent = 'Amigos';
   document.getElementById('panelSubtitle').textContent = 'Conversas diretas';
-  document.getElementById('mainTitle').textContent = 'Inicio';
+  document.getElementById('mainTitle').textContent = '';
   document.getElementById('topicTabs').classList.add('hidden');
-  document.getElementById('headerActions').innerHTML = `
-    <button class="btn-sm btn-ghost" onclick="openAddFriend()">+ Adicionar</button>
-  `;
-  document.getElementById('chatArea').innerHTML = `
-    <div class="welcome-screen">
-      <h1>Lumina</h1>
-      <p>Selecione um amigo na lista ao lado ou entre em um Circulo.</p>
-    </div>
-  `;
+  document.getElementById('headerActions').innerHTML = '';
   document.getElementById('inputArea').classList.add('hidden');
   document.getElementById('userList').classList.add('hidden');
   document.getElementById('msgInput').placeholder = 'Conversar em #bate-papo...';
 
+  renderFriendsScreen();
+  renderPanelFriends();
+}
+
+function renderFriendsScreen() {
+  const pendingCount = friends.pending_received?.length || 0;
+  const allFriends = friends.friends || [];
+
+  let filtered = allFriends;
+  if (friendsFilterTab === 'online') {
+    filtered = allFriends.filter(f => f.status === 'online');
+  }
+
+  let contentHtml = '';
+
+  if (allFriends.length === 0 && pendingCount === 0) {
+    contentHtml = `
+      <div class="welcome-cosmic">
+        <div class="welcome-cosmic-glow"></div>
+        <img src="/static/cosmic_aero/alpaca_avatar.png" alt="Lumina">
+        <h1>Lumina</h1>
+        <p>Ainda não tem amigos por aqui. Adicione alguém e comece a explorar o cosmos juntos!</p>
+        <button class="welcome-cosmic-btn" onclick="openAddFriend()">✨ Adicionar amigo</button>
+      </div>
+    `;
+  } else {
+    const tabs = [
+      { id: 'all', label: 'Todos' },
+      { id: 'online', label: 'Online' },
+      { id: 'pending', label: 'Pendentes', badge: pendingCount }
+    ];
+
+    contentHtml = `
+      <div class="friends-screen">
+        <div class="friends-toolbar">
+          <div class="friends-toolbar-title">
+            <span style="font-size:20px;">👥</span> Amigos
+          </div>
+          ${tabs.map(t => `
+            <div class="friends-toolbar-tab ${friendsFilterTab===t.id?'active':''}" onclick="setFriendsTab('${t.id}')">
+              ${t.label}${t.badge?`<span class="tab-badge">${t.badge}</span>`:''}
+            </div>
+          `).join('')}
+          <button class="friends-toolbar-btn" onclick="openAddFriend()">+ Adicionar amigo</button>
+        </div>
+        <div class="friends-search-bar">
+          <input type="text" class="friends-search-input" id="friendsSearchInput" placeholder="Buscar amigos..." oninput="filterFriendsList(this.value)">
+        </div>
+        <div class="friends-list" id="friendsListContainer">
+          ${renderFriendsListContent(filtered, pendingCount)}
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('chatArea').innerHTML = contentHtml;
+}
+
+function renderFriendsListContent(friendList, pendingCount) {
+  let html = '';
+
+  if (friendsFilterTab === 'pending' && friends.pending_received?.length) {
+    html += `<div class="friends-section-title">Solicitacoes recebidas — ${friends.pending_received.length}</div>`;
+    friends.pending_received.forEach(r => {
+      html += `
+        <div class="friends-row">
+          <div class="friends-row-avatar-wrap">
+            <img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
+            <div class="friends-row-status offline"></div>
+          </div>
+          <div class="friends-row-info">
+            <div class="friends-row-name">${r.display_name || r.username}</div>
+            <div class="friends-row-sub">@${r.username} · Solicitacao pendente</div>
+          </div>
+          <div class="friends-row-actions">
+            <button class="friends-row-action" onclick="acceptFriend('${r.fid}'); event.stopPropagation();" title="Aceitar">✓</button>
+            <button class="friends-row-action" onclick="rejectFriend('${r.fid}'); event.stopPropagation();" title="Recusar">✕</button>
+          </div>
+        </div>
+      `;
+    });
+  } else if (friendsFilterTab === 'pending' && friends.pending_sent?.length) {
+    html += `<div class="friends-section-title">Solicitacoes enviadas — ${friends.pending_sent.length}</div>`;
+    friends.pending_sent.forEach(r => {
+      html += `
+        <div class="friends-row">
+          <div class="friends-row-avatar-wrap">
+            <img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
+            <div class="friends-row-status offline"></div>
+          </div>
+          <div class="friends-row-info">
+            <div class="friends-row-name">${r.display_name || r.username}</div>
+            <div class="friends-row-sub">@${r.username} · Aguardando resposta</div>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    if (friendList.length) {
+      const onlineList = friendList.filter(f => f.status === 'online');
+      const offlineList = friendList.filter(f => f.status !== 'online');
+
+      if (friendsFilterTab === 'online' && onlineList.length) {
+        html += `<div class="friends-section-title">Online — ${onlineList.length}</div>`;
+        onlineList.forEach(f => html += renderFriendRow(f));
+      } else if (friendsFilterTab === 'all') {
+        if (onlineList.length) {
+          html += `<div class="friends-section-title">Online — ${onlineList.length}</div>`;
+          onlineList.forEach(f => html += renderFriendRow(f));
+        }
+        if (offlineList.length) {
+          html += `<div class="friends-section-title">Offline — ${offlineList.length}</div>`;
+          offlineList.forEach(f => html += renderFriendRow(f));
+        }
+      } else {
+        html += `<div class="friends-section-title">Nenhum amigo online</div>`;
+      }
+    } else {
+      html += `<div style="text-align:center;color:#6366f1;padding:60px 20px;font-size:14px;">Nenhum amigo encontrado.</div>`;
+    }
+  }
+
+  return html;
+}
+
+function renderFriendRow(f) {
+  const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
+  const unread = unreadMap['dm:' + dmId] || 0;
+  return `
+    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+      <div class="friends-row-avatar-wrap">
+        <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
+        <div class="friends-row-status ${f.status || 'offline'}"></div>
+      </div>
+      <div class="friends-row-info">
+        <div class="friends-row-name">${f.display_name || f.username}</div>
+        <div class="friends-row-sub">@${f.username}${unread > 0 ? ' · <strong style="color:#ef4444;">' + unread + ' mensagem' + (unread>1?'s':'') + ' nova' + (unread>1?'s':'') + '</strong>' : ''}</div>
+      </div>
+      <div class="friends-row-actions">
+        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
+        <button class="friends-row-action" onclick="event.stopPropagation();" title="Mais">⋮</button>
+      </div>
+    </div>
+  `;
+}
+
+function setFriendsTab(tab) {
+  friendsFilterTab = tab;
+  renderFriendsScreen();
+}
+
+function filterFriendsList(query) {
+  const container = document.getElementById('friendsListContainer');
+  if (!container) return;
+  const allFriends = friends.friends || [];
+  const q = query.toLowerCase();
+  let filtered = allFriends;
+  if (friendsFilterTab === 'online') {
+    filtered = allFriends.filter(f => f.status === 'online');
+  }
+  if (q) {
+    filtered = filtered.filter(f => 
+      (f.display_name || f.username).toLowerCase().includes(q) ||
+      f.username.toLowerCase().includes(q)
+    );
+  }
+  container.innerHTML = renderFriendsListContent(filtered, friends.pending_received?.length || 0);
+}
+
+function renderPanelFriends() {
   const html = [];
 
   if (friends.pending_received?.length) {
@@ -2427,7 +2589,7 @@ function showHome() {
       const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
-        <div class="contact-item" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
+        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
           <div class="contact-avatar" style="background:${f.avatar_color}20;color:${f.avatar_color}">
             ${(f.display_name||f.username)[0].toUpperCase()}
             <div class="contact-status offline" data-uid="${f.fid}"></div>
@@ -3759,6 +3921,321 @@ document.addEventListener('keydown', (e) => {
 }
 .settings-theme-card.active .theme-name {
   color: #fff;
+}
+
+/* ===== FRIENDS SCREEN - Discord Style + Cosmic Aero ===== */
+.friends-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.friends-toolbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 20px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  flex-shrink: 0;
+}
+
+.friends-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e0e7ff;
+  margin-right: 16px;
+  padding-right: 16px;
+  border-right: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.friends-toolbar-tab {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background: transparent;
+  position: relative;
+}
+
+.friends-toolbar-tab:hover {
+  color: #e0e7ff;
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.friends-toolbar-tab.active {
+  color: #fff;
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.friends-toolbar-tab .tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 6px;
+  padding: 0 4px;
+}
+
+.friends-toolbar-btn {
+  margin-left: auto;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.friends-toolbar-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.friends-search-bar {
+  padding: 12px 20px;
+  flex-shrink: 0;
+}
+
+.friends-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  background: rgba(10, 8, 30, 0.5);
+  color: #e0e7ff;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.3s;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.friends-search-input:focus {
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1), inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.friends-search-input::placeholder {
+  color: #6366f1;
+  opacity: 0.5;
+}
+
+.friends-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 20px;
+}
+
+.friends-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 16px 0 8px;
+  padding: 0 8px;
+}
+
+.friends-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 2px;
+  border: 1px solid transparent;
+}
+
+.friends-row:hover {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.friends-row-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.friends-row-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+}
+
+.friends-row-status {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #050310;
+}
+
+.friends-row-status.online { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
+.friends-row-status.away { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
+.friends-row-status.busy { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
+.friends-row-status.offline { background: #6b7280; }
+
+.friends-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friends-row-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e0e7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-row-sub {
+  font-size: 12px;
+  color: #6366f1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.friends-row-actions {
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.friends-row:hover .friends-row-actions {
+  opacity: 1;
+}
+
+.friends-row-action {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.05);
+  color: #a5b4fc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.friends-row-action:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+}
+
+/* ===== WELCOME COSMIC ===== */
+.welcome-cosmic {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px;
+  position: relative;
+}
+
+.welcome-cosmic-glow {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
+  position: absolute;
+  animation: welcomeGlow 4s ease-in-out infinite;
+  z-index: 0;
+}
+
+@keyframes welcomeGlow {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+
+.welcome-cosmic img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+  border: 3px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
+  animation: alpacaFloat 4s ease-in-out infinite;
+}
+
+.welcome-cosmic h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-top: 24px;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.welcome-cosmic p {
+  font-size: 15px;
+  color: #a5b4fc;
+  margin-top: 8px;
+  position: relative;
+  z-index: 1;
+  max-width: 400px;
+  line-height: 1.6;
+}
+
+.welcome-cosmic-btn {
+  margin-top: 24px;
+  padding: 12px 28px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
+  transition: all 0.3s;
+}
+
+.welcome-cosmic-btn:hover {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.4);
 }
 </style></body>
 </html>
