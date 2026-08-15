@@ -158,16 +158,52 @@ body {
   background: rgba(255,255,255,0.1); border-radius: 2px;
 }
 
+/* ===== CONTACT ITEM - Glow States ===== */
 .contact-item {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  cursor: pointer; transition: all 0.15s;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   margin-bottom: 4px;
   position: relative;
+  border: 1px solid transparent;
 }
 
-.contact-item:hover { background: var(--bg-elevated); }
+/* HOVER = Botão Secundário — glow sutil, borda luminosa */
+.contact-item:hover {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow:
+    0 0 12px rgba(139, 92, 246, 0.1),
+    0 0 24px rgba(6, 182, 212, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+/* ACTIVE/SELECTED = Botão Primário — enchimento azul brilhante */
+.contact-item.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45));
+  border-color: rgba(96, 165, 250, 0.7);
+  box-shadow:
+    0 0 20px rgba(59, 130, 246, 0.4),
+    0 0 40px rgba(6, 182, 212, 0.2),
+    0 0 60px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.contact-item.active .contact-name {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+.contact-item.active .contact-sub {
+  color: rgba(165, 180, 252, 0.9);
+}
+
+.contact-item.active .contact-avatar {
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
 
 .contact-avatar {
   width: 40px; height: 40px;
@@ -1692,8 +1728,8 @@ body {
   <!-- PANEL -->
   <div class="panel" id="panel">
     <div class="panel-header">
-      <h2 id="panelTitle">Contatos</h2>
-      <p id="panelSubtitle">Amigos e conversas</p>
+      <h2 id="panelTitle">Amigos</h2>
+      <p id="panelSubtitle">Conversas diretas</p>
     </div>
     <div class="panel-scroll" id="panelContent"></div>
 
@@ -2073,10 +2109,14 @@ function setActiveDock(id) {
 
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null;
+  // Limpa active dos contatos quando volta pro home
+  setTimeout(() => {
+    document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
+  }, 0);
   closeWS();
   saveSession();
-  document.getElementById('panelTitle').textContent = 'Contatos';
-  document.getElementById('panelSubtitle').textContent = 'Amigos e conversas';
+  document.getElementById('panelTitle').textContent = 'Amigos';
+  document.getElementById('panelSubtitle').textContent = 'Conversas diretas';
   document.getElementById('mainTitle').textContent = 'Inicio';
   document.getElementById('topicTabs').classList.add('hidden');
   document.getElementById('headerActions').innerHTML = `
@@ -2271,12 +2311,21 @@ async function selectTopic(tid) {
   connectWS('topic:' + tid);
 }
 
+function selectContact(el, peerId, peerName, peerColor) {
+  // Remove active de todos os contact-items
+  document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
+  // Adiciona active no clicado
+  el.classList.add('active');
+  // Abre o DM
+  openDM(peerId, peerName, peerColor);
+}
+
 async function openDM(peerId, peerName, peerColor) {
   currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
   saveSession();
-  document.getElementById('panelTitle').textContent = 'Contatos';
+  document.getElementById('panelTitle').textContent = 'Amigos';
   document.getElementById('panelSubtitle').textContent = 'Conversa direta';
   document.getElementById('mainTitle').textContent = peerName;
   document.getElementById('topicTabs').classList.add('hidden');
