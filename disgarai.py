@@ -217,11 +217,26 @@ def _get_history(room_id: str, limit: int = 50):
     rows = c.fetchall()
     msgs = []
     msg_ids = []
+    user_ids = set()
     for r in rows:
         d = dict(r)
-        d["user"] = {"id": d.pop("user_id"), "name": d.pop("user_name"), "color": d.pop("user_color")}
+        uid = d.pop("user_id")
+        user_ids.add(uid)
+        d["user"] = {"id": uid, "name": d.pop("user_name"), "color": d.pop("user_color")}
         msg_ids.append(d["id"])
         msgs.append(d)
+    # Buscar avatares dos usuários (banco separado)
+    if user_ids:
+        conn2 = get_db(USERS_DB)
+        c2 = conn2.cursor()
+        placeholders = ','.join('?' * len(user_ids))
+        c2.execute(f"SELECT id, avatar_image FROM users WHERE id IN ({placeholders})", list(user_ids))
+        avatar_map = {r["id"]: r["avatar_image"] for r in c2.fetchall()}
+        conn2.close()
+        for m in msgs:
+            uid = m["user"]["id"]
+            if uid and uid in avatar_map:
+                m["user"]["avatar_image"] = avatar_map[uid]
     # Buscar reações
     if msg_ids:
         placeholders = ','.join('?' * len(msg_ids))
