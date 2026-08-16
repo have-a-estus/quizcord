@@ -1,9 +1,9 @@
 /* ============================================
    LUMINA EXTRAS - Menu de Contexto, Mini Perfil & Perfil Completo
-   v2.2 - NUCLEAR: polling agressivo + onclick inline
+   v2.3 - Corrigido: click/context no nome da lista de amigos
    ============================================ */
 
-console.log('[LuminaExtras] ===== ARQUIVO CARREGADO v2.2 =====');
+console.log('[LuminaExtras] ===== ARQUIVO CARREGADO v2.3 =====');
 
 // ===== CACHE =====
 let _blockedList = [];
@@ -15,136 +15,225 @@ function initLuminaExtras() {
   loadBlockedList();
   patchAppendMessage();
 
-  // Delegation global como backup
   document.addEventListener('click', handleDocumentClick);
   document.addEventListener('contextmenu', handleDocumentContextMenu);
 
-  // Polling NUCLEAR: a cada 200ms força bind em TODOS os elementos do chat
   setInterval(nuclearBindChatElements, 200);
   nuclearBindChatElements();
 
   console.log('[LuminaExtras] Iniciado');
 }
 
-// Inicia IMEDIATAMENTE
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initLuminaExtras);
 } else {
   initLuminaExtras();
 }
 
-// ===== NUCLEAR BIND: adiciona onclick/oncontextmenu DIRETO nos elementos =====
+// ===== NUCLEAR BIND =====
 function nuclearBindChatElements() {
   const chatArea = document.getElementById('chatArea');
-  if (!chatArea) return;
+  if (chatArea) {
+    // msg-author
+    chatArea.querySelectorAll('.msg-author').forEach(el => {
+      if (el._luminaNuclear) return;
+      el._luminaNuclear = true;
+      el.style.cursor = 'pointer';
+      el.style.userSelect = 'none';
 
-  // Bind em msg-author
-  chatArea.querySelectorAll('.msg-author').forEach(el => {
-    if (el._luminaNuclear) return;
-    el._luminaNuclear = true;
-    el.style.cursor = 'pointer';
-    el.style.userSelect = 'none';
+      el.onclick = function(e) {
+        console.log('[LuminaExtras] onclick msg-author:', this.textContent.trim());
+        e.stopPropagation();
+        const bubble = this.closest('.message-bubble');
+        if (!bubble) return;
+        let uid = bubble.dataset.uid;
+        if (!uid) {
+          const name = this.textContent.trim();
+          uid = resolveUserIdByName(name);
+          if (uid) bubble.dataset.uid = uid;
+        }
+        if (uid && uid !== me?.id) showMiniProfile(uid, this);
+      };
+    });
 
-    el.onclick = function(e) {
-      console.log('[LuminaExtras] onclick msg-author:', this.textContent.trim());
-      e.stopPropagation();
-      const bubble = this.closest('.message-bubble');
-      if (!bubble) return;
-      let uid = bubble.dataset.uid;
-      if (!uid) {
-        const name = this.textContent.trim();
-        uid = resolveUserIdByName(name);
-        if (uid) bubble.dataset.uid = uid;
+    // msg-avatar
+    chatArea.querySelectorAll('.msg-avatar').forEach(el => {
+      if (el._luminaNuclearAvatar) return;
+      el._luminaNuclearAvatar = true;
+      el.style.cursor = 'pointer';
+
+      el.onclick = function(e) {
+        e.stopPropagation();
+        const bubble = this.closest('.message-bubble');
+        if (!bubble) return;
+        let uid = bubble.dataset.uid;
+        if (!uid) {
+          const authorEl = bubble.querySelector('.msg-author');
+          const name = authorEl ? authorEl.textContent.trim() : null;
+          uid = resolveUserIdByName(name);
+          if (uid) bubble.dataset.uid = uid;
+        }
+        if (uid && uid !== me?.id) showMiniProfile(uid, this);
+      };
+
+      el.oncontextmenu = function(e) {
+        const bubble = this.closest('.message-bubble');
+        if (!bubble || bubble.classList.contains('own')) return true;
+        let uid = bubble.dataset.uid;
+        if (!uid) {
+          const authorEl = bubble.querySelector('.msg-author');
+          const name = authorEl ? authorEl.textContent.trim() : null;
+          uid = resolveUserIdByName(name);
+          if (uid) bubble.dataset.uid = uid;
+        }
+        if (uid && uid !== me?.id) {
+          e.preventDefault();
+          e.stopPropagation();
+          const authorEl = bubble.querySelector('.msg-author');
+          const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
+          const avatarEl = bubble.querySelector('.msg-avatar img');
+          const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+          showFriendContextMenu(e, uid, name, avatar);
+          return false;
+        }
+        return true;
+      };
+    });
+
+    // message-bubble fallback context
+    chatArea.querySelectorAll('.message-bubble').forEach(el => {
+      if (el._luminaNuclearBubble) return;
+      el._luminaNuclearBubble = true;
+
+      el.oncontextmenu = function(e) {
+        if (this.classList.contains('own')) return true;
+        if (e.target.closest('.chat-embed') || e.target.closest('a')) return true;
+
+        let uid = this.dataset.uid;
+        if (!uid) {
+          const authorEl = this.querySelector('.msg-author');
+          const name = authorEl ? authorEl.textContent.trim() : null;
+          uid = resolveUserIdByName(name);
+          if (uid) this.dataset.uid = uid;
+        }
+        if (uid && uid !== me?.id) {
+          e.preventDefault();
+          e.stopPropagation();
+          const authorEl = this.querySelector('.msg-author');
+          const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
+          const avatarEl = this.querySelector('.msg-avatar img');
+          const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+          showFriendContextMenu(e, uid, name, avatar);
+          return false;
+        }
+        return true;
+      };
+    });
+  }
+
+  // ===== LISTA DE AMIGOS (friends-row) =====
+  const friendsList = document.getElementById('friendsListContainer');
+  if (friendsList) {
+    friendsList.querySelectorAll('.friends-row').forEach(row => {
+      if (row._luminaFriendsBound) return;
+      row._luminaFriendsBound = true;
+
+      // Extrai fid do onclick do row
+      const onclick = row.getAttribute('onclick') || '';
+      const match = onclick.match(/openDM\('([^']+)'/);
+      const fid = match ? match[1] : null;
+      if (!fid) return;
+
+      const nameEl = row.querySelector('.friends-row-name');
+      const avatarEl = row.querySelector('.friends-row-avatar');
+      const imgEl = row.querySelector('.friends-row-avatar');
+      const avatar = imgEl ? imgEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+      const name = nameEl ? nameEl.textContent.trim() : 'Usuario';
+
+      // Click no nome → mini perfil
+      if (nameEl) {
+        nameEl.style.cursor = 'pointer';
+        nameEl.style.userSelect = 'none';
+        nameEl.onclick = function(e) {
+          console.log('[LuminaExtras] onclick friends-row-name:', name);
+          e.stopPropagation();
+          if (fid && fid !== me?.id) showMiniProfile(fid, this);
+        };
       }
-      if (uid && uid !== me?.id) {
-        showMiniProfile(uid, this);
+
+      // Click no avatar → mini perfil
+      if (avatarEl) {
+        avatarEl.style.cursor = 'pointer';
+        avatarEl.onclick = function(e) {
+          e.stopPropagation();
+          if (fid && fid !== me?.id) showMiniProfile(fid, this);
+        };
       }
-    };
-  });
 
-  // Bind em msg-avatar
-  chatArea.querySelectorAll('.msg-avatar').forEach(el => {
-    if (el._luminaNuclearAvatar) return;
-    el._luminaNuclearAvatar = true;
-    el.style.cursor = 'pointer';
-
-    el.onclick = function(e) {
-      console.log('[LuminaExtras] onclick msg-avatar');
-      e.stopPropagation();
-      const bubble = this.closest('.message-bubble');
-      if (!bubble) return;
-      let uid = bubble.dataset.uid;
-      if (!uid) {
-        const authorEl = bubble.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : null;
-        uid = resolveUserIdByName(name);
-        if (uid) bubble.dataset.uid = uid;
-      }
-      if (uid && uid !== me?.id) showMiniProfile(uid, this);
-    };
-
-    el.oncontextmenu = function(e) {
-      console.log('[LuminaExtras] oncontextmenu msg-avatar');
-      const bubble = this.closest('.message-bubble');
-      if (!bubble || bubble.classList.contains('own')) return true;
-
-      let uid = bubble.dataset.uid;
-      if (!uid) {
-        const authorEl = bubble.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : null;
-        uid = resolveUserIdByName(name);
-        if (uid) bubble.dataset.uid = uid;
-      }
-      if (uid && uid !== me?.id) {
+      // Context menu no row inteiro
+      row.oncontextmenu = function(e) {
+        console.log('[LuminaExtras] oncontextmenu friends-row:', name);
         e.preventDefault();
         e.stopPropagation();
-        const authorEl = bubble.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
-        const avatarEl = bubble.querySelector('.msg-avatar img');
-        const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
-        showFriendContextMenu(e, uid, name, avatar);
+        showFriendContextMenu(e, fid, name, avatar);
         return false;
+      };
+    });
+  }
+
+  // ===== PAINEL LATERAL (contact-item) =====
+  const panelContent = document.getElementById('panelContent');
+  if (panelContent) {
+    panelContent.querySelectorAll('.contact-item').forEach(item => {
+      if (item._luminaPanelBound) return;
+      item._luminaPanelBound = true;
+
+      const fid = item.dataset.peer;
+      if (!fid) return;
+
+      const nameEl = item.querySelector('.contact-name');
+      const avatarEl = item.querySelector('.contact-avatar');
+      const imgEl = item.querySelector('.contact-avatar img');
+      const avatar = imgEl ? imgEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+      const name = nameEl ? nameEl.textContent.trim() : 'Usuario';
+
+      // Click no nome → mini perfil
+      if (nameEl) {
+        nameEl.style.cursor = 'pointer';
+        nameEl.onclick = function(e) {
+          e.stopPropagation();
+          if (fid && fid !== me?.id) showMiniProfile(fid, this);
+        };
       }
-      return true;
-    };
-  });
 
-  // Bind em message-bubble inteira para context menu (fallback)
-  chatArea.querySelectorAll('.message-bubble').forEach(el => {
-    if (el._luminaNuclearBubble) return;
-    el._luminaNuclearBubble = true;
-
-    el.oncontextmenu = function(e) {
-      if (this.classList.contains('own')) return true;
-      // Só intercepta se clicou em parte da mensagem (não em embed/link)
-      if (e.target.closest('.chat-embed') || e.target.closest('a') || e.target.closest('img')) return true;
-
-      let uid = this.dataset.uid;
-      if (!uid) {
-        const authorEl = this.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : null;
-        uid = resolveUserIdByName(name);
-        if (uid) this.dataset.uid = uid;
+      // Click no avatar → mini perfil
+      if (avatarEl) {
+        avatarEl.style.cursor = 'pointer';
+        avatarEl.onclick = function(e) {
+          e.stopPropagation();
+          if (fid && fid !== me?.id) showMiniProfile(fid, this);
+        };
       }
-      if (uid && uid !== me?.id) {
+
+      // Context menu no item inteiro
+      item.oncontextmenu = function(e) {
         e.preventDefault();
         e.stopPropagation();
-        const authorEl = this.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
-        const avatarEl = this.querySelector('.msg-avatar img');
-        const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
-        showFriendContextMenu(e, uid, name, avatar);
+        showFriendContextMenu(e, fid, name, avatar);
         return false;
-      }
-      return true;
-    };
-  });
+      };
+    });
+  }
 }
 
 // ===== HANDLE CLICK GLOBAL (backup) =====
 function handleDocumentClick(e) {
   const author = e.target.closest('.msg-author');
   const avatar = e.target.closest('.msg-avatar');
+  const friendName = e.target.closest('.friends-row-name');
+  const friendAvatar = e.target.closest('.friends-row-avatar');
+  const contactName = e.target.closest('.contact-name');
+  const contactAvatar = e.target.closest('.contact-avatar');
 
   if (author && !author._luminaNuclear) {
     console.log('[LuminaExtras] Delegation click msg-author:', author.textContent.trim());
@@ -158,6 +247,30 @@ function handleDocumentClick(e) {
       if (uid) bubble.dataset.uid = uid;
     }
     if (uid && uid !== me?.id) showMiniProfile(uid, author);
+  }
+
+  if (friendName && !friendName.onclick) {
+    const row = friendName.closest('.friends-row');
+    if (row) {
+      const onclick = row.getAttribute('onclick') || '';
+      const match = onclick.match(/openDM\('([^']+)'/);
+      const fid = match ? match[1] : null;
+      if (fid && fid !== me?.id) {
+        e.stopPropagation();
+        showMiniProfile(fid, friendName);
+      }
+    }
+  }
+
+  if (contactName && !contactName.onclick) {
+    const item = contactName.closest('.contact-item');
+    if (item) {
+      const fid = item.dataset.peer;
+      if (fid && fid !== me?.id) {
+        e.stopPropagation();
+        showMiniProfile(fid, contactName);
+      }
+    }
   }
 }
 
@@ -184,10 +297,24 @@ function handleDocumentContextMenu(e) {
     }
   }
 
-  // Painel (contact-item)
+  const row = e.target.closest('.friends-row');
+  if (row && !row.oncontextmenu) {
+    const onclick = row.getAttribute('onclick') || '';
+    const match = onclick.match(/openDM\('([^']+)',\s*'([^']+)'/);
+    const fid = match ? match[1] : null;
+    const name = match ? match[2] : 'Usuario';
+    const imgEl = row.querySelector('.friends-row-avatar');
+    const avatar = imgEl ? imgEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+    if (fid) {
+      e.preventDefault();
+      e.stopPropagation();
+      showFriendContextMenu(e, fid, name, avatar);
+      return false;
+    }
+  }
+
   const item = e.target.closest('.contact-item');
-  if (item) {
-    e.preventDefault();
+  if (item && !item.oncontextmenu) {
     const fid = item.dataset.peer;
     if (!fid) return;
     const nameEl = item.querySelector('.contact-name');
@@ -195,21 +322,7 @@ function handleDocumentContextMenu(e) {
     const imgEl = item.querySelector('.contact-avatar img');
     const avatar = imgEl ? imgEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
     showFriendContextMenu(e, fid, name, avatar);
-    return;
-  }
-
-  // Tela de amigos (friends-row)
-  const row = e.target.closest('.friends-row');
-  if (row && row.closest('.friends-list')) {
-    e.preventDefault();
-    const onclick = row.getAttribute('onclick') || '';
-    const match = onclick.match(/openDM\('([^']+)',\s*'([^']+)'/);
-    const fid = match ? match[1] : null;
-    const name = match ? match[2] : 'Usuario';
-    const imgEl = row.querySelector('.friends-row-avatar');
-    const avatar = imgEl ? imgEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
-    if (fid) showFriendContextMenu(e, fid, name, avatar);
-    return;
+    return false;
   }
 }
 
@@ -229,7 +342,6 @@ function patchAppendMessage() {
       lastBubble.dataset.uid = m.user.id;
       lastBubble.dataset.uname = m.user.name || '';
     }
-    // Força bind imediato na nova mensagem
     setTimeout(nuclearBindChatElements, 50);
   };
   console.log('[LuminaExtras] appendMessage patched');
