@@ -2455,6 +2455,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="nebula-blur"></div>
@@ -3065,6 +3066,19 @@ function toggleMembersPanel() {
 }
 
 function showHome() {
+  // Fecha conexão e limpa estados ao sair do chat
+  closeWS();
+  cancelReply();
+  cancelEdit();
+  if (typeof closeAnyLumina === 'function') closeAnyLumina();
+  aboutEggTimers.forEach(t => clearTimeout(t));
+  aboutEggTimers = [];
+  aboutClickCount = 0;
+  aboutEggActive = false;
+  document.getElementById('typingIndicator').classList.add('hidden');
+  document.getElementById('userList').innerHTML = '';
+  document.getElementById('userList').classList.add('hidden');
+
   currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
   homeNavTab = 'friends';
   document.getElementById('membersPanel').classList.add('hidden');
@@ -3339,12 +3353,19 @@ function setHomeNavTab(tab) {
   } else if (tab === 'comet') {
     showToast('Em breve', 'Comet esta chegando...', '#8b5cf6');
     homeNavTab = 'friends';
+    renderFriendsScreen();
     renderPanelFriends();
   } else if (tab === 'shop') {
     showToast('Em breve', 'Loja esta chegando...', '#ec4899');
     homeNavTab = 'friends';
+    renderFriendsScreen();
     renderPanelFriends();
   } else if (tab === 'about') {
+    // Limpa timers do about anterior antes de entrar
+    aboutEggTimers.forEach(t => clearTimeout(t));
+    aboutEggTimers = [];
+    aboutClickCount = 0;
+    aboutEggActive = false;
     showAboutScreen();
     renderPanelFriends();
   }
@@ -3514,6 +3535,14 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
+  // Limpa estados anteriores imediatamente para evitar "junção de telas"
+  cancelReply();
+  cancelEdit();
+  if (typeof closeAnyLumina === 'function') closeAnyLumina();
+  document.getElementById('chatArea').innerHTML = '';
+  _lastMsgAuthor = null;
+  _lastMsgTime = 0;
+
   setActiveDock(id);
   currentCircle = circles.find(c => c.id === id);
   currentDM = null;
@@ -3623,9 +3652,16 @@ function toggleCategory(el) {
 function renderMembersPanel(members) {
   const panel = document.getElementById('membersPanel');
   if (!panel) return;
+  if (!members || !Array.isArray(members)) {
+    panel.innerHTML = '';
+    return;
+  }
 
-  const online = members.filter(m => m.status === 'online' || m.status === 'away');
-  const offline = members.filter(m => !m.status || m.status === 'offline' || m.status === 'invisible');
+  const online = members.filter(m => (m.status || 'offline') === 'online' || (m.status || 'offline') === 'away');
+  const offline = members.filter(m => {
+    const s = m.status || 'offline';
+    return s === 'offline' || s === 'invisible';
+  });
 
   let html = '';
 
@@ -3667,6 +3703,8 @@ function joinVoiceChannel(tid) {
 }
 
 async function selectTopic(tid) {
+  cancelReply();
+  cancelEdit();
   currentTopic = currentCircle.topics.find(t => t.id === tid);
   currentDM = null;
   if (!currentTopic) return;
@@ -3710,6 +3748,14 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
+  // Limpa estados anteriores imediatamente
+  cancelReply();
+  cancelEdit();
+  if (typeof closeAnyLumina === 'function') closeAnyLumina();
+  document.getElementById('chatArea').innerHTML = '';
+  _lastMsgAuthor = null;
+  _lastMsgTime = 0;
+
   currentDM = { peerId, peerName, peerColor };
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
@@ -3917,6 +3963,8 @@ async function processMessageContent(content, container) {
 }
 
 function appendMessage(m) {
+  // Guard: ignora mensagens se não estiver em um chat ativo (evita renderizar na Home)
+  if (!currentCircle && !currentDM) return;
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
   const userAvatar = m.user?.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
