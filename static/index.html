@@ -1898,7 +1898,7 @@ body {
   overflow: hidden;
   min-height: 0;
   gap: 8px;
-  background: radial-gradient(ellipse at center, rgba(5, 3, 16, 0.75) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(5, 3, 16, 0.6) 0%, transparent 70%);
 }
 .about-glow {
   width: 340px;
@@ -2081,11 +2081,32 @@ body {
 .chat-area::before {
   content: '';
   position: fixed;
-  inset: 64px 0 80px 365px; /* abaixo do header, acima do input, à direita do panel+dock */
-  background: radial-gradient(ellipse at 50% 100%, rgba(5, 3, 16, 0.85) 0%, rgba(5, 3, 16, 0.4) 50%, transparent 80%);
+  inset: 64px 0 80px 365px;
+  background:
+    /* Reflexo de luz no vidro (topo) */
+    linear-gradient(180deg, rgba(139, 92, 246, 0.04) 0%, transparent 15%),
+    /* Sombra do vidro nas bordas */
+    linear-gradient(90deg, rgba(5, 3, 16, 0.3) 0%, transparent 8%, transparent 92%, rgba(5, 3, 16, 0.3) 100%),
+    /* Base escura pro texto */
+    radial-gradient(ellipse at 50% 100%, rgba(5, 3, 16, 0.75) 0%, rgba(5, 3, 16, 0.35) 50%, transparent 80%);
   pointer-events: none;
   z-index: 0;
+  backdrop-filter: blur(1px);
 }
+
+/* ===== GLASS EDGE EFFECT ===== */
+.main::before {
+  content: '';
+  position: fixed;
+  top: 64px;
+  left: 365px;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.1), transparent);
+  pointer-events: none;
+  z-index: 5;
+}
+
 .chat-area > * {
   position: relative;
   z-index: 1;
