@@ -3037,6 +3037,7 @@ function renderDock() {
 }
 
 document.getElementById('dockHome').onclick = () => {
+  console.log('[DEBUG] Home clicked! currentCircle=', currentCircle?.id, 'currentDM=', currentDM);
   // Força reset completo de estado antes de ir pra Home
   _pendingCircleLoad = null;  // Cancela qualquer loading de círculo em andamento
   closeWS();
@@ -3073,6 +3074,7 @@ function toggleMembersPanel() {
 }
 
 function showHome() {
+  console.log('[DEBUG] showHome() called');
   // Cancela qualquer loading de círculo em andamento
   _pendingCircleLoad = null;
   // Fecha conexão ativa e limpa estados flutuantes
@@ -3113,8 +3115,11 @@ function showHome() {
 
   // Limpa explicitamente antes de renderizar (garantia contra race conditions)
   document.getElementById('chatArea').innerHTML = '';
+  console.log('[DEBUG] Rendering friends screen...');
   renderFriendsScreen();
+  console.log('[DEBUG] Rendering panel friends...');
   renderPanelFriends();
+  console.log('[DEBUG] showHome() done');
 }
 
 function renderFriendsScreen() {
@@ -3553,6 +3558,7 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
+  console.log('[DEBUG] selectCircle(' + id + ') called');
   // Guarda qual círculo estamos carregando — se mudar, aborta no final
   _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
@@ -3580,7 +3586,10 @@ async function selectCircle(id) {
   if (!res.ok) return;
   const data = await res.json();
   // Guard CRÍTICO: se o usuário clicou em Home/DM/outro círculo enquanto carregava, aborta
-  if (_pendingCircleLoad !== id) return;
+  if (_pendingCircleLoad !== id) {
+    console.log('[DEBUG] selectCircle(' + id + ') ABORTED — user navigated away');
+    return;
+  }
   currentCircle = data.circle;
   currentCircle.members = data.members;
   currentCircle.topics = data.topics;
