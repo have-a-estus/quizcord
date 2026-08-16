@@ -2099,6 +2099,7 @@ let notifWs = null;
 let typingTimer = null;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
+let homeNavTab = 'friends';
 let pendingCount = 0;
 let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
 
@@ -2394,6 +2395,7 @@ let friendsFilterTab = 'all';
 
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
+  homeNavTab = 'friends';
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
       item.classList.remove('active');
@@ -2581,6 +2583,28 @@ function filterFriendsList(query) {
 function renderPanelFriends() {
   const html = [];
 
+  // ===== HOME NAV MENU =====
+  html.push(`<div class="home-nav">
+    <div class="home-nav-item ${homeNavTab==='friends'?'active':''}" onclick="setHomeNavTab('friends')">
+      <div class="home-nav-icon">&#128101;</div>
+      <span>Amigos</span>
+    </div>
+    <div class="home-nav-item ${homeNavTab==='comet'?'active':''}" onclick="setHomeNavTab('comet')">
+      <div class="home-nav-icon">&#128640;</div>
+      <span>Comet</span>
+    </div>
+    <div class="home-nav-item ${homeNavTab==='shop'?'active':''}" onclick="setHomeNavTab('shop')">
+      <div class="home-nav-icon">&#128722;</div>
+      <span>Loja</span>
+    </div>
+    <div class="home-nav-item ${homeNavTab==='about'?'active':''}" onclick="setHomeNavTab('about')">
+      <div class="home-nav-icon">&#8505;</div>
+      <span>Sobre</span>
+    </div>
+    <div class="home-nav-divider"></div>
+  </div>`);
+
+
   if (friends.pending_received?.length) {
     html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 8px 8px;">Solicitacoes</div>`);
     friends.pending_received.forEach(r => {
@@ -2627,6 +2651,45 @@ function renderPanelFriends() {
   }
 
   document.getElementById('panelContent').innerHTML = html.join('');
+}
+
+
+function setHomeNavTab(tab) {
+  homeNavTab = tab;
+  if (tab === 'friends') {
+    renderFriendsScreen();
+    renderPanelFriends();
+  } else if (tab === 'comet') {
+    showToast('Em breve', 'Comet está chegando...', '#8b5cf6');
+    homeNavTab = 'friends';
+    renderPanelFriends();
+  } else if (tab === 'shop') {
+    showToast('Em breve', 'Loja está chegando...', '#ec4899');
+    homeNavTab = 'friends';
+    renderPanelFriends();
+  } else if (tab === 'about') {
+    showAboutScreen();
+    renderPanelFriends();
+  }
+}
+
+function showAboutScreen() {
+  document.getElementById('mainTitle').textContent = 'Sobre';
+  document.getElementById('topicTabs').classList.add('hidden');
+  document.getElementById('headerActions').innerHTML = '';
+  document.getElementById('inputArea').classList.add('hidden');
+  document.getElementById('userList').classList.add('hidden');
+
+  document.getElementById('chatArea').innerHTML = `
+    <div class="about-screen">
+      <div class="about-glow"></div>
+      <img src="/static/cosmic_aero/alpaca_avatar.png" class="about-logo" alt="Lumina">
+      <div class="about-title">Lumina Chat</div>
+      <div class="about-author">Created by TioBruno</div>
+      <div class="about-vibe">Vibe Coded with Kimi 2.6</div>
+      <div class="about-version">v1.2.0-beta · Cosmic Aero Theme</div>
+    </div>
+  `;
 }
 
 function openAddFriend() {
