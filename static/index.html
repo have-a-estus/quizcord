@@ -1896,38 +1896,55 @@ body {
   position: relative;
   overflow: hidden;
   min-height: 0;
+  gap: 8px;
 }
 .about-glow {
-  width: 220px;
-  height: 220px;
+  width: 320px;
+  height: 320px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.3), rgba(6, 182, 212, 0.1), transparent 70%);
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.35), rgba(6, 182, 212, 0.15), transparent 70%);
   position: absolute;
   animation: aboutGlow 4s ease-in-out infinite;
   z-index: 0;
   pointer-events: none;
 }
 @keyframes aboutGlow {
-  0%, 100% { transform: scale(1); opacity: 0.4; }
-  50% { transform: scale(1.2); opacity: 0.7; }
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.25); opacity: 0.8; }
+}
+@keyframes alpacaSpin {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.3) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
 }
 .about-logo-wrap {
   position: relative;
   z-index: 1;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.about-logo-wrap:hover {
+  transform: scale(1.05);
 }
 .about-logo {
-  width: 100px;
-  height: 100px;
-  border-radius: 24px;
+  width: 160px;
+  height: 160px;
+  border-radius: 36px;
   object-fit: cover;
-  border: 2px solid rgba(139, 92, 246, 0.4);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.3), 0 0 80px rgba(6, 182, 212, 0.1);
+  border: 3px solid rgba(139, 92, 246, 0.5);
+  box-shadow: 0 0 60px rgba(139, 92, 246, 0.4), 0 0 120px rgba(6, 182, 212, 0.2), 0 0 180px rgba(236, 72, 153, 0.1);
   animation: alpacaFloat 4s ease-in-out infinite;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.about-logo:hover {
+  box-shadow: 0 0 80px rgba(139, 92, 246, 0.6), 0 0 160px rgba(6, 182, 212, 0.3), 0 0 240px rgba(236, 72, 153, 0.15);
+  transform: scale(1.08);
 }
 .about-title {
   font-family: 'Nunito', sans-serif;
-  font-size: 36px;
+  font-size: 56px;
   font-weight: 800;
   position: relative;
   z-index: 1;
@@ -1935,37 +1952,41 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  letter-spacing: -0.5px;
-  margin-bottom: 4px;
+  letter-spacing: -1px;
+  margin-bottom: 8px;
+  text-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
 }
 .about-author {
-  font-size: 15px;
+  font-size: 22px;
   color: #a5b4fc;
   position: relative;
   z-index: 1;
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
 }
 .about-vibe {
-  font-size: 12px;
+  font-size: 16px;
   color: #6366f1;
   position: relative;
   z-index: 1;
-  opacity: 0.6;
+  opacity: 0.7;
   font-style: italic;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
 }
 .about-version {
-  font-size: 11px;
+  font-size: 13px;
   color: #6366f1;
   position: relative;
   z-index: 1;
-  opacity: 0.4;
+  opacity: 0.5;
   font-family: monospace;
   background: rgba(10, 8, 30, 0.5);
-  padding: 6px 14px;
+  padding: 8px 20px;
   border-radius: 20px;
-  border: 1px solid rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
 }
 </style>
 
@@ -2580,6 +2601,7 @@ function showHome() {
 }
 
 function renderFriendsScreen() {
+  document.getElementById('mainTitle').textContent = 'Amigos';
   const pendingCount = friends.pending_received?.length || 0;
   const allFriends = friends.friends || [];
 
@@ -2837,6 +2859,17 @@ function setHomeNavTab(tab) {
   }
 }
 
+function aboutEasterEgg() {
+  const logo = document.getElementById('aboutLogo');
+  if (!logo) return;
+  logo.style.animation = 'none';
+  logo.offsetHeight; // trigger reflow
+  logo.style.animation = 'alpacaSpin 0.6s ease-in-out, alpacaFloat 4s ease-in-out infinite 0.6s';
+  logo.style.transform = 'scale(1.2)';
+  showToast('✨', 'Vibe Coded with Kimi 2.6', '#ec4899');
+  setTimeout(() => { logo.style.transform = 'scale(1)'; }, 600);
+}
+
 function showAboutScreen() {
   document.getElementById('mainTitle').textContent = 'Sobre';
   document.getElementById('topicTabs').classList.add('hidden');
@@ -2847,8 +2880,8 @@ function showAboutScreen() {
   document.getElementById('chatArea').innerHTML = `
     <div class="about-screen">
       <div class="about-glow"></div>
-      <div class="about-logo-wrap">
-        <img src="/static/cosmic_aero/alpaca_avatar.png" class="about-logo" alt="Lumina">
+      <div class="about-logo-wrap" onclick="aboutEasterEgg()" title="Click me!">
+        <img src="/static/cosmic_aero/alpaca_avatar.png" class="about-logo" id="aboutLogo" alt="Lumina">
       </div>
       <div class="about-title">Lumina Chat</div>
       <div class="about-author">Created by TioBruno</div>
