@@ -3038,6 +3038,7 @@ function renderDock() {
 
 document.getElementById('dockHome').onclick = () => {
   // Força reset completo de estado antes de ir pra Home
+  _pendingCircleLoad = null;  // Cancela qualquer loading de círculo em andamento
   closeWS();
   cancelReply();
   cancelEdit();
@@ -3072,6 +3073,8 @@ function toggleMembersPanel() {
 }
 
 function showHome() {
+  // Cancela qualquer loading de círculo em andamento
+  _pendingCircleLoad = null;
   // Fecha conexão ativa e limpa estados flutuantes
   closeWS();
   cancelReply();
@@ -3108,14 +3111,17 @@ function showHome() {
   document.getElementById('userList').classList.add('hidden');
   document.getElementById('msgInput').placeholder = 'Conversar em #bate-papo...';
 
+  // Limpa explicitamente antes de renderizar (garantia contra race conditions)
+  document.getElementById('chatArea').innerHTML = '';
   renderFriendsScreen();
   renderPanelFriends();
 }
 
 function renderFriendsScreen() {
   document.getElementById('mainTitle').textContent = 'Amigos';
-  const pendingCount = friends.pending_received?.length || 0;
-  const allFriends = friends.friends || [];
+  const safeFriends = friends || { friends: [], pending_sent: [], pending_received: [] };
+  const pendingCount = safeFriends.pending_received?.length || 0;
+  const allFriends = safeFriends.friends || [];
 
   let filtered = allFriends;
   if (friendsFilterTab === 'online') {
@@ -3547,6 +3553,8 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
+  // Guarda qual círculo estamos carregando — se mudar, aborta no final
+  _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
   cancelReply();
   cancelEdit();
@@ -3571,6 +3579,8 @@ async function selectCircle(id) {
   const res = await fetch(API + '/api/circles/' + id, { headers: authHeader() });
   if (!res.ok) return;
   const data = await res.json();
+  // Guard CRÍTICO: se o usuário clicou em Home/DM/outro círculo enquanto carregava, aborta
+  if (_pendingCircleLoad !== id) return;
   currentCircle = data.circle;
   currentCircle.members = data.members;
   currentCircle.topics = data.topics;
@@ -3769,6 +3779,7 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
+  _pendingCircleLoad = null;  // Cancela qualquer loading de círculo
   cancelReply();
   cancelEdit();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
@@ -3902,6 +3913,7 @@ function closeWS() {
 
 let _lastMsgAuthor = null;
 let _lastMsgTime = 0;
+let _pendingCircleLoad = null;
 const _GROUP_THRESHOLD_MS = 15 * 60 * 1000;
 
 const AVATAR_BG_COLORS = [
