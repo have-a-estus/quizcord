@@ -1,5 +1,6 @@
 /* ============================================
    LUMINA EXTRAS - Menu de Contexto, Mini Perfil & Perfil Completo
+   v2.0 - Corrigido: inicializa mesmo se DOM já estiver pronto
    ============================================ */
 
 // ===== CACHE =====
@@ -7,16 +8,94 @@ let _blockedList = [];
 let _blockedLoaded = false;
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
+function initLuminaExtras() {
+  console.log('[LuminaExtras] Iniciando...');
   loadBlockedList();
   patchAppendMessage();
-  // Polling robusto: verifica a cada 300ms por elementos novos
-  setInterval(bindAllInteractiveElements, 300);
-  // Tambem bind imediatamente
+
+  // Bind em elementos já existentes
   bindAllInteractiveElements();
+
+  // Polling para novos elementos (fallback seguro)
+  setInterval(bindAllInteractiveElements, 300);
+
   // Context menu global
   document.addEventListener('contextmenu', handleGlobalContextMenu);
-});
+
+  // Event delegation para clicks no chat (mais confiável que polling)
+  setupChatDelegation();
+
+  console.log('[LuminaExtras] Iniciado com sucesso');
+}
+
+// Inicia IMEDIATAMENTE se DOM já estiver pronto, senão espera
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initLuminaExtras);
+} else {
+  initLuminaExtras();
+}
+
+// ===== EVENT DELEGATION NO CHAT (mais confiável) =====
+function setupChatDelegation() {
+  const chatArea = document.getElementById('chatArea');
+  if (!chatArea) return;
+
+  chatArea.addEventListener('click', (e) => {
+    const author = e.target.closest('.msg-author');
+    const avatar = e.target.closest('.msg-avatar');
+
+    if (author) {
+      e.stopPropagation();
+      const bubble = author.closest('.message-bubble');
+      if (!bubble) return;
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const name = author.textContent.trim();
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
+      }
+      if (uid && uid !== me?.id) showMiniProfile(uid, author);
+      return;
+    }
+
+    if (avatar) {
+      e.stopPropagation();
+      const bubble = avatar.closest('.message-bubble');
+      if (!bubble) return;
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const authorEl = bubble.querySelector('.msg-author');
+        const name = authorEl ? authorEl.textContent.trim() : null;
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
+      }
+      if (uid && uid !== me?.id) showMiniProfile(uid, avatar);
+      return;
+    }
+  });
+
+  chatArea.addEventListener('contextmenu', (e) => {
+    const bubble = e.target.closest('.message-bubble');
+    if (!bubble || bubble.classList.contains('own')) return;
+
+    let uid = bubble.dataset.uid;
+    if (!uid) {
+      const authorEl = bubble.querySelector('.msg-author');
+      const name = authorEl ? authorEl.textContent.trim() : null;
+      uid = resolveUserIdByName(name);
+      if (uid) bubble.dataset.uid = uid;
+    }
+    if (!uid || uid === me?.id) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    const authorEl = bubble.querySelector('.msg-author');
+    const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
+    const avatarEl = bubble.querySelector('.msg-avatar img');
+    const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+    showFriendContextMenu(e, uid, name, avatar);
+  });
+}
 
 // ===== PATCH appendMessage para guardar user.id =====
 function patchAppendMessage() {
@@ -99,48 +178,9 @@ async function unblockUser(userId) {
   } catch (e) { showToast('Erro', 'Falha na conexao', '#ef4444'); }
 }
 
-// ===== BIND ALL (polling) =====
+// ===== BIND ALL (polling - fallback) =====
 function bindAllInteractiveElements() {
-  // 1. Nomes no chat (msg-author)
-  document.querySelectorAll('.msg-author').forEach(el => {
-    if (el._luminaBound) return;
-    el._luminaBound = true;
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const bubble = el.closest('.message-bubble');
-      if (!bubble) return;
-      let uid = bubble.dataset.uid;
-      if (!uid) {
-        const name = el.textContent.trim();
-        uid = resolveUserIdByName(name);
-        if (uid) bubble.dataset.uid = uid;
-      }
-      if (uid && uid !== me?.id) showMiniProfile(uid, el);
-    });
-  });
-
-  // 2. Avatares no chat (msg-avatar)
-  document.querySelectorAll('.msg-avatar').forEach(el => {
-    if (el._luminaBound) return;
-    el._luminaBound = true;
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const bubble = el.closest('.message-bubble');
-      if (!bubble) return;
-      let uid = bubble.dataset.uid;
-      if (!uid) {
-        const authorEl = bubble.querySelector('.msg-author');
-        const name = authorEl ? authorEl.textContent.trim() : null;
-        uid = resolveUserIdByName(name);
-        if (uid) bubble.dataset.uid = uid;
-      }
-      if (uid && uid !== me?.id) showMiniProfile(uid, el);
-    });
-  });
-
-  // 3. Avatares no painel (contact-item)
+  // 1. Avatares no painel (contact-item)
   document.querySelectorAll('.contact-item .contact-avatar-wrap, .contact-item .contact-avatar').forEach(el => {
     if (el._luminaBound) return;
     el._luminaBound = true;
@@ -153,7 +193,7 @@ function bindAllInteractiveElements() {
     });
   });
 
-  // 4. Avatares na tela de amigos (friends-row)
+  // 2. Avatares na tela de amigos (friends-row)
   document.querySelectorAll('.friends-row .friends-row-avatar-wrap, .friends-row .friends-row-avatar').forEach(el => {
     if (el._luminaBound) return;
     el._luminaBound = true;
@@ -171,28 +211,7 @@ function bindAllInteractiveElements() {
 
 // ===== CONTEXT MENU =====
 function handleGlobalContextMenu(e) {
-  // 1. Chat: msg-author, msg-avatar, ou qualquer parte da mensagem
-  const bubble = e.target.closest('.message-bubble');
-  if (bubble && !bubble.classList.contains('own')) {
-    let uid = bubble.dataset.uid;
-    if (!uid) {
-      const authorEl = bubble.querySelector('.msg-author');
-      const name = authorEl ? authorEl.textContent.trim() : null;
-      uid = resolveUserIdByName(name);
-      if (uid) bubble.dataset.uid = uid;
-    }
-    if (uid && uid !== me?.id) {
-      e.preventDefault();
-      const authorEl = bubble.querySelector('.msg-author');
-      const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
-      const avatarEl = bubble.querySelector('.msg-avatar img');
-      const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
-      showFriendContextMenu(e, uid, name, avatar);
-      return;
-    }
-  }
-
-  // 2. Painel (contact-item)
+  // 1. Painel (contact-item)
   const item = e.target.closest('.contact-item');
   if (item) {
     e.preventDefault();
@@ -206,7 +225,7 @@ function handleGlobalContextMenu(e) {
     return;
   }
 
-  // 3. Tela de amigos (friends-row)
+  // 2. Tela de amigos (friends-row)
   const row = e.target.closest('.friends-row');
   if (row && row.closest('.friends-list')) {
     e.preventDefault();
@@ -219,6 +238,8 @@ function handleGlobalContextMenu(e) {
     if (fid) showFriendContextMenu(e, fid, name, avatar);
     return;
   }
+
+  // 3. Chat já é tratado pelo listener no chatArea (setupChatDelegation)
 }
 
 function showFriendContextMenu(e, friendId, friendName, friendAvatar) {
