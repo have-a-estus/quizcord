@@ -1,4481 +1,1143 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lumina Chat</title>
-<style>
-
-
-
-
-:root {
-  --bg: #0f0f12;
-  --bg-elevated: rgba(255,255,255,0.03);
-  --bg-glass: rgba(20,20,24,0.75);
-  --border: rgba(255,255,255,0.06);
-  --text: #e2e2e2;
-  --text-muted: #888;
-  --accent: #ff7b72;
-  --accent-2: #a78bfa;
-  --online: #4ade80;
-  --away: #fbbf24;
-  --offline: #6b7280;
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
-}
-
-* { margin:0; padding:0; box-sizing:border-box; }
-
-body {
-  font-family: 'Inter', 'Nunito', sans-serif;
-  background: transparent;
-  color: var(--text);
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  position: relative;
-}
-
-.dock {
-  width: 85px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 0;
-  gap: 12px;
-  z-index: 10;
-}
-
-.dock-avatar {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 18px;
-  cursor: pointer; transition: all 0.2s;
-  position: relative;
-  border: 2px solid transparent;
-}
-
-.dock-avatar:hover { transform: scale(1.08); }
-.dock-avatar.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(255,123,114,0.15);
-}
-
-.dock-avatar.home { background: linear-gradient(135deg, #ff7b72, #a78bfa); }
-
-.dock-divider {
-  width: 32px; height: 2px;
-  background: var(--border);
-  border-radius: 1px;
-  margin: 4px 0;
-}
-
-.dock-circle {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px;
-  cursor: pointer; transition: all 0.2s;
-  border: 2px solid transparent;
-  background: var(--bg-elevated);
-  color: var(--text);
-  position: relative;
-}
-
-.dock-circle:hover { transform: scale(1.08); }
-.dock-circle.active {
-  border-color: var(--accent-2);
-  box-shadow: 0 0 0 4px rgba(167,139,250,0.15);
-}
-
-.dock-circle .badge {
-  position: absolute; top: -2px; right: -2px;
-  width: 18px; height: 18px;
-  background: var(--accent);
-  border-radius: 50%;
-  font-size: 10px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid var(--bg);
-}
-
-.dock-btn {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; transition: all 0.2s;
-  background: var(--bg-elevated);
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
-  font-size: 20px;
-}
-
-.dock-btn:hover { color: var(--text); border-color: var(--text-muted); }
-
-#dockCircles {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.panel {
-  width: 280px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  z-index: 5;
-}
-
-.panel-header {
-  padding: 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.panel-header h2 {
-  font-size: 18px; font-weight: 700;
-  font-family: 'Nunito', sans-serif;
-}
-
-.panel-header p {
-  font-size: 12px; color: var(--text-muted); margin-top: 4px;
-}
-
-.panel-scroll {
-  flex: 1; overflow-y: auto; padding: 12px;
-}
-
-
-
-/* ===== CONTACT ITEM - Glow States ===== */
-.contact-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  margin-bottom: 4px;
-  position: relative;
-  border: 1px solid transparent;
-  /* Transição suave no elemento base — anima TUDO */
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* HOVER = Botão Secundário — glow sutil */
-.contact-item:hover {
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.25);
-  box-shadow:
-    0 0 12px rgba(139, 92, 246, 0.1),
-    0 0 24px rgba(6, 182, 212, 0.05),
-    inset 0 1px 0 rgba(255,255,255,0.03);
-}
-
-/* ACTIVE/SELECTED = Botão Primário — enchimento azul brilhante */
-/* !important vence o hover do cosmic_aero.css externo */
-.contact-item.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45)) !important;
-  border-color: rgba(96, 165, 250, 0.7) !important;
-  box-shadow:
-    0 0 20px rgba(59, 130, 246, 0.4),
-    0 0 40px rgba(6, 182, 212, 0.2),
-    0 0 60px rgba(59, 130, 246, 0.1),
-    inset 0 1px 0 rgba(255,255,255,0.15) !important;
-}
-
-/* active:hover — mantém o primário MESMO com mouse em cima */
-.contact-item.active:hover {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(6, 182, 212, 0.5)) !important;
-  border-color: rgba(96, 165, 250, 0.8) !important;
-  box-shadow:
-    0 0 24px rgba(59, 130, 246, 0.5),
-    0 0 48px rgba(6, 182, 212, 0.25),
-    0 0 72px rgba(59, 130, 246, 0.12),
-    inset 0 1px 0 rgba(255,255,255,0.18) !important;
-}
-
-.contact-item.active .contact-name {
-  color: #fff !important;
-  text-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-}
-
-.contact-item.active .contact-sub {
-  color: rgba(165, 180, 252, 0.9) !important;
-}
-
-.contact-item.active .contact-avatar {
-  border-color: rgba(96, 165, 250, 0.6) !important;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4) !important;
-}
-
-.contact-avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-  width: 40px;
-  height: 40px;
-}
-.contact-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 14px;
-  overflow: hidden;
-}
-.contact-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.contact-status {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--bg);
-  z-index: 2;
-}
-
-.contact-status.online { background: var(--online); }
-.contact-status.away { background: var(--away); }
-.contact-status.offline { background: var(--offline); }
-
-.contact-info { flex: 1; min-width: 0; }
-.contact-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.contact-sub { font-size: 12px; color: var(--text-muted); }
-
-.contact-badge {
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px; font-weight: 700;
-  min-width: 18px; height: 18px;
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 5px;
-}
-
-.request-item {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  margin-bottom: 8px;
-}
-
-.request-actions {
-  display: flex; gap: 8px; margin-top: 8px;
-}
-
-.btn-sm {
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-  border: none;
-  font-size: 12px; font-weight: 600; cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { filter: brightness(1.1); }
-
-.btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
-.btn-ghost:hover { background: var(--bg-elevated); }
-
-/* ===== TOPIC TABS — Cosmic Aero ===== */
-.topic-tab {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  margin-bottom: 4px;
-  font-size: 14px;
-  position: relative;
-  border: 1px solid transparent;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: var(--text-muted);
-}
-
-/* HOVER = Botão Secundário */
-.topic-tab:hover {
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.2);
-  box-shadow:
-    0 0 10px rgba(139, 92, 246, 0.08),
-    inset 0 1px 0 rgba(255,255,255,0.03);
-  color: var(--text);
-}
-
-/* ACTIVE = Botão Primário — enchimento azul brilhante */
-.topic-tab.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(6, 182, 212, 0.4)) !important;
-  border-color: rgba(96, 165, 250, 0.6) !important;
-  box-shadow:
-    0 0 16px rgba(59, 130, 246, 0.3),
-    0 0 32px rgba(6, 182, 212, 0.15),
-    inset 0 1px 0 rgba(255,255,255,0.1) !important;
-  color: #fff !important;
-}
-
-.topic-tab.active .topic-icon {
-  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6));
-}
-
-/* Badge de unread com pulse */
-.topic-badge {
-  position: absolute; right: 10px;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  color: #fff;
-  font-size: 10px; font-weight: 700;
-  min-width: 18px; height: 18px;
-  border-radius: 9px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 5px;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-}
-
-.topic-tab.active .topic-badge {
-  background: linear-gradient(135deg, #fff, #e0e7ff);
-  color: #3b82f6;
-  box-shadow: 0 2px 8px rgba(255,255,255,0.3);
-}
-
-.topic-tab .topic-badge.pulse {
-  animation: badgePulse 2s ease-in-out infinite;
-}
-
-@keyframes badgePulse {
-  0%, 100% { box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 2px 16px rgba(239, 68, 68, 0.7), 0 0 20px rgba(239, 68, 68, 0.3); }
-}
-
-.topic-badge {
-  position: absolute; right: 10px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 10px; font-weight: 700;
-  min-width: 16px; height: 16px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0 4px;
-}
-
-.topic-icon { font-size: 16px; }
-
-.main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-  position: relative;
-}
-
-.main-header {
-  height: 64px;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-}
-
-.main-header h3 { font-size: 16px; font-weight: 600; }
-
-/* ===== HEADER TABS — Cosmic Aero ===== */
-.header-tabs {
-  display: flex; gap: 6px;
-}
-
-.header-tab {
-  padding: 6px 16px;
-  border-radius: 10px;
-  font-size: 13px; font-weight: 500;
-  cursor: pointer;
-  color: var(--text-muted);
-  border: 1px solid transparent;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* HOVER = Botão Secundário */
-.header-tab:hover {
-  color: var(--text);
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.2);
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.08);
-}
-
-/* ACTIVE = Botão Primário */
-.header-tab.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(6, 182, 212, 0.4)) !important;
-  border-color: rgba(96, 165, 250, 0.6) !important;
-  color: #fff !important;
-  box-shadow:
-    0 0 12px rgba(59, 130, 246, 0.3),
-    0 0 24px rgba(6, 182, 212, 0.15),
-    inset 0 1px 0 rgba(255,255,255,0.1) !important;
-}
-
-/* Indicador de unread nos header-tabs */
-.header-tab .header-unread {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
-  animation: unreadDotPulse 2s ease-in-out infinite;
-}
-
-@keyframes unreadDotPulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.3); opacity: 0.8; }
-}
-
-.chat-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-
-
-.welcome-screen {
-  flex: 1;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  text-align: center;
-  color: var(--text-muted);
-}
-
-.welcome-screen h1 {
-  font-family: 'Nunito', sans-serif;
-  font-size: 32px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 12px;
-}
-
-.message-bubble {
-  display: flex;
-  gap: 12px;
-  max-width: 85%;
-  padding: 2px 0;
-  animation: msgFadeIn 0.2s ease;
-  align-items: flex-start;
-}
-
-@keyframes msgFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.message-bubble.own { align-self: flex-end; flex-direction: row-reverse; }
-
-/* === GROUPED MESSAGES - tighter spacing === */
-.message-bubble.grouped {
-  margin-top: -8px;
-  padding-top: 0;
-}
-.message-bubble.grouped .msg-time {
-  display: none;
-}
-.message-bubble.grouped .msg-avatar {
-  visibility: hidden;
-  height: 0;
-  margin: 0;
-}
-.message-bubble.grouped .msg-header {
-  display: none;
-}
-
-.msg-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; align-self: flex-start;
-  overflow: hidden;
-  background: var(--user-color, rgba(139,92,246,0.2));
-  border: 2px solid rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
-}
-.msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
-
-.msg-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-
-.msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
-.msg-author { font-size: 14px; font-weight: 600; color: var(--text); }
-.msg-time-inline { font-size: 11px; color: var(--text-muted); opacity: 0.6; }
-
-/* === NO BALLOON for anyone === */
-.msg-content {
-  font-size: 14px; line-height: 1.5;
-  word-break: break-word; color: var(--text);
-  background: transparent;
-  border: none;
-  padding: 1px 0;
-  box-shadow: none;
-}
-
-/* Own messages: also NO balloon, just text aligned right */
-.message-bubble.own .msg-content {
-  background: transparent;
-  border: none;
-  padding: 1px 0;
-  box-shadow: none;
-  text-align: right;
-}
-
-.msg-content img { max-width: 300px; max-height: 300px; border-radius: var(--radius-sm); display: block; margin-top: 6px; }
-.msg-time { font-size: 10px; color: var(--text-muted); opacity: 0.4; margin-top: 2px; padding-left: 2px; }
-.message-bubble:not(.grouped):hover .msg-time { opacity: 0.8; }
-
-.system-msg {
-  align-self: center;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--text-muted);
-  animation: fadeIn 0.3s ease;
-}
-
-.system-msg::before, .system-msg::after {
-  content: '';
-  width: 40px; height: 1px;
-  background: var(--border);
-}
-
-/* ===== INPUT AREA - Discord Style ===== */
-.input-area {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  background: transparent;
-}
-
-/* Barra principal - pill shape */
-.input-bar {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(10, 8, 30, 0.75);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(139, 92, 246, 0.18);
-  border-radius: 24px;
-  padding: 6px 8px 6px 14px;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.04),
-    0 2px 12px rgba(0,0,0,0.2);
-}
-
-/* Glow no hover */
-.input-bar:hover {
-  border-color: rgba(139, 92, 246, 0.35);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.04),
-    0 0 16px rgba(139, 92, 246, 0.15),
-    0 0 32px rgba(6, 182, 212, 0.08);
-}
-
-/* Glow intenso no focus */
-.input-bar.focused {
-  border-color: rgba(139, 92, 246, 0.55);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 0 20px rgba(139, 92, 246, 0.25),
-    0 0 40px rgba(6, 182, 212, 0.12),
-    0 0 60px rgba(236, 72, 153, 0.06);
-  animation: inputBarGlow 2s ease-in-out infinite;
-}
-
-@keyframes inputBarGlow {
-  0%, 100% {
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.06),
-      0 0 20px rgba(139, 92, 246, 0.2),
-      0 0 40px rgba(6, 182, 212, 0.08),
-      0 0 60px rgba(236, 72, 153, 0.04);
-  }
-  50% {
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.06),
-      0 0 28px rgba(139, 92, 246, 0.35),
-      0 0 50px rgba(6, 182, 212, 0.18),
-      0 0 70px rgba(236, 72, 153, 0.1);
-  }
-}
-
-/* Campo de texto */
-.input-box {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text);
-  font-size: 14px;
-  outline: none;
-  padding: 6px 4px;
-  min-width: 0;
-}
-
-.input-box::placeholder {
-  color: #6366f1;
-  opacity: 0.5;
-  transition: all 0.3s ease;
-}
-
-.input-bar.focused .input-box::placeholder {
-  opacity: 0.3;
-}
-
-/* Botão de anexo (clip) */
-.input-attach {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #6366f1;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.input-attach:hover {
-  color: #a5b4fc;
-  background: rgba(139, 92, 246, 0.1);
-  transform: scale(1.1);
-}
-
-.input-attach svg {
-  transform: rotate(-45deg);
-}
-
-/* Ações à direita */
-.input-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.input-action-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: #6366f1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  padding: 0;
-}
-
-.input-action-btn:hover {
-  color: #a5b4fc;
-  background: rgba(139, 92, 246, 0.1);
-  transform: scale(1.12);
-}
-
-.input-action-btn:active {
-  transform: scale(0.95);
-}
-
-/* Botão GIF especial */
-.input-gif-btn {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  font-family: 'Inter', sans-serif;
-}
-
-/* Botão de enviar */
-.input-send {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3);
-  flex-shrink: 0;
-}
-
-.input-send:hover {
-  filter: brightness(1.15);
-  transform: scale(1.08) rotate(-5deg);
-  box-shadow: 0 6px 24px rgba(236, 72, 153, 0.4);
-}
-
-.input-send:active {
-  transform: scale(0.95);
-}
-
-/* Input antigo - manter compatibilidade */
-.input-btn {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  border: none;
-  background: var(--accent);
-  color: #fff;
-  font-size: 18px;
-  cursor: pointer; transition: all 0.2s;
-  display: flex; align-items: center; justify-content: center;
-}
-
-.input-btn:hover { filter: brightness(1.1); transform: scale(1.05); }
-
-.input-btn.secondary {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-}
-
-.input-btn.secondary:hover { color: var(--text); }
-
-.toast-container {
-  position: fixed;
-  top: 20px; right: 20px;
-  z-index: 300;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* ===== TOAST — Cosmic Aero ===== */
-.toast {
-  background: rgba(10, 8, 30, 0.8);
-  backdrop-filter: blur(24px) saturate(150%);
-  -webkit-backdrop-filter: blur(24px) saturate(150%);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 16px;
-  padding: 14px 18px;
-  min-width: 300px;
-  animation: toastIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex; align-items: center; gap: 12px;
-  box-shadow:
-    0 8px 32px rgba(0,0,0,0.4),
-    0 0 20px rgba(6, 182, 212, 0.15),
-    0 0 40px rgba(139, 92, 246, 0.06),
-    inset 0 1px 0 rgba(255,255,255,0.05);
-}
-
-.toast.out {
-  animation: toastOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes toastIn {
-  from { opacity: 0; transform: translateX(50px) scale(0.95); }
-  to { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-@keyframes toastOut {
-  from { opacity: 1; transform: translateX(0) scale(1); }
-  to { opacity: 0; transform: translateX(50px) scale(0.95); }
-}
-
-.toast-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 14px;
-  flex-shrink: 0;
-  border: 2px solid rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.2);
-}
-
-.toast-body { flex: 1; }
-.toast-title { font-size: 14px; font-weight: 600; color: #e0e7ff; }
-.toast-sub { font-size: 12px; color: #6366f1; }
-
-/* ===== MODAL OVERLAY — Cosmic Aero ===== */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(5, 3, 16, 0.85);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
-  display: none; align-items: center; justify-content: center;
-  z-index: 100;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.modal-overlay.show {
-  display: flex;
-  opacity: 1;
-}
-
-/* ===== MODAL — Cosmic Aero ===== */
-.modal {
-  background: rgba(10, 8, 30, 0.75);
-  backdrop-filter: blur(32px) saturate(160%);
-  -webkit-backdrop-filter: blur(32px) saturate(160%);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  border-radius: 20px;
-  padding: 28px;
-  width: 400px;
-  max-width: 90vw;
-  animation: modalIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow:
-    0 25px 50px rgba(0,0,0,0.5),
-    0 0 40px rgba(139, 92, 246, 0.15),
-    0 0 80px rgba(139, 92, 246, 0.05),
-    inset 0 1px 0 rgba(255,255,255,0.06);
-}
-
-@keyframes modalIn {
-  from { opacity: 0; transform: scale(0.92) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.modal h3 {
-  font-size: 20px;
-  margin-bottom: 20px;
-  font-family: 'Nunito', sans-serif;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ===== MODAL INPUT — Cosmic Aero ===== */
-.modal-input {
-  width: 100%;
-  background: rgba(10, 8, 30, 0.6);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--text);
-  font-size: 14px;
-  margin-bottom: 12px;
-  outline: none;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.modal-input::placeholder {
-  color: #6366f1;
-  opacity: 0.5;
-}
-
-.modal-input:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow:
-    0 0 0 3px rgba(139, 92, 246, 0.1),
-    0 0 20px rgba(139, 92, 246, 0.1),
-    inset 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
-
-/* ===== AUTH SCREEN - Cosmic Login ===== */
-.auth-screen {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  background: rgba(5, 3, 16, 0.92);
-  backdrop-filter: blur(30px);
-}
-
-.auth-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 32px;
-  animation: authFadeIn 0.6s ease;
-}
-
-@keyframes authFadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Alpaca */
-.auth-alpaca-wrap {
-  position: relative;
-  width: 140px;
-  height: 140px;
-}
-
-.auth-alpaca-glow {
-  position: absolute;
-  inset: -20px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
-  animation: alpacaGlow 3s ease-in-out infinite;
-}
-
-@keyframes alpacaGlow {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
-}
-
-.auth-alpaca {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-  position: relative;
-  z-index: 2;
-  animation: alpacaFloat 4s ease-in-out infinite;
-  border: 3px solid rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.2);
-}
-
-@keyframes alpacaFloat {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-/* Tooltips */
-.auth-tooltip {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 20px;
-  background: rgba(10, 8, 30, 0.8);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  backdrop-filter: blur(10px);
-  font-size: 12px;
-  color: #a5b4fc;
-  white-space: nowrap;
-  animation: tooltipFloat 3s ease-in-out infinite;
-  z-index: 3;
-}
-
-.tooltip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #8b5cf6, #06b6d4);
-  box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
-}
-
-.tooltip-1 {
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation-delay: 0s;
-}
-.tooltip-2 {
-  top: 20%;
-  right: -140px;
-  animation-delay: 0.5s;
-}
-.tooltip-3 {
-  bottom: 20%;
-  left: -150px;
-  animation-delay: 1s;
-}
-.tooltip-4 {
-  bottom: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation-delay: 1.5s;
-}
-
-@keyframes tooltipFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-
-/* Card */
-.auth-card {
-  background: rgba(10, 8, 30, 0.6);
-  backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 24px;
-  padding: 40px;
-  width: 360px;
-  text-align: center;
-  box-shadow:
-    0 25px 50px rgba(0,0,0,0.5),
-    0 0 60px rgba(139, 92, 246, 0.1);
-}
-
-.auth-card h1 {
-  font-family: 'Nunito', sans-serif;
-  font-size: 32px;
-  margin-bottom: 8px;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.auth-card p {
-  color: #6366f1;
-  margin-bottom: 28px;
-  font-size: 14px;
-}
-
-.auth-input {
-  width: 100%;
-  border-radius: 14px;
-  padding: 14px 16px;
-  font-size: 14px;
-  margin-bottom: 12px;
-  outline: none;
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  background: rgba(255,255,255,0.03);
-  color: #e0e7ff;
-  transition: all 0.3s ease;
-}
-
-.auth-input::placeholder {
-  color: #6366f1;
-  opacity: 0.6;
-}
-
-.auth-input:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1), 0 0 20px rgba(139, 92, 246, 0.1);
-}
-
-.auth-btn {
-  width: 100%;
-  padding: 14px;
-  border-radius: 14px;
-  border: none;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 8px;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-  color: #fff;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
-}
-
-.auth-btn:hover {
-  filter: brightness(1.15);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.4);
-}
-
-.auth-link {
-  cursor: pointer;
-  font-size: 13px;
-  margin-top: 20px;
-  display: inline-block;
-  color: #a5b4fc;
-  transition: color 0.2s;
-}
-
-.auth-link:hover {
-  color: #ec4899;
-}
-
-.color-picker {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin: 16px 0;
-}
-
-.color-dot {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.15s;
-}
-
-.color-dot:hover {
-  transform: scale(1.15);
-}
-
-.color-dot.selected {
-  border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5);
-}
-
-.hidden { display: none !important; }
-
-.typing-indicator {
-  font-size: 12px; color: var(--text-muted);
-  padding: 0 24px 8px;
-  font-style: italic;
-}
-
-.user-list {
-  display: flex; gap: 6px; padding: 0 24px 12px;
-}
-
-.user-chip {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
-  display: flex; align-items: center; gap: 6px;
-}
-
-.user-chip-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-}
-
-.search-dropdown {
-  position: absolute;
-  top: 100%; left: 0; right: 0;
-  background: var(--bg-glass);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 50;
-  margin-top: 4px;
-}
-
-.search-item {
-  padding: 10px 14px;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 10px;
-  font-size: 13px;
-}
-
-.search-item:hover { background: var(--bg-elevated); }
-
-.invite-box {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  font-family: monospace;
-  color: var(--text-muted);
-}
-
-.invite-box button {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-
-/* Embed de convite */
-.invite-embed-card {
-  background: var(--bg-glass);
-  backdrop-filter: blur(24px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  text-align: center;
-  max-width: 380px;
-  width: 90vw;
-  animation: modalIn 0.25s ease;
-}
-.invite-embed-avatar {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 28px;
-  margin: 0 auto 16px;
-}
-.invite-embed-title {
-  font-size: 20px; font-weight: 700;
-  font-family: 'Nunito', sans-serif;
-  margin-bottom: 6px;
-}
-.invite-embed-sub {
-  font-size: 13px; color: var(--text-muted);
-  margin-bottom: 24px;
-}
-.invite-embed-actions {
-  display: flex; gap: 10px; justify-content: center;
-}
-.invite-link-box {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  font-family: monospace;
-  color: var(--text-muted);
-  word-break: break-all;
-  margin-top: 12px;
-}
-.invite-link-box button {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-
-/* Embed de convite no chat */
-.chat-embed {
-  max-width: 400px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 6px;
-}
-.chat-embed-avatar {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-size: 20px;
-  flex-shrink: 0;
-}
-.chat-embed-info { flex: 1; min-width: 0; }
-.chat-embed-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
-.chat-embed-sub { font-size: 12px; color: var(--text-muted); }
-.chat-embed-btn {
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  border: none;
-  background: var(--accent-2);
-  color: #fff;
-  font-size: 13px; font-weight: 600;
-  cursor: pointer; transition: all 0.15s;
-  flex-shrink: 0;
-}
-.chat-embed-btn:hover { filter: brightness(1.1); }
-
-/* Indicador de conexao WS */
-.ws-status {
-  position: fixed; bottom: 12px; right: 12px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 11px; font-weight: 600;
-  z-index: 200;
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  display: flex; align-items: center; gap: 6px;
-  transition: all 0.3s;
-}
-.ws-status.online { background: rgba(74,222,128,0.12); color: #4ade80; }
-.ws-status.offline { background: rgba(248,113,113,0.12); color: #f87171; }
-.ws-status.connecting { background: rgba(251,191,36,0.12); color: #fbbf24; }
-.ws-status-dot { width: 6px; height: 6px; border-radius: 50%; }
-
-
-/* ===== DOCK REFORMULADO ===== */
-
-/* Logo Alpaca */
-.dock-logo {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid transparent;
-  flex-shrink: 0;
-  align-self: center;
-  position: relative;
-}
-.dock-logo::after {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg, #8b5cf6, #06b6d4, #ec4899, #8b5cf6);
-  opacity: 0;
-  filter: blur(4px);
-  transition: opacity 0.3s;
-  z-index: -1;
-}
-.dock-logo:hover::after {
-  opacity: 0.5;
-}
-.dock-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.dock-logo:hover {
-  border-color: #06b6d4;
-  box-shadow: 0 0 16px rgba(6, 182, 212, 0.5);
-  transform: scale(1.08);
-}
-.dock-logo.active {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6);
-}
-
-/* Barra de busca */
-.dock-search-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
-  border-radius: 10px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.12);
-  margin-bottom: 2px;
-}
-.dock-search-icon {
-  font-size: 13px;
-  color: #6366f1;
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-.dock-search-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #a5b4fc;
-  font-size: 10px;
-  outline: none;
-  cursor: pointer;
-  width: 0;
-  min-width: 0;
-}
-.dock-search-input::placeholder {
-  color: #6366f1;
-  opacity: 0.5;
-}
-
-/* Servidores - Estilo Botão Secundário (standby) */
-.dock-server {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-bottom: 6px;
-}
-
-.dock-server-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 16px;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.18);
-  color: #a5b4fc;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-}
-
-/* Hover / Active = Botão Primário (azul brilhante com glow) */
-.dock-server:hover .dock-server-icon,
-.dock-server.active .dock-server-icon {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: rgba(59, 130, 246, 0.6);
-  color: #fff;
-  box-shadow:
-    0 0 12px rgba(59, 130, 246, 0.4),
-    0 0 24px rgba(6, 182, 212, 0.2),
-    inset 0 1px 0 rgba(255,255,255,0.15);
-  transform: scale(1.05);
-}
-
-/* Pill de notificação */
-.dock-server-pill {
-  position: absolute;
-  top: -3px;
-  right: 8px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-  border: 2px solid #050310;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-  z-index: 2;
-}
-
-/* Botão criar círculo */
-.dock-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  background: rgba(255,255,255,0.04);
-  border: 1px dashed rgba(139, 92, 246, 0.25);
-  color: #a5b4fc;
-  font-size: 20px;
-  align-self: center;
-  margin-top: 4px;
-}
-.dock-btn:hover {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: transparent;
-  color: #fff;
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
-  transform: scale(1.08);
-}
-
-/* ===== RODAPÉ DE PERFIL ===== */
-.dock-profile-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  background: rgba(10, 8, 30, 0.75);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  box-shadow:
-    0 4px 20px rgba(0,0,0,0.4),
-    0 0 30px rgba(139, 92, 246, 0.08);
-  margin-top: auto;
-  width: calc(100% + 4px);
-  margin-left: -2px;
-  position: relative;
-}
-
-/* Glow de mesclagem */
-.dock-profile-bar::before {
-  content: '';
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 30px;
-  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.15), transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.dock-profile-avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-.dock-profile-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(139, 92, 246, 0.3);
-}
-.dock-profile-status {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #050310;
-}
-.dock-profile-status.online {
-  background: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
-}
-.dock-profile-status.away {
-  background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
-}
-.dock-profile-status.offline {
-  background: #6b7280;
-}
-
-.dock-profile-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
-}
-.dock-profile-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: #e0e7ff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-.dock-profile-tag {
-  font-size: 9px;
-  color: #6366f1;
-  opacity: 0.7;
-  line-height: 1.2;
-}
-
-.dock-profile-actions {
-  display: flex;
-  gap: 3px;
-  flex-shrink: 0;
-}
-
-/* Botões do rodapé - Estilo Secundário (standby) */
-.dock-profile-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  color: #a5b4fc;
-  padding: 0;
-}
-
-/* Hover / Active = Primário (azul brilhante com glow) */
-.dock-profile-btn:hover,
-.dock-profile-btn.active {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #fff;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
-  transform: scale(1.08);
-}
-
-/* ===== MENSAGENS SEM BALÃO ===== */
-.message-bubble {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-.message-bubble.own .msg-content {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 1px 0 !important;
-}
-
-.msg-content {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-
-/* ===== NEBULOSA BACKGROUND ===== */
-body {
-  background: #050310 url('/static/cosmic_aero/nebula_bg.jpg') center/cover no-repeat fixed !important;
-}
-
-/* ===== PANEL PROFILE BAR ===== */
-.panel-profile-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  margin: 0 12px 12px 12px;
-  border-radius: 14px;
-  background: rgba(20,20,24,0.75);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-  flex-shrink: 0;
-  position: relative;
-}
-.panel-profile-bar::before {
-  content: '';
-  position: absolute;
-  top: -16px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 70%;
-  height: 24px;
-  background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.12), transparent 70%);
-  pointer-events: none;
-  z-index: -1;
-}
-.panel-profile-avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-.panel-profile-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(139, 92, 246, 0.3);
-}
-.panel-profile-status {
-  position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #0f0f12;
-}
-.panel-profile-status.online { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
-.panel-profile-status.away { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
-.panel-profile-status.offline { background: #6b7280; }
-.panel-profile-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  overflow: hidden;
-}
-.panel-profile-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e2e2e2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.3;
-}
-.panel-profile-tag {
-  font-size: 10px;
-  color: #888;
-  opacity: 0.7;
-  line-height: 1.2;
-}
-.panel-profile-actions {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.panel-profile-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 0;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  color: #a5b4fc;
-  transition: all 0.2s ease;
-}
-.panel-profile-btn:hover,
-.panel-profile-btn.active {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: rgba(59, 130, 246, 0.5);
-  color: #fff;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
-  transform: scale(1.08);
-}
-
-/* Badge no logo */
-.dock-pending-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-  border: 2px solid #0f0f12;
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
-  z-index: 2;
-}
-
-/* ===== STATUS MENU ===== */
-.status-menu {
-  background: rgba(10, 8, 30, 0.95);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  border-radius: 16px;
-  padding: 8px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(139, 92, 246, 0.1);
-  animation: statusMenuIn 0.2s ease;
-}
-
-@keyframes statusMenuIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.status-item:hover {
-  background: rgba(139, 92, 246, 0.1);
-}
-
-.status-item.active {
-  background: rgba(139, 92, 246, 0.15);
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.status-info {
-  flex: 1;
-}
-
-.status-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #e0e7ff;
-}
-
-.status-desc {
-  font-size: 11px;
-  color: #6366f1;
-  margin-top: 1px;
-}
-
-
-
-</style>
-
-<!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_bg.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glass.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_glow.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_anim.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/cosmic_aero_icons.css?v=2">
-<link rel="stylesheet" href="/static/cosmic_aero/lumina_extras.css?v=1">
-
-
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
-</head>
-<body>
-<div class="stars"></div>
-
-<div class="toast-container" id="toastContainer"></div>
-
-<div id="authScreen" class="auth-screen">
-  <div class="auth-container">
-    <!-- Alpaca com tooltips -->
-    <div class="auth-alpaca-wrap">
-      <div class="auth-alpaca-glow"></div>
-      <img src="/static/cosmic_aero/alpaca_avatar.png" class="auth-alpaca" alt="Lumina">
-
-      <!-- Tooltips flutuantes -->
-      <div class="auth-tooltip tooltip-1">
-        <span class="tooltip-dot"></span>
-        <span class="tooltip-text">Bem-vindo de volta!</span>
-      </div>
-      <div class="auth-tooltip tooltip-2">
-        <span class="tooltip-dot"></span>
-        <span class="tooltip-text">Conecte-se ao cosmos</span>
-      </div>
-      <div class="auth-tooltip tooltip-3">
-        <span class="tooltip-dot"></span>
-        <span class="tooltip-text">Mensagens criptografadas</span>
-      </div>
-      <div class="auth-tooltip tooltip-4">
-        <span class="tooltip-dot"></span>
-        <span class="tooltip-text">Comunidades galácticas</span>
-      </div>
-    </div>
-
-    <!-- Card de login -->
-    <div class="auth-card">
-      <h1>Lumina</h1>
-      <p id="authSubtitle">Entre na sua conta</p>
-      <input type="text" id="authUser" class="auth-input" placeholder="Usuario" maxlength="20">
-      <input type="password" id="authPass" class="auth-input" placeholder="Senha">
-      <div id="regExtra" class="hidden">
-        <input type="text" id="authDisplay" class="auth-input" placeholder="Nome de exibicao (opcional)">
-        <div class="color-picker" id="colorPicker"></div>
-      </div>
-      <button class="auth-btn" id="authBtn">Entrar</button>
-      <span class="auth-link" id="authToggle">Criar conta</span>
-    </div>
-  </div>
-</div>
-
-<div id="app" class="hidden" style="display:flex;width:100%;height:100vh;">
-  <!-- DOCK -->
-  <div class="dock">
-    <div class="dock-logo" id="dockHome" title="Início">
-      <img src="/static/cosmic_aero/alpaca_avatar.png" alt="Lumina">
-    </div>
-
-    <div class="dock-divider"></div>
-
-    <div class="dock-search-row">
-      <div class="dock-search-icon">&#9906;</div>
-      <input type="text" class="dock-search-input" placeholder="Buscar" readonly>
-    </div>
-
-    <div id="dockCircles"></div>
-
-    <div class="dock-btn" id="btnCreateCircle" title="Novo Círculo">+</div>
-
-    <div style="flex:1"></div>
-  </div>
-
-  <!-- PANEL -->
-  <div class="panel" id="panel">
-    <div class="panel-header">
-      <h2 id="panelTitle">Amigos</h2>
-      <p id="panelSubtitle">Conversas diretas</p>
-    </div>
-    <div class="panel-scroll" id="panelContent"></div>
-
-    <!-- Rodapé de perfil no panel -->
-    <div class="panel-profile-bar" id="panelProfile" onclick="toggleStatusMenu()" style="cursor:pointer;">
-      <div class="panel-profile-avatar-wrap">
-        <img src="/static/cosmic_aero/alpaca_avatar.png" class="panel-profile-avatar" alt="">
-        <div class="panel-profile-status online" id="dockProfileStatus"></div>
-      </div>
-      <div class="panel-profile-info">
-        <div class="panel-profile-name" id="dockProfileName">...</div>
-        <div class="panel-profile-tag" id="dockProfileTag">#0000</div>
-      </div>
-      <div class="panel-profile-actions">
-        <button class="panel-profile-btn" id="btnMute" title="Mutar">&#127908;</button>
-        <button class="panel-profile-btn" id="btnDeafen" title="Surdo">&#127911;</button>
-        <button class="panel-profile-btn" id="btnSettings" title="Configurações">&#9881;</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div class="main">
-    <div class="main-header">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <h3 id="mainTitle">Bem-vindo</h3>
-        <div class="header-tabs hidden" id="topicTabs"></div>
-      </div>
-      <div style="display:flex;gap:8px;" id="headerActions"></div>
-    </div>
-
-    <div class="user-list hidden" id="userList"></div>
-    <div class="typing-indicator hidden" id="typingIndicator"></div>
-
-    <div class="chat-area" id="chatArea">
-      <div class="welcome-screen" id="welcomeScreen">
-        <h1>Lumina</h1>
-        <p>Selecione um contato ou circulo para comecar a conversar.</p>
-      </div>
-    </div>
-
-    <div class="input-area hidden" id="inputArea">
-      <div class="input-bar" id="inputBar">
-        <label class="input-attach" title="Enviar arquivo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-          <input type="file" id="fileInput" style="display:none" accept="image/*">
-        </label>
-        <input type="text" class="input-box" id="msgInput" placeholder="Conversar em #bate-papo..." autocomplete="off">
-        <div class="input-actions">
-          <button class="input-action-btn" id="btnGift" title="Presente">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-          </button>
-          <button class="input-action-btn input-gif-btn" id="btnGif" title="GIF">GIF</button>
-          <button class="input-action-btn" id="btnEmoji" title="Emoji">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-          </button>
-        </div>
-      </div>
-      <button class="input-send" id="sendBtn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
-    </div>
-  </div>
-</div>
-
-
-<!-- ===== SETTINGS SCREEN ===== -->
-<div class="settings-screen" id="settingsScreen">
-  <div class="settings-sidebar">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:0 4px;">
-      <button class="settings-close" onclick="closeSettings()" style="position:static;width:32px;height:32px;font-size:14px;">✕</button>
-    </div>
-    <div class="settings-sidebar-title">Configuração de Usuário</div>
-    <div class="settings-nav-item active" data-tab="conta" onclick="switchSettingsTab(this, 'conta')">
-      <span style="font-size:16px;">👤</span> Conta
-    </div>
-    <div class="settings-nav-item" data-tab="perfil" onclick="switchSettingsTab(this, 'perfil')">
-      <span style="font-size:16px;">🎨</span> Perfil
-    </div>
-    <div class="settings-nav-item" data-tab="aparencia" onclick="switchSettingsTab(this, 'aparencia')">
-      <span style="font-size:16px;">🖌️</span> Aparência
-    </div>
-    <div class="settings-sidebar-title" style="margin-top:16px;">Aplicativo</div>
-    <div class="settings-nav-item" data-tab="sobre" onclick="switchSettingsTab(this, 'sobre')">
-      <span style="font-size:16px;">❓</span> Sobre
-    </div>
-    <div style="flex:1;"></div>
-    <div class="settings-nav-item" style="color:#ef4444;" onclick="doLogout()">
-      <span style="font-size:16px;">🚪</span> Sair
-    </div>
-  </div>
-
-  <div class="settings-content">
-    <div class="settings-header">
-      <h2 id="settingsTitle">Configurações de Conta</h2>
-      <button class="settings-close" onclick="closeSettings()">✕</button>
-    </div>
-
-    <!-- TAB: CONTA -->
-    <div class="settings-tab-content active" id="settings-tab-conta">
-      <div class="settings-card">
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
-          <div class="settings-avatar-wrap" onclick="document.getElementById('avatarUploadInput').click()">
-            <img src="/static/cosmic_aero/alpacas/alpaca_gray.png" id="settingsAvatarImg" alt="">
-            <div class="settings-avatar-overlay"><span>Trocar</span></div>
-          </div>
-          <input type="file" id="avatarUploadInput" style="display:none" accept="image/*" onchange="uploadAvatar(this)">
-          <div style="flex:1;min-width:200px;">
-            <div style="font-size:18px;font-weight:700;color:#e0e7ff;" id="settingsDisplayName">...</div>
-            <div style="font-size:13px;color:#6366f1;margin-top:2px;" id="settingsUsername">...</div>
-          </div>
-          <button class="settings-btn settings-btn-primary" onclick="saveProfile()">Salvar alterações</button>
-        </div>
-        <div class="settings-divider"></div>
-        <div class="settings-field">
-          <label>Nome de exibição</label>
-          <input type="text" id="settingsDisplayInput" placeholder="Seu nome" maxlength="32">
-        </div>
-        <div class="settings-field">
-          <label>Nome de usuário</label>
-          <input type="text" id="settingsUsernameInput" disabled>
-        </div>
-        <div class="settings-field">
-          <label>Cor do avatar</label>
-          <div class="settings-color-row" id="settingsColorPicker"></div>
-        </div>
-      </div>
-      <div class="settings-card">
-        <h3>Senha e Segurança</h3>
-        <button class="settings-btn settings-btn-ghost" onclick="showToast('Em breve','Alteração de senha','#a78bfa')">Alterar senha</button>
-      </div>
-    </div>
-
-    <!-- TAB: PERFIL -->
-    <div class="settings-tab-content" id="settings-tab-perfil">
-      <div class="settings-card">
-        <h3>Sobre mim</h3>
-        <div class="settings-field">
-          <label>Biografia</label>
-          <textarea id="settingsBioInput" placeholder="Conte algo sobre você..." maxlength="190"></textarea>
-        </div>
-        <div class="settings-actions">
-          <button class="settings-btn settings-btn-primary" onclick="saveProfile()">Salvar</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB: APARÊNCIA -->
-    <div class="settings-tab-content" id="settings-tab-aparencia">
-      <div class="settings-card">
-        <h3>Tema</h3>
-        <div style="display:flex;gap:12px;">
-          <div class="settings-theme-card active" id="themeCosmic">
-            <div class="theme-icon">🌌</div>
-            <div class="theme-name">Cosmic Aero</div>
-          </div>
-          <div class="settings-theme-card" id="themeDark" style="opacity:0.4;cursor:not-allowed;">
-            <div class="theme-icon">🌑</div>
-            <div class="theme-name">Escuro</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- TAB: SOBRE -->
-    <div class="settings-tab-content" id="settings-tab-sobre">
-      <div class="settings-card">
-        <h3>Lumina Chat</h3>
-        <p style="font-size:13px;color:#a5b4fc;line-height:1.6;">
-          Versão <strong style="color:#ec4899;">1.2.0-beta</strong><br>
-          Tema: <strong>Cosmic Aero</strong><br>
-          Feito com 💜 e muitas alpacas espaciais.
-        </p>
-        <div class="settings-divider"></div>
-        <p style="font-size:12px;color:#6366f1;">
-          © 2026 Lumina Chat. Todos os direitos reservados.
-        </p>
-      </div>
-    </div>
-  </div>
-</div>
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal" id="modalBox">
-    <h3 id="modalTitle">Titulo</h3>
-    <div id="modalBody"></div>
-    <div class="modal-actions" id="modalActions"></div>
-  </div>
-</div>
-<script>
-
-const API = '';
-let token = localStorage.getItem('aurora_token');
-let me = null;
-let circles = [];
-let friends = { friends: [], pending_sent: [], pending_received: [] };
-let dmChats = [];
-let unreadMap = {};
-let currentCircle = null;
-let currentTopic = null;
-let currentDM = null;
-let ws = null;
-let notifWs = null;
-let typingTimer = null;
-let selectedColor = '#ff7b72';
-let pollInterval = null;
-let pendingCount = 0;
-let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
-
-const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
-
-const authHeader = () => ({ 'Authorization': 'Bearer ' + token });
-
-const notifAudio = new Audio('/static/cosmic_aero/notification.mp3');
-notifAudio.volume = 0.6;
-
-function playNotifSound() {
-  if (document.hidden && me?.status !== 'busy') {
-    notifAudio.currentTime = 0;
-    notifAudio.play().catch(() => {});
-  }
-}
-
-function showWindowsNotif(title, body, icon) {
-  if (me?.status === 'busy' || me?.status === 'invisible') return;
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, {
-      body: body,
-      icon: icon || '/static/cosmic_aero/alpaca_avatar.png',
-      badge: '/static/cosmic_aero/alpaca_avatar.png',
-      tag: 'lumina-msg',
-      requireInteraction: false
-    });
-  }
-}
-
-// Pedir permissão de notificação ao entrar
-function requestNotifPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  renderColorPicker();
-  if (token) verifyAndLoad();
-  else showAuth();
-  bindAuth();
-  bindInputs();
-});
-
-function renderColorPicker() {
-  const el = document.getElementById('colorPicker');
-  el.innerHTML = COLORS.map(c =>
-    `<div class="color-dot ${c===selectedColor?'selected':''}" style="background:${c}" data-color="${c}"></div>`
-  ).join('');
-  el.querySelectorAll('.color-dot').forEach(d => d.onclick = () => {
-    selectedColor = d.dataset.color;
-    renderColorPicker();
-  });
-}
-
-function bindAuth() {
-  const btn = document.getElementById('authBtn');
-  const toggle = document.getElementById('authToggle');
-  let mode = 'login';
-
-  toggle.onclick = () => {
-    mode = mode === 'login' ? 'register' : 'login';
-    document.getElementById('authSubtitle').textContent = mode === 'login' ? 'Entre na sua conta' : 'Criar nova conta';
-    btn.textContent = mode === 'login' ? 'Entrar' : 'Criar conta';
-    toggle.textContent = mode === 'login' ? 'Criar conta' : 'Ja tenho conta';
-    document.getElementById('regExtra').classList.toggle('hidden', mode === 'login');
-  };
-
-  btn.onclick = async () => {
-    const u = document.getElementById('authUser').value.trim();
-    const p = document.getElementById('authPass').value;
-    if (!u || !p) return alert('Preencha usuario e senha');
-    const fd = new FormData();
-    fd.append('username', u);
-    fd.append('password', p);
-    if (mode === 'register') {
-      fd.append('display_name', document.getElementById('authDisplay').value || u);
-      fd.append('color', selectedColor);
+import json
+import os
+import sqlite3
+import uuid
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from passlib.context import CryptContext
+import jwt
+
+
+app = FastAPI()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USERS_DB = os.path.join(BASE_DIR, "quizcord_users.db")
+CIRCLES_DB = os.path.join(BASE_DIR, "quizcord_circles.db")
+MESSAGES_DB = os.path.join(BASE_DIR, "quizcord_messages.db")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+UPLOAD_DIR = os.path.join(STATIC_DIR, "uploads")
+AVATAR_DIR = os.path.join(STATIC_DIR, "avatars")
+DOWNLOAD_DIR = os.path.join(STATIC_DIR, "download")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(AVATAR_DIR, exist_ok=True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+SECRET_KEY = "quizcord-secret-key-mude-em-producao"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_DAYS = 7
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def verify_password(plain, hashed):
+    return pwd_context.verify(plain, hashed)
+
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_token(token: str) -> Optional[dict]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except:
+        return None
+
+
+def get_db(path: str):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_users_db():
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        display_name TEXT,
+        password_hash TEXT NOT NULL,
+        avatar_color TEXT DEFAULT '#ff7b72',
+        avatar_image TEXT DEFAULT '/static/cosmic_aero/alpacas/alpaca_gray.png',
+        status TEXT DEFAULT 'online',
+        bio TEXT DEFAULT '',
+        last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS friendships (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, friend_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS direct_chats (
+        id TEXT PRIMARY KEY,
+        user1_id TEXT NOT NULL,
+        user2_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user1_id, user2_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS friend_notes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        note TEXT DEFAULT '',
+        UNIQUE(user_id, friend_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS friend_nicknames (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        friend_id TEXT NOT NULL,
+        nickname TEXT DEFAULT '',
+        UNIQUE(user_id, friend_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS blocks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        blocked_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, blocked_id)
+    )""")
+    conn.commit()
+    conn.close()
+
+
+def migrate_users_db():
+    """Adiciona colunas novas se não existirem"""
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(users)")
+    cols = [col[1] for col in c.fetchall()]
+    if 'avatar_image' not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN avatar_image TEXT DEFAULT '/static/cosmic_aero/alpacas/alpaca_gray.png'")
+        conn.commit()
+    if 'bio' not in cols:
+        c.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+        conn.commit()
+    conn.close()
+
+
+def init_circles_db():
+    conn = sqlite3.connect(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS circles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        color TEXT DEFAULT '#a78bfa',
+        icon_url TEXT,
+        invite_code TEXT UNIQUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS circle_members (
+        id TEXT PRIMARY KEY,
+        circle_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT DEFAULT 'member',
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(circle_id, user_id)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS topics (
+        id TEXT PRIMARY KEY,
+        circle_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT DEFAULT 'text',
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    conn.commit()
+    conn.close()
+
+
+def init_messages_db():
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id TEXT NOT NULL,
+        user_id TEXT,
+        user_name TEXT NOT NULL,
+        user_color TEXT,
+        content TEXT NOT NULL,
+        msg_type TEXT DEFAULT 'text',
+        file_url TEXT,
+        reply_to_id INTEGER,
+        reply_to_user TEXT,
+        reply_to_content TEXT,
+        edited_at TIMESTAMP,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(message_id, user_id, emoji)
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS unread (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        room_id TEXT NOT NULL,
+        count INTEGER DEFAULT 1,
+        last_message_id INTEGER,
+        UNIQUE(user_id, room_id)
+    )""")
+    conn.commit()
+    conn.close()
+
+
+init_users_db()
+init_circles_db()
+init_messages_db()
+migrate_users_db()
+
+
+def _get_history(room_id: str, limit: int = 50):
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("""SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url,
+        reply_to_id, reply_to_user, reply_to_content, edited_at, timestamp
+        FROM messages WHERE room_id = ? ORDER BY timestamp DESC LIMIT ?""", (room_id, limit))
+    rows = c.fetchall()
+    msgs = []
+    msg_ids = []
+    for r in rows:
+        d = dict(r)
+        d["user"] = {"id": d.pop("user_id"), "name": d.pop("user_name"), "color": d.pop("user_color")}
+        msg_ids.append(d["id"])
+        msgs.append(d)
+    # Buscar reações
+    if msg_ids:
+        placeholders = ','.join('?' * len(msg_ids))
+        c.execute(f"SELECT message_id, user_id, emoji FROM reactions WHERE message_id IN ({placeholders})", msg_ids)
+        reactions = {}
+        for r in c.fetchall():
+            mid = r["message_id"]
+            if mid not in reactions:
+                reactions[mid] = {}
+            emoji = r["emoji"]
+            if emoji not in reactions[mid]:
+                reactions[mid][emoji] = {"count": 0, "users": []}
+            reactions[mid][emoji]["count"] += 1
+            reactions[mid][emoji]["users"].append(r["user_id"])
+        for m in msgs:
+            m["reactions"] = reactions.get(m["id"], {})
+    conn.close()
+    return list(reversed(msgs))
+
+
+class RoomManager:
+    def __init__(self):
+        self.rooms = {}
+        self.user_info = {}
+        self.ws_by_user = {}
+        self.voice_users = {}
+
+    def connect(self, room_id, ws, user):
+        self.rooms.setdefault(room_id, []).append(ws)
+        self.user_info[ws] = user
+        self.ws_by_user[user["id"]] = ws
+
+    def disconnect(self, room_id, ws):
+        if room_id in self.rooms and ws in self.rooms[room_id]:
+            self.rooms[room_id].remove(ws)
+        user = self.user_info.pop(ws, {})
+        self.ws_by_user.pop(user.get("id"), None)
+        if room_id in self.voice_users and user.get("id") in self.voice_users.get(room_id, {}):
+            del self.voice_users[room_id][user["id"]]
+            if not self.voice_users[room_id]:
+                del self.voice_users[room_id]
+        if room_id in self.rooms and not self.rooms[room_id]:
+            del self.rooms[room_id]
+        return user
+
+    async def broadcast(self, room_id, msg, exclude=None):
+        if room_id not in self.rooms:
+            return
+        text = json.dumps(msg)
+        for conn in self.rooms[room_id][:]:
+            if conn == exclude:
+                continue
+            try:
+                await conn.send_text(text)
+            except:
+                pass
+
+    async def send_to_user(self, user_id, msg):
+        ws = self.ws_by_user.get(user_id)
+        if ws:
+            try:
+                await ws.send_text(json.dumps(msg))
+            except:
+                pass
+
+    def get_users(self, room_id):
+        if room_id not in self.rooms:
+            return []
+        return [self.user_info[ws] for ws in self.rooms[room_id] if ws in self.user_info]
+
+    def get_voice_users(self, room_id):
+        return list(self.voice_users.get(room_id, {}).values())
+
+
+class NotifManager:
+    def __init__(self):
+        self.conns = {}
+
+    def connect(self, user_id, ws):
+        self.conns[user_id] = ws
+
+    def disconnect(self, user_id):
+        self.conns.pop(user_id, None)
+
+    async def send(self, user_id, msg):
+        ws = self.conns.get(user_id)
+        if ws:
+            try:
+                await ws.send_text(json.dumps(msg))
+            except:
+                pass
+
+
+manager = RoomManager()
+notif_manager = NotifManager()
+
+
+def get_token_from_request(request: Request) -> str:
+    auth = request.headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        return auth[7:]
+    return ""
+
+
+def require_user(request: Request):
+    token = get_token_from_request(request)
+    payload = decode_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token invalido")
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image, bio, status FROM users WHERE id = ?", (payload["sub"],))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    return dict(row)
+
+
+@app.get("/", response_class=FileResponse)
+def home():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+@app.post("/api/status")
+def update_status(request: Request, status: str = Form(...)):
+    user = require_user(request)
+    valid_statuses = ['online', 'busy', 'away', 'invisible']
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail="Status invalido")
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE users SET status = ? WHERE id = ?", (status, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"status": status}
+
+
+@app.post("/api/me/update")
+def update_profile(request: Request, display_name: str = Form(None), avatar_color: str = Form(None), bio: str = Form(None)):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    updates = []
+    params = []
+    if display_name is not None:
+        updates.append("display_name = ?")
+        params.append(display_name)
+    if avatar_color is not None:
+        updates.append("avatar_color = ?")
+        params.append(avatar_color)
+    if bio is not None:
+        updates.append("bio = ?")
+        params.append(bio)
+    if updates:
+        params.append(user["id"])
+        c.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image, bio, status FROM users WHERE id = ?", (user["id"],))
+    row = dict(c.fetchone())
+    conn.close()
+    return row
+
+
+@app.post("/api/me/avatar")
+async def upload_avatar(request: Request, file: UploadFile = File(...)):
+    user = require_user(request)
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ['.png', '.jpg', '.jpeg', '.gif', '.webp']:
+        raise HTTPException(status_code=400, detail="Formato invalido. Use PNG, JPG, GIF ou WEBP")
+    fname = f"avatar_{user['id']}_{uuid.uuid4().hex[:8]}{ext}"
+    path = os.path.join(AVATAR_DIR, fname)
+    with open(path, "wb") as f:
+        f.write(await file.read())
+    avatar_url = f"/static/avatars/{fname}"
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE users SET avatar_image = ? WHERE id = ?", (avatar_url, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"avatar_image": avatar_url}
+
+
+@app.get("/api/users/{user_id}/mutuals")
+def get_mutuals(user_id: str, request: Request):
+    me_user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    # Meus amigos
+    c.execute("""SELECT friend_id as fid FROM friendships WHERE user_id = ? AND status = 'accepted'
+        UNION
+        SELECT user_id as fid FROM friendships WHERE friend_id = ? AND status = 'accepted'""", (me_user["id"], me_user["id"]))
+    my_friend_ids = {r["fid"] for r in c.fetchall()}
+    # Amigos do target
+    c.execute("""SELECT friend_id as fid FROM friendships WHERE user_id = ? AND status = 'accepted'
+        UNION
+        SELECT user_id as fid FROM friendships WHERE friend_id = ? AND status = 'accepted'""", (user_id, user_id))
+    their_friend_ids = {r["fid"] for r in c.fetchall()}
+    mutual_ids = list(my_friend_ids & their_friend_ids)
+    mutual_friends = []
+    if mutual_ids:
+        placeholders = ','.join('?' * len(mutual_ids))
+        c.execute(f"SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id IN ({placeholders})", mutual_ids)
+        mutual_friends = [dict(r) for r in c.fetchall()]
+    # Círculos mútuos
+    c.execute("""SELECT c.id, c.name, c.color, c.icon_url 
+        FROM circle_members m1 
+        JOIN circle_members m2 ON m1.circle_id = m2.circle_id
+        JOIN circles c ON c.id = m1.circle_id
+        WHERE m1.user_id = ? AND m2.user_id = ?""", (me_user["id"], user_id))
+    mutual_circles = [dict(r) for r in c.fetchall()]
+    # Nota e apelido
+    c.execute("SELECT note FROM friend_notes WHERE user_id = ? AND friend_id = ?", (me_user["id"], user_id))
+    note_row = c.fetchone()
+    note = note_row["note"] if note_row else ""
+    c.execute("SELECT nickname FROM friend_nicknames WHERE user_id = ? AND friend_id = ?", (me_user["id"], user_id))
+    nick_row = c.fetchone()
+    nickname = nick_row["nickname"] if nick_row else ""
+    conn.close()
+    return {"friends": mutual_friends, "circles": mutual_circles, "note": note, "nickname": nickname}
+
+
+@app.post("/api/friends/{friend_id}/note")
+def set_friend_note(friend_id: str, request: Request, note: str = Form("")):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    try:
+        c.execute("""INSERT INTO friend_notes (id, user_id, friend_id, note) VALUES (?, ?, ?, ?)""",
+            (str(uuid.uuid4())[:8], user["id"], friend_id, note))
+    except sqlite3.IntegrityError:
+        c.execute("UPDATE friend_notes SET note = ? WHERE user_id = ? AND friend_id = ?", (note, user["id"], friend_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/friends/{friend_id}/nickname")
+def set_friend_nickname(friend_id: str, request: Request, nickname: str = Form("")):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    try:
+        c.execute("""INSERT INTO friend_nicknames (id, user_id, friend_id, nickname) VALUES (?, ?, ?, ?)""",
+            (str(uuid.uuid4())[:8], user["id"], friend_id, nickname))
+    except sqlite3.IntegrityError:
+        c.execute("UPDATE friend_nicknames SET nickname = ? WHERE user_id = ? AND friend_id = ?", (nickname, user["id"], friend_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/users/{user_id}/block")
+def block_user(user_id: str, request: Request):
+    user = require_user(request)
+    if user_id == user["id"]:
+        raise HTTPException(status_code=400, detail="Nao pode bloquear voce mesmo")
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+        (user["id"], user_id, user_id, user["id"]))
+    try:
+        c.execute("INSERT INTO blocks (id, user_id, blocked_id) VALUES (?, ?, ?)",
+            (str(uuid.uuid4())[:8], user["id"], user_id))
+    except sqlite3.IntegrityError:
+        pass
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.post("/api/users/{user_id}/unblock")
+def unblock_user(user_id: str, request: Request):
+    user = require_user(request)
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?", (user["id"], user_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/blocks")
+def list_blocks(request: Request):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""SELECT b.blocked_id as id, u.username, u.display_name, u.avatar_color, u.avatar_image 
+        FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ?""", (user["id"],))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+@app.get("/api/version")
+def get_version():
+    return {
+        "version": "1.2.0-beta",
+        "download_url": "https://luminachat.duckdns.org/static/download/LuminaChat.zip",
+        "release_notes": "Settings panel, avatar upload, Cosmic Aero theme"
     }
-    const res = await fetch(API + '/api/' + mode, { method: 'POST', body: fd });
-    const data = await res.json();
-    if (!res.ok) return alert(data.detail || 'Erro');
-    token = data.token;
-    me = data.user;
-    localStorage.setItem('aurora_token', token);
-    enterApp();
-  };
-}
-
-async function verifyAndLoad() {
-  const res = await fetch(API + '/api/me', { headers: authHeader() });
-  if (!res.ok) { localStorage.removeItem('aurora_token'); token = null; showAuth(); return; }
-  me = await res.json();
-  enterApp();
-}
-
-function showAuth() {
-  document.getElementById('authScreen').style.display = 'flex';
-  document.getElementById('app').classList.add('hidden');
-}
-
-function enterApp() {
-  document.getElementById('authScreen').style.display = 'none';
-  document.getElementById('app').classList.remove('hidden');
-
-  const displayName = me.display_name || me.name || me.username || '?';
-  document.getElementById('dockProfileName').textContent = displayName;
-  document.getElementById('dockProfileTag').textContent = '#' + (me.id || '0000');
-
-  // Avatar colorido da alpaca
-  const avatarUrl = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
-  document.querySelector('.panel-profile-avatar').src = avatarUrl;
-  // Logo do app permanece como alpaca_avatar.png
-
-  // Status
-  updateStatusUI(me.status || 'online');
-  requestNotifPermission();
-  startAwayTimer();
-
-  connectNotifWS();
-  loadData();
-  checkJoinParam();
-  bindDockProfile();
-}
-
-function connectNotifWS() {
-  if (notifWs) { notifWs.close(); notifWs = null; }
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = proto + '//' + location.host + '/ws/notifications';
-  notifWs = new WebSocket(url);
-
-  notifWs.onopen = () => {
-    notifWs.send(JSON.stringify({ token: token }));
-  };
-
-  notifWs.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'friend_request') {
-      showToast(msg.from.display_name || msg.from.username, 'Quer ser seu amigo!', msg.from.avatar_color || '#a78bfa');
-      playNotifSound();
-      loadData();
-    }
-    else if (msg.type === 'friend_accepted') {
-      showToast(msg.by.display_name || msg.by.username, 'Aceitou sua solicitacao!', msg.by.avatar_color || '#4ade80');
-      playNotifSound();
-      loadData();
-    }
-  };
-
-  notifWs.onclose = () => {
-    notifWs = null;
-    setTimeout(connectNotifWS, 3000);
-  };
-}
-
-async function loadData() {
-  const [cRes, fRes, dRes, uRes] = await Promise.all([
-    fetch(API + '/api/circles', { headers: authHeader() }),
-    fetch(API + '/api/friends', { headers: authHeader() }),
-    fetch(API + '/api/dm-chats', { headers: authHeader() }),
-    fetch(API + '/api/unread', { headers: authHeader() })
-  ]);
-  circles = cRes.ok ? await cRes.json() : [];
-  friends = fRes.ok ? await fRes.json() : { friends: [], pending_sent: [], pending_received: [] };
-  dmChats = dRes.ok ? await dRes.json() : [];
-  unreadMap = uRes.ok ? await uRes.json() : {};
-  updatePendingBadge();
-  renderDock();
-  showHome();
-  startPolling();
-  restoreSession();
-}
-
-function restoreSession() {
-  if (!lastSession) return;
-  if (lastSession.type === 'dm' && lastSession.peerId) {
-    const f = friends.friends?.find(x => x.fid === lastSession.peerId);
-    if (f) openDM(lastSession.peerId, f.display_name || f.username, f.avatar_color);
-  } else if (lastSession.type === 'circle' && lastSession.circleId) {
-    const c = circles.find(x => x.id === lastSession.circleId);
-    if (c) {
-      selectCircle(lastSession.circleId).then(() => {
-        if (lastSession.topicId && currentCircle?.topics) {
-          const t = currentCircle.topics.find(x => x.id === lastSession.topicId);
-          if (t) selectTopic(lastSession.topicId);
-        }
-      });
-    }
-  }
-}
-
-function saveSession() {
-  const s = {};
-  if (currentDM) { s.type = 'dm'; s.peerId = currentDM.peerId; }
-  else if (currentCircle) { s.type = 'circle'; s.circleId = currentCircle.id; s.topicId = currentTopic?.id; }
-  localStorage.setItem('aurora_session', JSON.stringify(s));
-}
-
-function updatePendingBadge() {
-  pendingCount = friends.pending_received?.length || 0;
-  const home = document.getElementById('dockHome');
-  let existing = home.querySelector('.dock-pending-badge');
-  if (existing) existing.remove();
-  if (pendingCount > 0) {
-    const badge = document.createElement('div');
-    badge.className = 'dock-pending-badge';
-    badge.textContent = pendingCount;
-    home.appendChild(badge);
-  }
-}
-
-function startPolling() {
-  if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(async () => {
-    if (!token) return;
-    const res = await fetch(API + '/api/friends', { headers: authHeader() });
-    if (!res.ok) return;
-    const oldPending = friends.pending_received?.length || 0;
-    friends = await res.json();
-    const newPending = friends.pending_received?.length || 0;
-    updatePendingBadge();
-    const uRes = await fetch(API + '/api/unread', { headers: authHeader() });
-    if (uRes.ok) { unreadMap = await uRes.json(); renderDock(); }
-    // Não chama showHome automaticamente — deixa o usuário controlar a navegação
-  }, 8000);
-}
-
-/* ========== INTEGRACAO COM CLIENTE NATIVO ========== */
-let nativeClient = null;
-function initNativeBridge() {
-  if (window.quizcordNative) {
-    nativeClient = window.quizcordNative;
-    console.log('[Native] Cliente detectado:', nativeClient.getPlatform());
-  }
-}
-window.addEventListener('quizcord-native-ready', (e) => { initNativeBridge(); });
-setTimeout(initNativeBridge, 500);
-function nativeNotify(title, body, color) {
-  if (nativeClient) { nativeClient.showNotification(title, body, color || '#a78bfa'); }
-  else if ('Notification' in window && Notification.permission === 'granted') { new Notification(title, { body }); }
-}
-function nativeBadge(count) { if (nativeClient) nativeClient.setBadge(count); }
-function nativeFlash() { if (nativeClient) nativeClient.flashWindow(); }
-
-function showToast(title, sub, color) {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.innerHTML = `
-    <div class="toast-avatar" style="background:${color}20;color:${color}">${title[0].toUpperCase()}</div>
-    <div class="toast-body">
-      <div class="toast-title">${title}</div>
-      <div class="toast-sub">${sub}</div>
-    </div>
-  `;
-  container.appendChild(toast);
-  setTimeout(() => { toast.classList.add('out'); setTimeout(() => toast.remove(), 300); }, 4000);
-  showWindowsNotif(title, sub);
-  nativeNotify(title, sub, color);
-}
-
-function renderDock() {
-  const container = document.getElementById('dockCircles');
-  container.innerHTML = circles.map(c => {
-    return `<div class="dock-server" data-id="${c.id}" title="${c.name}">
-      <div class="dock-server-icon" style="background:${c.color}30;color:${c.color}">${c.name[0].toUpperCase()}</div>
-      ${c.unread ? `<div class="dock-server-pill">${c.unread}</div>` : ''}
-    </div>`;
-  }).join('');
-  container.querySelectorAll('.dock-server').forEach(el => {
-    el.onclick = () => selectCircle(el.dataset.id);
-  });
-}
-
-document.getElementById('dockHome').onclick = () => {
-  setActiveDock('dockHome');
-  currentDM = null;
-  currentCircle = null;
-  currentTopic = null;
-  closeWS();
-  saveSession();
-  showHome();
-};
-
-function setActiveDock(id) {
-  document.querySelectorAll('.dock-server, .dock-logo').forEach(d => d.classList.remove('active'));
-  const el = document.getElementById(id) || document.querySelector(`[data-id="${id}"]`);
-  if (el) el.classList.add('active');
-}
-
-let friendsFilterTab = 'all';
-
-function showHome() {
-  currentCircle = null; currentTopic = null; currentDM = null;
-  setTimeout(() => {
-    document.querySelectorAll('.contact-item').forEach(item => {
-      item.classList.remove('active');
-    });
-  }, 0);
-  closeWS();
-  saveSession();
-  document.getElementById('panelTitle').textContent = 'Amigos';
-  document.getElementById('panelSubtitle').textContent = 'Conversas diretas';
-  document.getElementById('mainTitle').textContent = '';
-  document.getElementById('topicTabs').classList.add('hidden');
-  document.getElementById('headerActions').innerHTML = '';
-  document.getElementById('inputArea').classList.add('hidden');
-  document.getElementById('userList').classList.add('hidden');
-  document.getElementById('msgInput').placeholder = 'Conversar em #bate-papo...';
-
-  renderFriendsScreen();
-  renderPanelFriends();
-}
-
-function renderFriendsScreen() {
-  const pendingCount = friends.pending_received?.length || 0;
-  const allFriends = friends.friends || [];
-
-  let filtered = allFriends;
-  if (friendsFilterTab === 'online') {
-    filtered = allFriends.filter(f => (f.user_status || 'offline') === 'online');
-  }
-
-  let contentHtml = '';
-
-  if (allFriends.length === 0 && pendingCount === 0) {
-    contentHtml = `
-      <div class="welcome-cosmic">
-        <div class="welcome-cosmic-glow"></div>
-        <img src="/static/cosmic_aero/alpaca_avatar.png" alt="Lumina">
-        <h1>Lumina</h1>
-        <p>Ainda não tem amigos por aqui. Adicione alguém e comece a explorar o cosmos juntos!</p>
-        <button class="welcome-cosmic-btn" onclick="openAddFriend()">✨ Adicionar amigo</button>
-      </div>
-    `;
-  } else {
-    const tabs = [
-      { id: 'all', label: 'Todos' },
-      { id: 'online', label: 'Online' },
-      { id: 'pending', label: 'Pendentes', badge: pendingCount }
-    ];
-
-    contentHtml = `
-      <div class="friends-screen">
-        <div class="friends-toolbar">
-          <div class="friends-toolbar-title">
-            <span style="font-size:20px;">👥</span> Amigos
-          </div>
-          ${tabs.map(t => `
-            <div class="friends-toolbar-tab ${friendsFilterTab===t.id?'active':''}" onclick="setFriendsTab('${t.id}')">
-              ${t.label}${t.badge?`<span class="tab-badge">${t.badge}</span>`:''}
-            </div>
-          `).join('')}
-          <button class="friends-toolbar-btn" onclick="openAddFriend()">+ Adicionar amigo</button>
-        </div>
-        <div class="friends-search-bar">
-          <input type="text" class="friends-search-input" id="friendsSearchInput" placeholder="Buscar amigos..." oninput="filterFriendsList(this.value)">
-        </div>
-        <div class="friends-list" id="friendsListContainer">
-          ${renderFriendsListContent(filtered, pendingCount)}
-        </div>
-      </div>
-    `;
-  }
-
-  document.getElementById('chatArea').innerHTML = contentHtml;
-}
-
-function renderFriendsListContent(friendList, pendingCount) {
-  let html = '';
-
-  if (friendsFilterTab === 'pending' && friends.pending_received?.length) {
-    html += `<div class="friends-section-title">Solicitacoes recebidas — ${friends.pending_received.length}</div>`;
-    friends.pending_received.forEach(r => {
-      html += `
-        <div class="friends-row">
-          <div class="friends-row-avatar-wrap">
-            <img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
-            <div class="friends-row-status offline"></div>
-          </div>
-          <div class="friends-row-info">
-            <div class="friends-row-name">${r.display_name || r.username}</div>
-            <div class="friends-row-sub">@${r.username} · Solicitacao pendente</div>
-          </div>
-          <div class="friends-row-actions">
-            <button class="friends-row-action" onclick="acceptFriend('${r.fid}'); event.stopPropagation();" title="Aceitar">✓</button>
-            <button class="friends-row-action" onclick="rejectFriend('${r.fid}'); event.stopPropagation();" title="Recusar">✕</button>
-          </div>
-        </div>
-      `;
-    });
-  } else if (friendsFilterTab === 'pending' && friends.pending_sent?.length) {
-    html += `<div class="friends-section-title">Solicitacoes enviadas — ${friends.pending_sent.length}</div>`;
-    friends.pending_sent.forEach(r => {
-      html += `
-        <div class="friends-row">
-          <div class="friends-row-avatar-wrap">
-            <img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
-            <div class="friends-row-status offline"></div>
-          </div>
-          <div class="friends-row-info">
-            <div class="friends-row-name">${r.display_name || r.username}</div>
-            <div class="friends-row-sub">@${r.username} · Aguardando resposta</div>
-          </div>
-        </div>
-      `;
-    });
-  } else {
-    if (friendList.length) {
-      const onlineList = friendList.filter(f => (f.user_status || 'offline') === 'online');
-      const offlineList = friendList.filter(f => (f.user_status || 'offline') !== 'online');
-
-      if (friendsFilterTab === 'online' && onlineList.length) {
-        html += `<div class="friends-section-title">Online — ${onlineList.length}</div>`;
-        onlineList.forEach(f => html += renderFriendRow(f));
-      } else if (friendsFilterTab === 'all') {
-        if (onlineList.length) {
-          html += `<div class="friends-section-title">Online — ${onlineList.length}</div>`;
-          onlineList.forEach(f => html += renderFriendRow(f));
-        }
-        if (offlineList.length) {
-          html += `<div class="friends-section-title">Offline — ${offlineList.length}</div>`;
-          offlineList.forEach(f => html += renderFriendRow(f));
-        }
-      } else {
-        html += `<div class="friends-section-title">Nenhum amigo online</div>`;
-      }
-    } else {
-      html += `<div style="text-align:center;color:#6366f1;padding:60px 20px;font-size:14px;">Nenhum amigo encontrado.</div>`;
-    }
-  }
-
-  return html;
-}
-
-function renderFriendRow(f) {
-  const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
-  const unread = unreadMap['dm:' + dmId] || 0;
-  return `
-    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
-      <div class="friends-row-avatar-wrap">
-        <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
-        <div class="friends-row-status ${f.user_status || 'offline'}"></div>
-      </div>
-      <div class="friends-row-info">
-        <div class="friends-row-name">${f.display_name || f.username}</div>
-        <div class="friends-row-sub">@${f.username}${unread > 0 ? ' · <strong style="color:#ef4444;">' + unread + ' mensagem' + (unread>1?'s':'') + ' nova' + (unread>1?'s':'') + '</strong>' : ''}</div>
-      </div>
-      <div class="friends-row-actions">
-        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
-        <button class="friends-row-action" onclick="event.stopPropagation();" title="Mais">⋮</button>
-      </div>
-    </div>
-  `;
-}
-
-function setFriendsTab(tab) {
-  friendsFilterTab = tab;
-  renderFriendsScreen();
-}
-
-function filterFriendsList(query) {
-  const container = document.getElementById('friendsListContainer');
-  if (!container) return;
-  const allFriends = friends.friends || [];
-  const q = query.toLowerCase();
-  let filtered = allFriends;
-  if (friendsFilterTab === 'online') {
-    filtered = allFriends.filter(f => (f.user_status || 'offline') === 'online');
-  }
-  if (q) {
-    filtered = filtered.filter(f => 
-      (f.display_name || f.username).toLowerCase().includes(q) ||
-      f.username.toLowerCase().includes(q)
-    );
-  }
-  container.innerHTML = renderFriendsListContent(filtered, friends.pending_received?.length || 0);
-}
-
-function renderPanelFriends() {
-  const html = [];
-
-  if (friends.pending_received?.length) {
-    html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 8px 8px;">Solicitacoes</div>`);
-    friends.pending_received.forEach(r => {
-      html.push(`
-        <div class="request-item">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="contact-avatar-wrap"><div class="contact-avatar" style="background:${r.avatar_color}20;"><img src="${r.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt=""></div></div>
-            <div><div class="contact-name">${r.display_name || r.username}</div><div class="contact-sub">@${r.username}</div></div>
-          </div>
-          <div class="request-actions">
-            <button class="btn-sm btn-primary" onclick="acceptFriend('${r.fid}')">Aceitar</button>
-            <button class="btn-sm btn-ghost" onclick="rejectFriend('${r.fid}')">Recusar</button>
-          </div>
-        </div>
-      `);
-    });
-  }
-
-  if (friends.friends?.length) {
-    html.push(`<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Amigos (${friends.friends.length})</div>`);
-    friends.friends.forEach(f => {
-      const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
-      const unread = unreadMap['dm:' + dmId] || 0;
-      html.push(`
-        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
-          <div class="contact-avatar-wrap">
-            <div class="contact-avatar" style="background:${f.avatar_color}20;">
-              <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
-            </div>
-            <div class="contact-status ${f.user_status || 'offline'}" data-uid="${f.fid}"></div>
-          </div>
-          <div class="contact-info">
-            <div class="contact-name">${f.display_name || f.username}</div>
-            <div class="contact-sub">@${f.username}</div>
-          </div>
-          ${unread > 0 ? `<div class="contact-badge">${unread}</div>` : ''}
-        </div>
-      `);
-    });
-  }
-
-  if (!friends.pending_received?.length && !friends.friends?.length) {
-    html.push(`<div style="text-align:center;color:var(--text-muted);padding:40px 20px;font-size:13px;">Nenhum amigo ainda.<br>Use "+ Adicionar" para comecar.</div>`);
-  }
-
-  document.getElementById('panelContent').innerHTML = html.join('');
-}
-
-function openAddFriend() {
-  openModal('Adicionar Amigo', `
-    <input type="text" id="friendSearch" class="modal-input" placeholder="Buscar usuario..." autocomplete="off">
-    <div id="searchResults" class="search-dropdown hidden"></div>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
-  `);
-  const input = document.getElementById('friendSearch');
-  const results = document.getElementById('searchResults');
-  let searchTimer = null;
-  input.oninput = () => {
-    clearTimeout(searchTimer);
-    const q = input.value.trim();
-    if (!q) { results.classList.add('hidden'); return; }
-    searchTimer = setTimeout(async () => {
-      const res = await fetch(API + '/api/users/search?q=' + encodeURIComponent(q), { headers: authHeader() });
-      if (!res.ok) return;
-      const users = await res.json();
-      const already = [...(friends.friends||[]), ...(friends.pending_sent||[]), ...(friends.pending_received||[])].map(f => f.fid || f.id);
-      const filtered = users.filter(u => u.id !== me.id && !already.includes(u.id));
-      if (!filtered.length) { results.classList.add('hidden'); return; }
-      results.innerHTML = filtered.map(u => `
-        <div class="search-item" onclick="sendFriendRequest('${u.username}', '${(u.display_name||u.username).replace(/'/g,"\\'")}')">
-          <div class="contact-avatar" style="background:${u.avatar_color}20;color:${u.avatar_color};width:28px;height:28px;font-size:12px;">${(u.display_name||u.username)[0].toUpperCase()}</div>
-          <div><div style="font-weight:600;font-size:13px;">${u.display_name || u.username}</div><div style="font-size:11px;color:var(--text-muted);">@${u.username}</div></div>
-        </div>
-      `).join('');
-      results.classList.remove('hidden');
-    }, 300);
-  };
-}
-
-async function sendFriendRequest(username, displayName) {
-  closeModal();
-  const fd = new FormData();
-  fd.append('username', username);
-  const res = await fetch(API + '/api/friends/request', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); }
-  else { showToast(displayName, 'Solicitacao enviada!', '#a78bfa'); loadData(); }
-}
-
-async function acceptFriend(fid) {
-  const fd = new FormData();
-  fd.append('friend_id', fid);
-  await fetch(API + '/api/friends/accept', { method: 'POST', body: fd, headers: authHeader() });
-  loadData();
-}
-
-async function rejectFriend(fid) {
-  const fd = new FormData();
-  fd.append('friend_id', fid);
-  await fetch(API + '/api/friends/reject', { method: 'POST', body: fd, headers: authHeader() });
-  loadData();
-}
-
-async function selectCircle(id) {
-  setActiveDock(id);
-  currentCircle = circles.find(c => c.id === id);
-  currentDM = null;
-  if (!currentCircle) return;
-  const res = await fetch(API + '/api/circles/' + id, { headers: authHeader() });
-  if (!res.ok) return;
-  const data = await res.json();
-  currentCircle = data.circle;
-  currentCircle.members = data.members;
-  currentCircle.topics = data.topics;
-  saveSession();
-
-  document.getElementById('panelTitle').textContent = currentCircle.name;
-  document.getElementById('panelSubtitle').textContent = currentCircle.members.length + ' membros';
-  document.getElementById('mainTitle').textContent = currentCircle.name;
-
-  const isOwner = data.members.find(m => m.id === me.id)?.role === 'owner';
-  let actions = '';
-  if (isOwner) {
-    actions += `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`;
-  }
-  actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">&#128279; Convite</button>`;
-  document.getElementById('headerActions').innerHTML = actions;
-
-  const tabs = document.getElementById('topicTabs');
-  tabs.classList.remove('hidden');
-  tabs.innerHTML = currentCircle.topics.map(t => {
-    const unread = unreadMap['topic:' + t.id] || 0;
-    const isActive = currentTopic?.id === t.id;
-    return `<div class="header-tab ${isActive?'active':''}" data-tid="${t.id}">
-      ${t.name}
-      ${unread > 0 && !isActive ? '<span class="header-unread"></span>' : ''}
-    </div>`;
-  }).join('');
-  tabs.querySelectorAll('.header-tab').forEach(el => {
-    el.onclick = () => selectTopic(el.dataset.tid);
-  });
-
-  let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
-  currentCircle.topics.forEach(t => {
-    const icon = t.type === 'voice' ? '&#127908;' : t.type === 'media' ? '&#128206;' : '&#128172;';
-    const unread = unreadMap['topic:' + t.id] || 0;
-    const isActive = currentTopic?.id === t.id;
-    html += `<div class="topic-tab ${isActive?'active':''}" data-tid="${t.id}" onclick="selectTopic('${t.id}')">
-      <span class="topic-icon">${icon}</span> ${t.name}
-      ${unread > 0 ? `<div class="topic-badge ${!isActive?'pulse':''}">${unread}</div>` : ''}
-    </div>`;
-  });
-  html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
-  currentCircle.members.forEach(m => {
-    html += `<div class="contact-item">
-      <div class="contact-avatar-wrap">
-        <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
-      </div>
-      <div class="contact-info">
-        <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'&#128081;':''}</div>
-        <div class="contact-sub">@${m.username}</div>
-      </div>
-    </div>`;
-  });
-  document.getElementById('panelContent').innerHTML = html;
-
-  if (currentCircle.topics.length && !currentTopic) {
-    selectTopic(currentCircle.topics[0].id);
-  }
-}
-
-
-async function selectTopic(tid) {
-  currentTopic = currentCircle.topics.find(t => t.id === tid);
-  currentDM = null;
-  if (!currentTopic) return;
-  saveSession();
-
-  // Atualiza header-tabs
-  document.querySelectorAll('.header-tab').forEach(t => {
-    const isActive = t.dataset.tid === tid;
-    t.classList.toggle('active', isActive);
-    // Remove dot de unread se ficou ativo
-    const dot = t.querySelector('.header-unread');
-    if (dot && isActive) dot.remove();
-  });
-
-  // Atualiza topic-tabs no panel
-  document.querySelectorAll('.topic-tab').forEach(t => {
-    const isActive = t.dataset.tid === tid;
-    t.classList.toggle('active', isActive);
-    // Remove pulse do badge se ficou ativo
-    const badge = t.querySelector('.topic-badge');
-    if (badge) {
-      if (isActive) badge.classList.remove('pulse');
-    }
-  });
-
-  document.getElementById('mainTitle').textContent = currentCircle.name + ' / ' + currentTopic.name;
-  document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
-  document.getElementById('inputArea').classList.remove('hidden');
-  document.getElementById('userList').classList.remove('hidden');
-  document.getElementById('msgInput').placeholder = 'Conversar em #' + currentTopic.name;
-  connectWS('topic:' + tid);
-}
-
-function selectContact(el, peerId, peerName, peerColor) {
-  // Remove active de todos os contact-items
-  document.querySelectorAll('.contact-item').forEach(item => item.classList.remove('active'));
-  // Adiciona active no clicado
-  el.classList.add('active');
-  // Abre o DM
-  openDM(peerId, peerName, peerColor);
-}
-
-async function openDM(peerId, peerName, peerColor) {
-  currentDM = { peerId, peerName, peerColor };
-  currentCircle = null; currentTopic = null;
-  setActiveDock('dockHome');
-  saveSession();
-  document.getElementById('panelTitle').textContent = 'Amigos';
-  document.getElementById('panelSubtitle').textContent = 'Conversa direta';
-  document.getElementById('mainTitle').textContent = peerName;
-  document.getElementById('topicTabs').classList.add('hidden');
-  document.getElementById('headerActions').innerHTML = '';
-  document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
-  document.getElementById('inputArea').classList.remove('hidden');
-  document.getElementById('userList').classList.add('hidden');
-  document.getElementById('msgInput').placeholder = 'Conversar com @' + peerName;
-  let chat = dmChats.find(d => d.peer_id === peerId);
-  if (!chat) {
-    const u1 = [me.id, peerId].sort().join(':');
-    chat = { id: u1, peer_id: peerId };
-  }
-  currentDM.chatId = chat.id;
-  connectWS('dm:' + chat.id);
-}
-
-let wsRetryCount = 0;
-let wsRetryTimer = null;
-
-function setWsStatus(status, text) {
-  const el = document.getElementById('wsStatus');
-  const txt = document.getElementById('wsStatusText');
-  if (!el) return;
-  el.style.display = 'flex';
-  el.className = 'ws-status ' + status;
-  if (txt) txt.textContent = text;
-  if (status === 'online') {
-    setTimeout(() => { if (ws && ws.readyState === 1) el.style.display = 'none'; }, 2000);
-  }
-}
-
-function connectWS(roomId) {
-  closeWS();
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const url = proto + '//' + location.host + '/ws/' + roomId;
-  ws = new WebSocket(url);
-  setWsStatus('connecting', 'Conectando...');
-
-  ws.onopen = () => {
-    wsRetryCount = 0;
-    setWsStatus('online', 'Conectado');
-    ws.send(JSON.stringify({
-      token: token,
-      name: me.name || me.display_name || me.username,
-      color: me.color || me.avatar_color || '#888'
-    }));
-  };
-
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'history') {
-      document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
-      msg.messages.forEach(m => appendMessage(m));
-    }
-    else if (msg.type === 'message') {
-      appendMessage(msg);
-      if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
-    }
-    
-    else if (msg.type === 'message_edited') {
-      updateMessageContent(msg.msg_id, msg.content);
-    }
-    else if (msg.type === 'message_deleted') {
-      removeMessage(msg.msg_id);
-    }
-    else if (msg.type === 'reaction_update') {
-      updateMessageReactions(msg.msg_id, msg.reactions);
-    }
-    else if (msg.type === 'system') {
-      // Ignora mensagens de sistema de join/leave (privacidade)
-    }
-    else if (msg.type === 'user_joined' || msg.type === 'user_left') renderUserList(msg.users);
-    else if (msg.type === 'users') renderUserList(msg.users);
-    else if (msg.type === 'typing') showTyping(msg.user);
-    else if (msg.type === 'voice_user_joined') renderVoiceUsers(msg.voice_users);
-    else if (msg.type === 'voice_user_left') renderVoiceUsers(msg.voice_users);
-    else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
-    else if (msg.type === 'voice_answer') handleVoiceAnswer(msg);
-    else if (msg.type === 'voice_ice') handleVoiceICE(msg);
-  };
-
-  ws.onclose = () => {
-    ws = null;
-    setWsStatus('offline', 'Desconectado');
-    const delay = Math.min(3000 + wsRetryCount * 2000, 15000);
-    wsRetryCount++;
-    if (wsRetryTimer) clearTimeout(wsRetryTimer);
-    wsRetryTimer = setTimeout(() => {
-      if ((currentTopic || currentDM) && !ws) connectWS(roomId);
-    }, delay);
-  };
-
-  ws.onerror = () => {
-    setWsStatus('offline', 'Erro de conexao');
-  };
-}
-
-function closeWS() { if (ws) { ws.close(); ws = null; } }
-
-let _lastMsgAuthor = null;
-let _lastMsgTime = 0;
-const _GROUP_THRESHOLD_MS = 15 * 60 * 1000;
-
-const AVATAR_BG_COLORS = [
-  'rgba(139,92,246,0.25)', 'rgba(6,182,212,0.25)', 'rgba(236,72,153,0.25)',
-  'rgba(59,130,246,0.25)', 'rgba(16,185,129,0.25)', 'rgba(245,158,11,0.25)',
-  'rgba(239,68,68,0.25)', 'rgba(168,85,247,0.25)', 'rgba(14,165,233,0.25)',
-  'rgba(217,70,239,0.25)'
-];
-
-function _getUserColor(userName) {
-  let hash = 0;
-  for (let i = 0; i < userName.length; i++) hash = userName.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
-}
-
-function appendMessage(m) {
-  const area = document.getElementById('chatArea');
-  const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
-  const userAvatar = m.user?.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
-
-  let timeStr = '';
-  let msgTime = 0;
-  if (m.timestamp) {
-    const d = new Date(m.timestamp);
-    timeStr = d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-    msgTime = d.getTime();
-  }
-
-  const authorName = m.user?.name || '?';
-  const shouldGroup = _lastMsgAuthor === authorName && (msgTime - _lastMsgTime) < _GROUP_THRESHOLD_MS && msgTime > 0;
-
-  _lastMsgAuthor = authorName;
-  _lastMsgTime = msgTime;
-
-  const bubble = document.createElement('div');
-  bubble.className = 'message-bubble ' + (isOwn ? 'own' : '') + (shouldGroup ? ' grouped' : '');
-  if (m.id) bubble.dataset.msgId = m.id;
-  if (m.user?.id) bubble.dataset.uid = m.user.id;
-  bubble.dataset.uname = m.user?.name || '';
-
-  const inviteMatch = m.content?.match(/\?join=([a-zA-Z0-9\-]+)/);
-  let contentHtml = '';
-  if (inviteMatch) {
-    contentHtml = renderChatEmbed(inviteMatch[1], m.content);
-  } else {
-    contentHtml = escapeHtml(m.content) + (m.file_url ? `<img src="${m.file_url}" onclick="window.open('${m.file_url}')">` : '');
-  }
-
-  const userColor = _getUserColor(authorName);
-
-  let replyHtml = '';
-  if (m.reply_to_id && m.reply_to_user) {
-    const replyShort = m.reply_to_content ? m.reply_to_content.substring(0, 50) + (m.reply_to_content.length > 50 ? '...' : '') : '';
-    replyHtml = `<div class="msg-reply-bar"><span class="reply-author">↩️ ${escapeHtml(m.reply_to_user)}</span><span class="reply-content">${escapeHtml(replyShort)}</span></div>`;
-  }
-
-  let editedHtml = '';
-  if (m.edited_at) editedHtml = `<span class="msg-edited-tag">(editado)</span>`;
-
-  if (shouldGroup) {
-    bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
-      <div class="msg-body">
-        ${replyHtml}
-        <div class="msg-content">${contentHtml}</div>
-      </div>
-    `;
-  } else {
-    bubble.innerHTML = `
-      <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
-      <div class="msg-body">
-        ${replyHtml}
-        <div class="msg-header">
-          <span class="msg-author">${authorName}</span>
-          <span class="msg-time-inline">${timeStr}</span>
-          ${editedHtml}
-        </div>
-        <div class="msg-content">${contentHtml}</div>
-      </div>
-    `;
-  }
-
-  if (m.reactions && Object.keys(m.reactions).length > 0) {
-    const reactionsContainer = document.createElement('div');
-    reactionsContainer.className = 'msg-reactions';
-    for (const [emoji, data] of Object.entries(m.reactions)) {
-      const isActive = data.users && data.users.includes(me?.id);
-      reactionsContainer.innerHTML += `<div class="msg-reaction${isActive ? ' active' : ''}" onclick="event.stopPropagation(); toggleReaction(${m.id}, '${emoji}')"><span>${emoji}</span><span class="msg-reaction-count">${data.count}</span></div>`;
-    }
-    reactionsContainer.innerHTML += `<div class="msg-reaction-add" onclick="event.stopPropagation(); showEmojiPicker(${m.id}, this)">+</div>`;
-    const msgBody = bubble.querySelector('.msg-body');
-    if (msgBody) msgBody.appendChild(reactionsContainer);
-  }
-
-  const actions = document.createElement('div');
-  actions.className = 'msg-actions';
-  actions.innerHTML = `<button class="msg-action-btn" title="Responder" onclick="event.stopPropagation(); startReply({id:${m.id}, user:'${(m.user?.name||'').replace(/'/g, "\\'")}', content:'${(m.content||'').replace(/'/g, "\\'")}'})">↩️</button>`;
-  if (isOwn && m.id) {
-    actions.innerHTML += `<button class="msg-action-btn" title="Editar" onclick="event.stopPropagation(); startEdit(${m.id}, '${(m.content||'').replace(/'/g, "\\'")}')">✏️</button>`;
-    actions.innerHTML += `<button class="msg-action-btn danger" title="Deletar" onclick="event.stopPropagation(); deleteMessage(${m.id})">🗑️</button>`;
-  }
-  actions.innerHTML += `<button class="msg-action-btn" title="Reagir" onclick="event.stopPropagation(); showEmojiPicker(${m.id}, this)">😀</button>`;
-  bubble.style.position = 'relative';
-  bubble.appendChild(actions);
-
-  area.appendChild(bubble);
-  area.scrollTop = area.scrollHeight;
-}
-
-
-function renderChatEmbed(code, fallbackText) {
-  const placeholderId = 'embed-' + Math.random().toString(36).slice(2, 10);
-  setTimeout(async () => {
-    try {
-      const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
-      if (!res.ok) return;
-      const data = await res.json();
-      const el = document.getElementById(placeholderId);
-      if (el) {
-        el.innerHTML = `
-          <div class="chat-embed-avatar" style="background:${data.color}20;color:${data.color}">${data.name[0].toUpperCase()}</div>
-          <div class="chat-embed-info">
-            <div class="chat-embed-name">${escapeHtml(data.name)}</div>
-            <div class="chat-embed-sub">Circulo · Clique para entrar</div>
-          </div>
-          <button class="chat-embed-btn" onclick="doJoinCircle('${code}', '${data.id}')">Entrar</button>
-        `;
-      }
-    } catch (e) {}
-  }, 0);
-  return `<div class="chat-embed" id="${placeholderId}">
-    <div class="chat-embed-avatar" style="background:#444;color:#888">?</div>
-    <div class="chat-embed-info">
-      <div class="chat-embed-name">Carregando...</div>
-      <div class="chat-embed-sub">${escapeHtml(fallbackText)}</div>
-    </div>
-  </div>`;
-}
-
-function appendSystemMessage(content) {
-  const area = document.getElementById('chatArea');
-  const div = document.createElement('div');
-  div.className = 'system-msg';
-  div.textContent = content;
-  area.appendChild(div);
-  area.scrollTop = area.scrollHeight;
-}
-
-function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
-
-function renderUserList(users) {
-  const el = document.getElementById('userList');
-  if (!users || !users.length) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML = users.map(u =>
-    `<div class="user-chip"><div class="user-chip-dot" style="background:${u.color||'#888'}"></div>${u.name}</div>`
-  ).join('');
-}
-
-function showTyping(user) {
-  const el = document.getElementById('typingIndicator');
-  el.textContent = (user?.name || 'Alguem') + ' esta digitando...';
-  el.classList.remove('hidden');
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => el.classList.add('hidden'), 2000);
-}
-
-function renderVoiceUsers(list) {}
-
-function bindDockProfile() {
-  const muteBtn = document.getElementById('btnMute');
-  const deafenBtn = document.getElementById('btnDeafen');
-  const settingsBtn = document.getElementById('btnSettings');
-
-  muteBtn.onclick = () => {
-    muteBtn.classList.toggle('active');
-    showToast('Microfone', muteBtn.classList.contains('active') ? 'Mutado' : 'Desmutado', '#a78bfa');
-  };
-
-  deafenBtn.onclick = () => {
-    deafenBtn.classList.toggle('active');
-    showToast('Áudio', deafenBtn.classList.contains('active') ? 'Surdo' : 'Ouvindo', '#a78bfa');
-  };
-
-  settingsBtn.onclick = () => {
-    openSettings();
-  };
-}
-
-function bindInputs() {
-  const input = document.getElementById('msgInput');
-  const send = document.getElementById('sendBtn');
-  const file = document.getElementById('fileInput');
-  const inputBar = document.getElementById('inputBar');
-
-  send.onclick = () => sendMessage();
-  input.onkeydown = (e) => {
-    if (e.key === 'Enter') sendMessage();
-    else if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'typing'}));
-  };
-
-  // Focus glow na barra
-  input.onfocus = () => inputBar.classList.add('focused');
-  input.onblur = () => inputBar.classList.remove('focused');
-
-  file.onchange = async () => {
-    if (!file.files[0]) return;
-    const fd = new FormData();
-    fd.append('file', file.files[0]);
-    const res = await fetch(API + '/api/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    sendMessage(null, data.url);
-    file.value = '';
-  };
-
-  // Botões de ação (placeholder)
-  const btnGift = document.getElementById('btnGift');
-  const btnGif = document.getElementById('btnGif');
-  const btnEmoji = document.getElementById('btnEmoji');
-
-  if (btnGift) btnGift.onclick = () => showToast('Presentes', 'Em breve...', '#ec4899');
-  if (btnGif) btnGif.onclick = () => showToast('GIFs', 'Em breve...', '#8b5cf6');
-  if (btnEmoji) btnEmoji.onclick = () => showToast('Emojis', 'Em breve...', '#fbbf24');
-
-  document.getElementById('btnCreateCircle').onclick = openCreateCircle;
-}
-
-let replyingTo = null;
-let editingMessageId = null;
-
-function sendMessage(text, fileUrl) {
-  const input = document.getElementById('msgInput');
-  const content = text !== undefined ? text : input.value.trim();
-  if (!content && !fileUrl) return;
-  if (!ws || ws.readyState !== 1) {
-    showToast('Desconectado', 'Aguarde a conexao ser restabelecida...', '#f87171');
-    return;
-  }
-
-  if (editingMessageId) {
-    ws.send(JSON.stringify({ type: 'edit_message', msg_id: editingMessageId, content: content }));
-    cancelEdit();
-    if (text === undefined) input.value = '';
-    return;
-  }
-
-  const payload = { content: content || '', file_url: fileUrl || undefined };
-  if (replyingTo) {
-    payload.reply_to_id = replyingTo.id;
-    payload.reply_to_user = replyingTo.user;
-    payload.reply_to_content = replyingTo.content;
-    cancelReply();
-  }
-  ws.send(JSON.stringify(payload));
-  if (text === undefined) input.value = '';
-}
-
-function startReply(msg) {
-  cancelEdit();
-  replyingTo = msg;
-  renderReplyPreview();
-  document.getElementById('msgInput').focus();
-}
-
-function cancelReply() {
-  replyingTo = null;
-  const preview = document.getElementById('replyPreviewBox');
-  if (preview) preview.remove();
-}
-
-function renderReplyPreview() {
-  let preview = document.getElementById('replyPreviewBox');
-  if (!preview) {
-    preview = document.createElement('div');
-    preview.id = 'replyPreviewBox';
-    preview.className = 'reply-preview-box';
-    const inputArea = document.getElementById('inputArea');
-    if (inputArea) inputArea.insertBefore(preview, inputArea.firstChild);
-  }
-  const shortContent = replyingTo.content ? replyingTo.content.substring(0, 60) + (replyingTo.content.length > 60 ? '...' : '') : '';
-  preview.innerHTML = `<span class="reply-label">↩️ Respondendo</span><span class="reply-text">${escapeHtml(replyingTo.user)}: ${escapeHtml(shortContent)}</span><button class="reply-cancel" onclick="cancelReply()">✕</button>`;
-}
-
-function startEdit(msgId, content) {
-  cancelReply();
-  editingMessageId = msgId;
-  renderEditPreview();
-  const input = document.getElementById('msgInput');
-  input.value = content;
-  input.focus();
-}
-
-function cancelEdit() {
-  editingMessageId = null;
-  const preview = document.getElementById('editPreviewBox');
-  if (preview) preview.remove();
-  const input = document.getElementById('msgInput');
-  input.value = '';
-}
-
-function renderEditPreview() {
-  let preview = document.getElementById('editPreviewBox');
-  if (!preview) {
-    preview = document.createElement('div');
-    preview.id = 'editPreviewBox';
-    preview.className = 'editing-preview-box';
-    const inputArea = document.getElementById('inputArea');
-    if (inputArea) inputArea.insertBefore(preview, inputArea.firstChild);
-  }
-  preview.innerHTML = `<span class="edit-label">✏️ Editando mensagem</span><button class="edit-cancel" onclick="cancelEdit()">✕</button>`;
-}
-
-function deleteMessage(msgId) {
-  if (!confirm('Tem certeza que deseja deletar esta mensagem?')) return;
-  if (!ws || ws.readyState !== 1) {
-    showToast('Erro', 'Desconectado do servidor', '#ef4444');
-    return;
-  }
-  ws.send(JSON.stringify({ type: 'delete_message', msg_id: msgId }));
-}
-
-async function toggleReaction(msgId, emoji) {
-  if (!token) return;
-  try {
-    const fd = new FormData();
-    fd.append('emoji', emoji);
-    const res = await fetch(API + '/api/messages/' + msgId + '/react', {
-      method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + token }
-    });
-    if (!res.ok) {
-      const d = await res.json();
-      showToast('Erro', d.detail || 'Nao foi possivel reagir', '#ef4444');
-    }
-  } catch (e) {
-    showToast('Erro', 'Falha na conexao', '#ef4444');
-  }
-}
-
-function showEmojiPicker(msgId, anchorEl) {
-  const existing = document.getElementById('luminaEmojiPicker');
-  if (existing) existing.remove();
-  const emojis = ['❤️', '👍', '👎', '😂', '😮', '😢', '😡', '🔥', '🎉', '👀', '✨', '🙏', '💀', '🤔', '👏'];
-  const picker = document.createElement('div');
-  picker.id = 'luminaEmojiPicker';
-  picker.className = 'lumina-emoji-picker';
-  emojis.forEach(emoji => {
-    const btn = document.createElement('button');
-    btn.className = 'lumina-emoji-btn';
-    btn.textContent = emoji;
-    btn.onclick = function(e) { e.stopPropagation(); toggleReaction(msgId, emoji); picker.remove(); };
-    picker.appendChild(btn);
-  });
-  const rect = anchorEl.getBoundingClientRect();
-  let left = rect.left, top = rect.bottom + 8;
-  if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
-  if (top + 200 > window.innerHeight) top = rect.top - 210;
-  if (top < 10) top = 10;
-  picker.style.left = left + 'px';
-  picker.style.top = top + 'px';
-  document.body.appendChild(picker);
-}
-
-function updateMessageReactions(msgId, reactions) {
-  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
-  if (!bubble) return;
-  let container = bubble.querySelector('.msg-reactions');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'msg-reactions';
-    const msgBody = bubble.querySelector('.msg-body');
-    if (msgBody) msgBody.appendChild(container);
-  }
-  container.innerHTML = '';
-  for (const [emoji, data] of Object.entries(reactions)) {
-    const isActive = data.users && data.users.includes(me?.id);
-    container.innerHTML += `<div class="msg-reaction${isActive ? ' active' : ''}" onclick="event.stopPropagation(); toggleReaction(${msgId}, '${emoji}')"><span>${emoji}</span><span class="msg-reaction-count">${data.count}</span></div>`;
-  }
-  container.innerHTML += `<div class="msg-reaction-add" onclick="event.stopPropagation(); showEmojiPicker(${msgId}, this)">+</div>`;
-}
-
-function updateMessageContent(msgId, newContent) {
-  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
-  if (!bubble) return;
-  const contentEl = bubble.querySelector('.msg-content');
-  if (!contentEl) return;
-  contentEl.innerHTML = escapeHtml(newContent);
-  let editedTag = bubble.querySelector('.msg-edited-tag');
-  if (!editedTag) {
-    const header = bubble.querySelector('.msg-header');
-    if (header) {
-      editedTag = document.createElement('span');
-      editedTag.className = 'msg-edited-tag';
-      editedTag.textContent = '(editado)';
-      const timeEl = header.querySelector('.msg-time-inline');
-      if (timeEl) timeEl.after(editedTag);
-      else header.appendChild(editedTag);
-    }
-  }
-}
-
-function removeMessage(msgId) {
-  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
-  if (!bubble) return;
-  bubble.classList.add('deleted');
-  const contentEl = bubble.querySelector('.msg-content');
-  if (contentEl) contentEl.innerHTML = '<em style="opacity:0.5;">Mensagem deletada</em>';
-  const actions = bubble.querySelector('.msg-actions');
-  if (actions) actions.remove();
-}
-
-
-function openModal(title, bodyHtml, actionsHtml) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = bodyHtml;
-  document.getElementById('modalActions').innerHTML = actionsHtml;
-  document.getElementById('modalOverlay').classList.add('show');
-}
-
-function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
-
-document.getElementById('modalOverlay').onclick = (e) => {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
-};
-
-function openCreateCircle() {
-  openModal('Novo Circulo', `
-    <input type="text" id="modalCircleName" class="modal-input" placeholder="Nome do circulo">
-    <div class="color-picker" id="modalColorPicker"></div>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn-sm btn-primary" onclick="doCreateCircle()">Criar</button>
-  `);
-  const el = document.getElementById('modalColorPicker');
-  let sel = COLORS[1];
-  el.innerHTML = COLORS.map(c => `<div class="color-dot ${c===sel?'selected':''}" style="background:${c}" data-c="${c}"></div>`).join('');
-  el.querySelectorAll('.color-dot').forEach(d => d.onclick = () => {
-    sel = d.dataset.c;
-    el.innerHTML = COLORS.map(c => `<div class="color-dot ${c===sel?'selected':''}" style="background:${c}" data-c="${c}"></div>`).join('');
-    el.querySelectorAll('.color-dot').forEach(x => x.onclick = arguments.callee);
-  });
-  window._circleColor = () => sel;
-}
-
-async function doCreateCircle() {
-  const name = document.getElementById('modalCircleName').value.trim();
-  if (!name) return alert('Digite um nome');
-  const fd = new FormData();
-  fd.append('name', name);
-  fd.append('color', window._circleColor ? window._circleColor() : '#a78bfa');
-  const res = await fetch(API + '/api/circles', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
-  closeModal();
-  loadData();
-}
-
-function openCreateTopic() {
-  if (!currentCircle) return;
-  openModal('Novo Topico', `
-    <input type="text" id="modalTopicName" class="modal-input" placeholder="Nome do topico">
-    <select id="modalTopicType" class="modal-input" style="background:var(--bg-glass)">
-      <option value="text">Texto</option>
-      <option value="voice">Voz</option>
-      <option value="media">Midia</option>
-    </select>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeModal()">Cancelar</button>
-    <button class="btn-sm btn-primary" onclick="doCreateTopic()">Criar</button>
-  `);
-}
-
-async function doCreateTopic() {
-  const name = document.getElementById('modalTopicName').value.trim();
-  const type = document.getElementById('modalTopicType').value;
-  if (!name) return;
-  const fd = new FormData();
-  fd.append('name', name);
-  fd.append('type', type);
-  const res = await fetch(API + '/api/circles/' + currentCircle.id + '/topics', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Erro'); return; }
-  closeModal();
-  selectCircle(currentCircle.id);
-}
-
-function handleVoiceOffer(msg) {}
-function handleVoiceAnswer(msg) {}
-function handleVoiceICE(msg) {}
-
-/* ========== SISTEMA DE CONVITE EMBED ========== */
-
-function checkJoinParam() {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('join');
-  if (code) {
-    showJoinEmbed(code);
-  }
-}
-
-async function showJoinEmbed(code) {
-  let circleData = null;
-  try {
-    const res = await fetch(API + '/api/circles/by-invite/' + encodeURIComponent(code));
-    if (res.ok) circleData = await res.json();
-  } catch (e) {}
-
-  const name = circleData ? circleData.name : 'Circulo';
-  const color = circleData ? circleData.color : '#a78bfa';
-  const circleId = circleData ? circleData.id : null;
-
-  openModal('Convite', `
-    <div style="text-align:center;">
-      <div class="invite-embed-avatar" style="background:${color}20;color:${color}">${name[0].toUpperCase()}</div>
-      <div class="invite-embed-title">${escapeHtml(name)}</div>
-      <div class="invite-embed-sub">Voce foi convidado a entrar neste circulo.</div>
-      ${circleData ? '' : '<div style="color:var(--accent);font-size:12px;margin-bottom:12px;">Codigo nao encontrado ou expirado.</div>'}
-    </div>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeJoinEmbed()">Cancelar</button>
-    ${circleData ? `<button class="btn-sm btn-primary" onclick="doJoinCircle('${code}', '${circleId}')">Entrar no Circulo</button>` : ''}
-  `);
-}
-
-function closeJoinEmbed() {
-  closeModal();
-  const url = new URL(window.location.href);
-  url.searchParams.delete('join');
-  window.history.replaceState({}, '', url);
-}
-
-async function doJoinCircle(code, circleId) {
-  const fd = new FormData();
-  fd.append('code', code);
-  const res = await fetch(API + '/api/circles/join', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) {
-    const d = await res.json();
-    alert(d.detail || 'Erro ao entrar no circulo');
-    return;
-  }
-  closeJoinEmbed();
-  showToast('Voce entrou no circulo!', '', '#4ade80');
-  await loadData();
-  if (circleId) selectCircle(circleId);
-}
-
-/* ========== MODIFICACOES NAS FUNCOES EXISTENTES ========== */
-
-function showInviteCode() {
-  if (!currentCircle) return;
-  const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
-  openModal('Convite para ' + currentCircle.name, `
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Compartilhe este codigo ou link para convidar amigos:</p>
-    <div class="invite-box">
-      <span>${currentCircle.invite_code}</span>
-      <button onclick="copyInviteCode()">Copiar</button>
-    </div>
-    <div class="invite-link-box">
-      <span>${shareUrl}</span>
-      <button onclick="copyInviteLink()">Copiar Link</button>
-    </div>
-  `, `
-    <button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>
-  `);
-}
-
-function copyToClipboard(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(text);
-  }
-  return new Promise((resolve, reject) => {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand('copy');
-      resolve();
-    } catch (e) {
-      reject(e);
-    }
-    document.body.removeChild(ta);
-  });
-}
-
-function copyInviteCode() {
-  if (currentCircle?.invite_code) {
-    copyToClipboard(currentCircle.invite_code).then(() => {
-      showToast('Copiado!', 'Codigo de convite copiado', '#a78bfa');
-    }).catch(() => alert('Nao foi possivel copiar. Codigo: ' + currentCircle.invite_code));
-  }
-}
-
-function copyInviteLink() {
-  if (currentCircle?.invite_code) {
-    const shareUrl = window.location.origin + '/?join=' + encodeURIComponent(currentCircle.invite_code);
-    copyToClipboard(shareUrl).then(() => {
-      showToast('Link copiado!', 'Compartilhe com seus amigos', '#a78bfa');
-    }).catch(() => alert('Nao foi possivel copiar. Link: ' + shareUrl));
-  }
-}
-
-/* ===== STATUS SYSTEM ===== */
-let awayTimer = null;
-const AWAY_DELAY_MS = 5 * 60 * 1000; // 5 minutos
-
-function startAwayTimer() {
-  if (awayTimer) clearTimeout(awayTimer);
-  awayTimer = setTimeout(() => {
-    if (me && me.status === 'online') {
-      setStatus('away');
-    }
-  }, AWAY_DELAY_MS);
-}
-
-function resetAwayTimer() {
-  if (awayTimer) clearTimeout(awayTimer);
-  if (me && me.status === 'away') {
-    setStatus('online');
-  }
-  startAwayTimer();
-}
-
-// Reset timer em qualquer interação
-document.addEventListener('mousemove', resetAwayTimer);
-document.addEventListener('keydown', resetAwayTimer);
-document.addEventListener('click', resetAwayTimer);
-
-async function setStatus(newStatus) {
-  if (!me) return;
-  const fd = new FormData();
-  fd.append('status', newStatus);
-  const res = await fetch(API + '/api/status', { method: 'POST', body: fd, headers: authHeader() });
-  if (res.ok) {
-    me.status = newStatus;
-    updateStatusUI(newStatus);
-  }
-}
-
-function updateStatusUI(status) {
-  const statusEl = document.getElementById('dockProfileStatus');
-  if (!statusEl) return;
-  statusEl.className = 'panel-profile-status ' + status;
-
-  const statusMap = {
-    'online': { color: '#10b981', label: 'Online' },
-    'busy': { color: '#ef4444', label: 'Ocupado' },
-    'away': { color: '#f59e0b', label: 'Ausente' },
-    'invisible': { color: '#6b7280', label: 'Invisível' }
-  };
-  const info = statusMap[status] || statusMap['online'];
-  statusEl.style.background = info.color;
-  statusEl.style.boxShadow = `0 0 6px ${info.color}99`;
-}
-
-function toggleStatusMenu() {
-  const existing = document.getElementById('statusMenu');
-  if (existing) { existing.remove(); return; }
-
-  const bar = document.getElementById('panelProfile');
-  const rect = bar.getBoundingClientRect();
-
-  const menu = document.createElement('div');
-  menu.id = 'statusMenu';
-  menu.className = 'status-menu';
-  menu.style.cssText = `
-    position: fixed;
-    left: ${rect.left}px;
-    bottom: ${window.innerHeight - rect.top + 8}px;
-    width: ${rect.width}px;
-    z-index: 100;
-  `;
-
-  const statuses = [
-    { id: 'online', label: 'Online', desc: 'Recebe notificações', color: '#10b981' },
-    { id: 'busy', label: 'Ocupado', desc: 'Muta notificações', color: '#ef4444' },
-    { id: 'away', label: 'Ausente', desc: 'Sem movimento', color: '#f59e0b' },
-    { id: 'invisible', label: 'Invisível', desc: 'Aparece offline', color: '#6b7280' }
-  ];
-
-  menu.innerHTML = statuses.map(s => `
-    <div class="status-item ${me?.status === s.id ? 'active' : ''}" onclick="setStatus('${s.id}'); toggleStatusMenu();">
-      <div class="status-dot" style="background:${s.color};box-shadow:0 0 6px ${s.color}99"></div>
-      <div class="status-info">
-        <div class="status-label">${s.label}</div>
-        <div class="status-desc">${s.desc}</div>
-      </div>
-    </div>
-  `).join('');
-
-  document.body.appendChild(menu);
-
-  // Fecha ao clicar fora
-  setTimeout(() => {
-    document.addEventListener('click', function closeMenu(e) {
-      if (!menu.contains(e.target) && !bar.contains(e.target)) {
-        menu.remove();
-        document.removeEventListener('click', closeMenu);
-      }
-    });
-  }, 10);
-}
-
-
-/* ===== SETTINGS SYSTEM ===== */
-let settingsSelectedColor = '#ff7b72';
-let settingsCurrentTab = 'conta';
-
-function openSettings() {
-  const screen = document.getElementById('settingsScreen');
-  screen.classList.add('show');
-  // Carrega dados atuais
-  document.getElementById('settingsDisplayName').textContent = me.display_name || me.name || me.username || '?';
-  document.getElementById('settingsUsername').textContent = '@' + (me.username || 'user') + ' · #' + (me.id || '0000');
-  document.getElementById('settingsDisplayInput').value = me.display_name || me.name || me.username || '';
-  document.getElementById('settingsUsernameInput').value = me.username || '';
-  document.getElementById('settingsBioInput').value = me.bio || '';
-  document.getElementById('settingsAvatarImg').src = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
-  settingsSelectedColor = me.avatar_color || '#ff7b72';
-  renderSettingsColorPicker();
-  switchSettingsTab(document.querySelector('.settings-nav-item[data-tab="conta"]'), 'conta');
-}
-
-function closeSettings() {
-  document.getElementById('settingsScreen').classList.remove('show');
-}
-
-function switchSettingsTab(el, tab) {
-  document.querySelectorAll('.settings-nav-item').forEach(item => {
-    item.classList.remove('active');
-  });
-  if (el) el.classList.add('active');
-
-  const titles = {conta:'Configurações de Conta', perfil:'Perfil do Usuário', aparencia:'Aparência', sobre:'Sobre'};
-  document.getElementById('settingsTitle').textContent = titles[tab] || tab;
-
-  document.querySelectorAll('.settings-tab-content').forEach(content => {
-    content.classList.remove('active');
-  });
-  const target = document.getElementById('settings-tab-' + tab);
-  if (target) target.classList.add('active');
-  settingsCurrentTab = tab;
-}
-
-function renderSettingsColorPicker() {
-  const el = document.getElementById('settingsColorPicker');
-  el.innerHTML = COLORS.map(c =>
-    `<div class="settings-color-dot ${c===settingsSelectedColor?'selected':''}" style="background:${c}" data-color="${c}" onclick="selectSettingsColor('${c}')"></div>`
-  ).join('');
-}
-
-function selectSettingsColor(color) {
-  settingsSelectedColor = color;
-  renderSettingsColorPicker();
-}
-
-async function saveProfile() {
-  const displayName = document.getElementById('settingsDisplayInput').value.trim();
-  const bio = document.getElementById('settingsBioInput').value.trim();
-
-  const fd = new FormData();
-  if (displayName) fd.append('display_name', displayName);
-  fd.append('avatar_color', settingsSelectedColor);
-  if (bio !== undefined) fd.append('bio', bio);
-
-  const res = await fetch(API + '/api/me/update', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) {
-    const d = await res.json();
-    showToast('Erro', d.detail || 'Não foi possível salvar', '#ef4444');
-    return;
-  }
-  const data = await res.json();
-  me = { ...me, ...data };
-
-  // Atualiza UI
-  document.getElementById('dockProfileName').textContent = me.display_name || me.name || me.username;
-  document.getElementById('settingsDisplayName').textContent = me.display_name || me.name || me.username;
-  document.querySelector('.panel-profile-avatar').src = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
-  document.querySelector('.dock-logo img').src = me.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
-
-  showToast('Perfil atualizado!', 'Suas alterações foram salvas.', '#4ade80');
-}
-
-async function uploadAvatar(input) {
-  if (!input.files[0]) return;
-  const fd = new FormData();
-  fd.append('file', input.files[0]);
-
-  const res = await fetch(API + '/api/me/avatar', { method: 'POST', body: fd, headers: authHeader() });
-  if (!res.ok) {
-    const d = await res.json();
-    showToast('Erro', d.detail || 'Não foi possível enviar avatar', '#ef4444');
-    return;
-  }
-  const data = await res.json();
-  me.avatar_image = data.avatar_image;
-  document.getElementById('settingsAvatarImg').src = me.avatar_image;
-  document.querySelector('.panel-profile-avatar').src = me.avatar_image;
-  document.querySelector('.dock-logo img').src = me.avatar_image;
-  showToast('Avatar atualizado!', 'Sua foto de perfil foi trocada.', '#4ade80');
-}
-
-function doLogout() {
-  closeSettings();
-  token = null;
-  me = null;
-  localStorage.removeItem('aurora_token');
-  localStorage.removeItem('aurora_session');
-  showAuth();
-  if (ws) { ws.close(); ws = null; }
-  if (notifWs) { notifWs.close(); notifWs = null; }
-}
-
-// Fecha settings com ESC
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    const s = document.getElementById('settingsScreen');
-    if (s && s.classList.contains('show')) closeSettings();
-    cancelReply();
-    cancelEdit();
-    closeAnyLumina();
-  }
-});
-</script>
-<div class="ws-status offline" id="wsStatus" style="display:none;">
-  <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>
-</div>
-
-
-
-
-
-
-<!-- ===== SCROLLBAR AERO COSMIC ===== -->
-<style>
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(139, 92, 246, 0.6) rgba(5, 3, 16, 0.4);
-}
-
-/* Chrome / Edge / Safari */
-::-webkit-scrollbar {
-  width: 10px !important;
-  height: 10px !important;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(5, 3, 16, 0.5) !important;
-  border-left: 1px solid rgba(139, 92, 246, 0.08) !important;
-  border-radius: 0 !important;
-}
-
-::-webkit-scrollbar-corner {
-  background: rgba(5, 3, 16, 0.5) !important;
-}
-
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, 
-    rgba(139, 92, 246, 0.65) 0%, 
-    rgba(6, 182, 212, 0.55) 50%,
-    rgba(139, 92, 246, 0.65) 100%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  border-radius: 6px !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.15),
-    0 0 6px rgba(139, 92, 246, 0.2) !important;
-  min-height: 36px !important;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, 
-    rgba(139, 92, 246, 0.85) 0%, 
-    rgba(6, 182, 212, 0.75) 50%,
-    rgba(236, 72, 153, 0.7) 100%) !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 0 12px rgba(139, 92, 246, 0.4),
-    0 0 24px rgba(6, 182, 212, 0.2) !important;
-}
-
-::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(180deg, 
-    rgba(59, 130, 246, 0.9) 0%, 
-    rgba(6, 182, 212, 0.85) 50%,
-    rgba(139, 92, 246, 0.9) 100%) !important;
-}
-
-/* Botões de seta */
-::-webkit-scrollbar-button {
-  display: block !important;
-  height: 12px !important;
-  width: 10px !important;
-  background: rgba(10, 8, 30, 0.6) !important;
-  border: 1px solid rgba(139, 92, 246, 0.12) !important;
-}
-
-::-webkit-scrollbar-button:vertical:start {
-  border-radius: 6px 6px 0 0 !important;
-  background: linear-gradient(180deg, 
-    rgba(139, 92, 246, 0.2) 0%, 
-    rgba(10, 8, 30, 0.3) 100%) !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='18 15 12 9 6 15'%3E%3C/polyline%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-}
-
-::-webkit-scrollbar-button:vertical:end {
-  border-radius: 0 0 6px 6px !important;
-  background: linear-gradient(180deg, 
-    rgba(10, 8, 30, 0.3) 0%, 
-    rgba(139, 92, 246, 0.2) 100%) !important;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6' viewBox='0 0 24 24' fill='none' stroke='%236366f1' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: center !important;
-}
-
-::-webkit-scrollbar-button:hover {
-  background-color: rgba(139, 92, 246, 0.15) !important;
-  border-color: rgba(139, 92, 246, 0.25) !important;
-}
-</style>
-
-<!-- ===== OVERRIDE: Topic & Header Tabs ===== -->
-<style>
-/* Vence os !important dos CSS externos */
-.topic-tab.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45)) !important;
-  border-color: rgba(96, 165, 250, 0.7) !important;
-  color: #fff !important;
-  box-shadow:
-    0 0 16px rgba(59, 130, 246, 0.35),
-    0 0 32px rgba(6, 182, 212, 0.18),
-    inset 0 1px 0 rgba(255,255,255,0.12) !important;
-}
-
-.topic-tab.active .topic-icon {
-  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.6)) !important;
-}
-
-.topic-tab:hover {
-  background: rgba(139, 92, 246, 0.08) !important;
-  border-color: rgba(139, 92, 246, 0.25) !important;
-  box-shadow:
-    0 0 10px rgba(139, 92, 246, 0.1),
-    inset 0 1px 0 rgba(255,255,255,0.03) !important;
-}
-
-.header-tab.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.55), rgba(6, 182, 212, 0.45)) !important;
-  border-color: rgba(96, 165, 250, 0.7) !important;
-  color: #fff !important;
-  box-shadow:
-    0 0 12px rgba(59, 130, 246, 0.35),
-    0 0 24px rgba(6, 182, 212, 0.18),
-    inset 0 1px 0 rgba(255,255,255,0.12) !important;
-}
-
-.header-tab:hover {
-  background: rgba(139, 92, 246, 0.08) !important;
-  border-color: rgba(139, 92, 246, 0.25) !important;
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.1) !important;
-  color: var(--text) !important;
-}
-
-/* ===== SETTINGS SCREEN - Discord Style ===== */
-.settings-screen {
-  position: fixed;
-  inset: 0;
-  z-index: 150;
-  display: none;
-  background: rgba(5, 3, 16, 0.92);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-}
-.settings-screen.show {
-  display: flex;
-  animation: settingsIn 0.3s ease;
-}
-@keyframes settingsIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.settings-sidebar {
-  width: 220px;
-  background: rgba(10, 8, 30, 0.6);
-  backdrop-filter: blur(24px);
-  border-right: 1px solid rgba(139, 92, 246, 0.15);
-  display: flex;
-  flex-direction: column;
-  padding: 24px 16px;
-  gap: 4px;
-  overflow-y: auto;
-}
-.settings-sidebar-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #6366f1;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin: 8px 0 12px 4px;
-}
-.settings-nav-item {
-  padding: 10px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  color: #a5b4fc;
-  border: 1px solid transparent;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.settings-nav-item:hover {
-  background: rgba(139, 92, 246, 0.08);
-  color: #e0e7ff;
-}
-.settings-nav-item.active {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(6, 182, 212, 0.4));
-  border-color: rgba(96, 165, 250, 0.6);
-  color: #fff;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255,255,255,0.1);
-}
-
-.settings-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  padding: 40px 60px;
-  position: relative;
-}
-.settings-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-}
-.settings-header h2 {
-  font-size: 28px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0;
-}
-.settings-close {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-  background: rgba(10, 8, 30, 0.6);
-  color: #a5b4fc;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  transition: all 0.2s;
-}
-.settings-close:hover {
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  border-color: rgba(59, 130, 246, 0.6);
-  color: #fff;
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
-  transform: scale(1.08);
-}
-
-.settings-card {
-  background: rgba(10, 8, 30, 0.6);
-  backdrop-filter: blur(24px);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 20px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(139, 92, 246, 0.08);
-  max-width: 600px;
-}
-.settings-card h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: #e0e7ff;
-  margin: 0 0 16px 0;
-}
-.settings-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
-  margin: 16px 0;
-}
-.settings-avatar-wrap {
-  position: relative;
-  cursor: pointer;
-  width: 80px;
-  height: 80px;
-  flex-shrink: 0;
-}
-.settings-avatar-wrap img {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 3px solid rgba(139, 92, 246, 0.4);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
-  object-fit: cover;
-  display: block;
-}
-.settings-avatar-overlay {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.settings-avatar-wrap:hover .settings-avatar-overlay {
-  opacity: 1;
-}
-.settings-avatar-overlay span {
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-}
-.settings-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-.settings-field label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #6366f1;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.settings-field input,
-.settings-field textarea {
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  background: rgba(10, 8, 30, 0.5);
-  color: #e0e7ff;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.3s;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-  font-family: Inter, sans-serif;
-}
-.settings-field input:focus,
-.settings-field textarea:focus {
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1), inset 0 2px 8px rgba(0,0,0,0.2);
-}
-.settings-field input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.settings-color-row {
-  display: flex;
-  gap: 10px;
-  margin-top: 4px;
-}
-.settings-color-dot {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.15s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-.settings-color-dot:hover {
-  transform: scale(1.15);
-}
-.settings-color-dot.selected {
-  border-color: #fff;
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5), 0 0 12px rgba(139, 92, 246, 0.4);
-}
-.settings-btn {
-  padding: 10px 20px;
-  border-radius: 12px;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.settings-btn-primary {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-  color: #fff;
-  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3);
-}
-.settings-btn-primary:hover {
-  filter: brightness(1.15);
-  transform: translateY(-1px);
-}
-.settings-btn-ghost {
-  background: transparent;
-  color: #a5b4fc;
-  border: 1px solid rgba(139, 92, 246, 0.3);
-}
-.settings-btn-ghost:hover {
-  border-color: rgba(139, 92, 246, 0.6);
-  color: #fff;
-  background: rgba(139, 92, 246, 0.08);
-}
-.settings-tab-content {
-  display: none;
-}
-.settings-tab-content.active {
-  display: block;
-  animation: fadeInUp 0.3s ease;
-}
-.settings-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-.settings-theme-card {
-  flex: 1;
-  padding: 16px;
-  border-radius: 16px;
-  border: 2px solid rgba(139, 92, 246, 0.15);
-  background: rgba(10, 8, 30, 0.4);
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.25s ease;
-  opacity: 0.6;
-}
-.settings-theme-card:hover {
-  opacity: 0.8;
-  border-color: rgba(139, 92, 246, 0.3);
-}
-.settings-theme-card.active {
-  border-color: rgba(139, 92, 246, 0.5);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
-  opacity: 1;
-}
-.settings-theme-card .theme-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-.settings-theme-card .theme-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #a5b4fc;
-}
-.settings-theme-card.active .theme-name {
-  color: #fff;
-}
-
-/* ===== FRIENDS SCREEN - Discord Style + Cosmic Aero ===== */
-.friends-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.friends-toolbar {
-  height: 48px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 20px;
-  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
-  flex-shrink: 0;
-}
-
-.friends-toolbar-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  color: #e0e7ff;
-  margin-right: 16px;
-  padding-right: 16px;
-  border-right: 1px solid rgba(139, 92, 246, 0.2);
-}
-
-.friends-toolbar-tab {
-  padding: 6px 12px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #a5b4fc;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-  background: transparent;
-  position: relative;
-}
-
-.friends-toolbar-tab:hover {
-  color: #e0e7ff;
-  background: rgba(139, 92, 246, 0.08);
-}
-
-.friends-toolbar-tab.active {
-  color: #fff;
-  background: rgba(139, 92, 246, 0.15);
-}
-
-.friends-toolbar-tab .tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16px;
-  height: 16px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #ef4444, #f97316);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  margin-left: 6px;
-  padding: 0 4px;
-}
-
-.friends-toolbar-btn {
-  margin-left: auto;
-  padding: 8px 16px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #3b82f6, #06b6d4);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
-}
-
-.friends-toolbar-btn:hover {
-  filter: brightness(1.15);
-  transform: translateY(-1px);
-}
-
-.friends-search-bar {
-  padding: 12px 20px;
-  flex-shrink: 0;
-}
-
-.friends-search-input {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(139, 92, 246, 0.15);
-  background: rgba(10, 8, 30, 0.5);
-  color: #e0e7ff;
-  font-size: 14px;
-  outline: none;
-  transition: all 0.3s;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.friends-search-input:focus {
-  border-color: rgba(139, 92, 246, 0.4);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1), inset 0 2px 8px rgba(0,0,0,0.2);
-}
-
-.friends-search-input::placeholder {
-  color: #6366f1;
-  opacity: 0.5;
-}
-
-.friends-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0 20px 20px;
-}
-
-.friends-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: #6366f1;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 16px 0 8px;
-  padding: 0 8px;
-}
-
-.friends-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-bottom: 2px;
-  border: 1px solid transparent;
-}
-
-.friends-row:hover {
-  background: rgba(139, 92, 246, 0.06);
-  border-color: rgba(139, 92, 246, 0.15);
-}
-
-.friends-row-avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.friends-row-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
-}
-
-.friends-row-status {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #050310;
-}
-
-.friends-row-status.online { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.6); }
-.friends-row-status.away { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.6); }
-.friends-row-status.busy { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.6); }
-.friends-row-status.offline { background: #6b7280; }
-
-.friends-row-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.friends-row-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #e0e7ff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.friends-row-sub {
-  font-size: 12px;
-  color: #6366f1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.friends-row-actions {
-  display: flex;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.friends-row:hover .friends-row-actions {
-  opacity: 1;
-}
-
-.friends-row-action {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255,255,255,0.05);
-  color: #a5b4fc;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  transition: all 0.2s;
-}
-
-.friends-row-action:hover {
-  background: rgba(139, 92, 246, 0.15);
-  color: #fff;
-  box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
-}
-
-/* ===== WELCOME COSMIC ===== */
-.welcome-cosmic {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 40px;
-  position: relative;
-}
-
-.welcome-cosmic-glow {
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.3), transparent 70%);
-  position: absolute;
-  animation: welcomeGlow 4s ease-in-out infinite;
-  z-index: 0;
-}
-
-@keyframes welcomeGlow {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.2); opacity: 0.8; }
-}
-
-.welcome-cosmic img {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  position: relative;
-  z-index: 1;
-  border: 3px solid rgba(139, 92, 246, 0.4);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
-  animation: alpacaFloat 4s ease-in-out infinite;
-}
-
-.welcome-cosmic h1 {
-  font-size: 32px;
-  font-weight: 700;
-  margin-top: 24px;
-  position: relative;
-  z-index: 1;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.welcome-cosmic p {
-  font-size: 15px;
-  color: #a5b4fc;
-  margin-top: 8px;
-  position: relative;
-  z-index: 1;
-  max-width: 400px;
-  line-height: 1.6;
-}
-
-.welcome-cosmic-btn {
-  margin-top: 24px;
-  padding: 12px 28px;
-  border-radius: 14px;
-  border: none;
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  position: relative;
-  z-index: 1;
-  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
-  transition: all 0.3s;
-}
-
-.welcome-cosmic-btn:hover {
-  filter: brightness(1.15);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(236, 72, 153, 0.4);
-}
-
-</style>
-<script src="/static/cosmic_aero/lumina_extras.js?v=3"></script>
-</body>
-</html>
+
+
+@app.post("/api/register")
+def register(username: str = Form(...), password: str = Form(...), display_name: str = Form(None), color: str = Form("#ff7b72")):
+    ALPACA_POOL = [
+        '/static/cosmic_aero/alpacas/alpaca_gray.png',
+        '/static/cosmic_aero/alpacas/alpaca_pink.png',
+        '/static/cosmic_aero/alpacas/alpaca_blue.png',
+        '/static/cosmic_aero/alpacas/alpaca_green.png',
+        '/static/cosmic_aero/alpacas/alpaca_purple.png',
+        '/static/cosmic_aero/alpacas/alpaca_cyan.png',
+        '/static/cosmic_aero/alpacas/alpaca_red.png',
+        '/static/cosmic_aero/alpacas/alpaca_orange.png',
+        '/static/cosmic_aero/alpacas/alpaca_yellow.png',
+        '/static/cosmic_aero/alpacas/alpaca_emerald.png',
+        '/static/cosmic_aero/alpacas/alpaca_violet.png',
+        '/static/cosmic_aero/alpacas/alpaca_indigo.png',
+        '/static/cosmic_aero/alpacas/alpaca_lime.png',
+        '/static/cosmic_aero/alpacas/alpaca_magenta.png',
+        '/static/cosmic_aero/alpacas/alpaca_rose.png',
+        '/static/cosmic_aero/alpacas/alpaca_sky.png',
+        '/static/cosmic_aero/alpacas/alpaca_teal.png',
+        '/static/cosmic_aero/alpacas/alpaca_fuchsia.png',
+        '/static/cosmic_aero/alpacas/alpaca_amber.png',
+    ]
+    import random
+    alpaca_img = random.choice(ALPACA_POOL)
+
+    uid = str(uuid.uuid4())[:8]
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO users (id, username, display_name, password_hash, avatar_color, avatar_image) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, username.lower(), display_name or username, get_password_hash(password), color, alpaca_img))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Username ja existe")
+    conn.close()
+    token = create_access_token({"sub": uid, "username": username.lower()})
+    return {"token": token, "user": {"id": uid, "username": username, "display_name": display_name or username, "color": color, "avatar_image": alpaca_img}}
+
+
+@app.post("/api/login")
+def login(username: str = Form(...), password: str = Form(...)):
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM users WHERE username = ?", (username.lower(),))
+    row = c.fetchone()
+    conn.close()
+    if not row or not verify_password(password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Usuario ou senha invalidos")
+    user = dict(row)
+    token = create_access_token({"sub": user["id"], "username": user["username"]})
+    return {"token": token, "user": {"id": user["id"], "username": user["username"], "display_name": user["display_name"] or user["username"], "color": user["avatar_color"], "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}}
+
+
+@app.get("/api/me")
+def me(request: Request):
+    return require_user(request)
+
+
+@app.get("/api/users/search")
+def search_users(request: Request, q: str = ""):
+    require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE username LIKE ? OR display_name LIKE ? LIMIT 20",
+        (f"%{q}%", f"%{q}%"))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+@app.get("/api/friends")
+def list_friends(request: Request):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'accepted'", (user["id"],))
+    sent = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'accepted'", (user["id"],))
+    received = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT f.id, f.friend_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? AND f.status = 'pending'", (user["id"],))
+    pending_sent = [dict(r) for r in c.fetchall()]
+    c.execute("SELECT f.id, f.user_id as fid, f.status, u.display_name, u.username, u.avatar_color, u.avatar_image, u.status as user_status FROM friendships f JOIN users u ON u.id = f.user_id WHERE f.friend_id = ? AND f.status = 'pending'", (user["id"],))
+    pending_received = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return {"friends": sent + received, "pending_sent": pending_sent, "pending_received": pending_received}
+
+
+@app.post("/api/friends/request")
+async def add_friend(request: Request, username: str = Form(...)):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE username = ?", (username.lower(),))
+    target = c.fetchone()
+    if not target:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    tid = target["id"]
+    if tid == user["id"]:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Nao pode adicionar voce mesmo")
+    c.execute("SELECT * FROM friendships WHERE user_id = ? AND friend_id = ?", (user["id"], tid))
+    if c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Solicitacao ja existe")
+    c.execute("SELECT * FROM friendships WHERE user_id = ? AND friend_id = ?", (tid, user["id"]))
+    if c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Solicitacao ja existe")
+    fid = str(uuid.uuid4())[:8]
+    c.execute("INSERT INTO friendships (id, user_id, friend_id, status) VALUES (?, ?, ?, 'pending')", (fid, user["id"], tid))
+    conn.commit()
+    conn.close()
+    await notif_manager.send(tid, {
+        "type": "friend_request",
+        "from": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72"), "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}
+    })
+    return {"ok": True}
+
+
+@app.post("/api/friends/accept")
+async def accept_friend(request: Request, friend_id: str = Form(...)):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE friendships SET status = 'accepted' WHERE user_id = ? AND friend_id = ? AND status = 'pending'", (friend_id, user["id"]))
+    if c.rowcount == 0:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Solicitacao nao encontrada")
+    dm_id = str(uuid.uuid4())[:8]
+    u1, u2 = sorted([user["id"], friend_id])
+    c.execute("INSERT OR IGNORE INTO direct_chats (id, user1_id, user2_id) VALUES (?, ?, ?)", (dm_id, u1, u2))
+    conn.commit()
+    conn.close()
+    await notif_manager.send(friend_id, {
+        "type": "friend_accepted",
+        "by": {"id": user["id"], "username": user["username"], "display_name": user.get("display_name") or user["username"], "avatar_color": user.get("avatar_color", "#ff7b72"), "avatar_image": user.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png")}
+    })
+    return {"ok": True}
+
+
+@app.post("/api/friends/reject")
+def reject_friend(request: Request, friend_id: str = Form(...)):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+        (user["id"], friend_id, friend_id, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/circles")
+def list_circles(request: Request):
+    user = require_user(request)
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT c.* FROM circles c JOIN circle_members m ON m.circle_id = c.id WHERE m.user_id = ? ORDER BY c.created_at DESC", (user["id"],))
+    circles = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return circles
+
+
+@app.post("/api/circles")
+def create_circle(request: Request, name: str = Form(...), color: str = Form("#a78bfa")):
+    user = require_user(request)
+    cid = str(uuid.uuid4())[:8]
+    invite = str(uuid.uuid4())[:12]
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("INSERT INTO circles (id, name, owner_id, color, invite_code) VALUES (?, ?, ?, ?, ?)", (cid, name, user["id"], color, invite))
+    mid = str(uuid.uuid4())[:8]
+    c.execute("INSERT INTO circle_members (id, circle_id, user_id, role) VALUES (?, ?, ?, 'owner')", (mid, cid, user["id"]))
+    tid = str(uuid.uuid4())[:8]
+    c.execute("INSERT INTO topics (id, circle_id, name, type, position) VALUES (?, ?, ?, 'text', 0)", (tid, cid, "geral"))
+    conn.commit()
+    conn.close()
+    return {"id": cid, "name": name, "color": color, "invite_code": invite}
+
+
+@app.post("/api/circles/join")
+def join_circle(request: Request, code: str = Form(...)):
+    user = require_user(request)
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM circles WHERE invite_code = ?", (code,))
+    circle = c.fetchone()
+    if not circle:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Codigo invalido")
+    c.execute("SELECT * FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle["id"], user["id"]))
+    if c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Ja esta no circulo")
+    mid = str(uuid.uuid4())[:8]
+    c.execute("INSERT INTO circle_members (id, circle_id, user_id, role) VALUES (?, ?, ?, 'member')", (mid, circle["id"], user["id"]))
+    conn.commit()
+    conn.close()
+    return {"id": circle["id"], "name": circle["name"]}
+
+
+@app.get("/api/circles/by-invite/{code}")
+def get_circle_by_invite(code: str):
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, name, color, icon_url, invite_code FROM circles WHERE invite_code = ?", (code,))
+    circle = c.fetchone()
+    conn.close()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Codigo invalido")
+    return dict(circle)
+
+
+@app.get("/api/circles/{circle_id}")
+def get_circle(circle_id: str, request: Request):
+    user = require_user(request)
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT * FROM circles WHERE id = ?", (circle_id,))
+    circle = c.fetchone()
+    if not circle:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Circulo nao encontrado")
+    c.execute("SELECT * FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user["id"]))
+    if not c.fetchone():
+        conn.close()
+        raise HTTPException(status_code=403, detail="Nao e membro")
+    c.execute("SELECT user_id, role FROM circle_members WHERE circle_id = ?", (circle_id,))
+    member_rows = c.fetchall()
+    c.execute("SELECT * FROM topics WHERE circle_id = ? ORDER BY position", (circle_id,))
+    topics = [dict(r) for r in c.fetchall()]
+    conn.close()
+    user_ids = [m["user_id"] for m in member_rows]
+    members = []
+    if user_ids:
+        conn2 = get_db(USERS_DB)
+        c2 = conn2.cursor()
+        placeholders = ','.join('?' * len(user_ids))
+        c2.execute(f"SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id IN ({placeholders})", user_ids)
+        user_map = {u["id"]: dict(u) for u in c2.fetchall()}
+        conn2.close()
+        for m in member_rows:
+            u = user_map.get(m["user_id"], {})
+            members.append({
+                "id": m["user_id"],
+                "username": u.get("username", ""),
+                "display_name": u.get("display_name", ""),
+                "avatar_color": u.get("avatar_color", "#888"),
+                "avatar_image": u.get("avatar_image", "/static/cosmic_aero/alpacas/alpaca_gray.png"),
+                "role": m["role"]
+            })
+    return {"circle": dict(circle), "members": members, "topics": topics}
+
+
+@app.post("/api/circles/{circle_id}/topics")
+def create_topic(circle_id: str, request: Request, name: str = Form(...), type: str = Form("text")):
+    user = require_user(request)
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT role FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user["id"]))
+    row = c.fetchone()
+    if not row or row["role"] not in ("owner", "mod"):
+        conn.close()
+        raise HTTPException(status_code=403, detail="Sem permissao")
+    tid = str(uuid.uuid4())[:8]
+    c.execute("SELECT MAX(position) as mp FROM topics WHERE circle_id = ?", (circle_id,))
+    pos = (c.fetchone()["mp"] or 0) + 1
+    c.execute("INSERT INTO topics (id, circle_id, name, type, position) VALUES (?, ?, ?, ?, ?)", (tid, circle_id, name, type, pos))
+    conn.commit()
+    conn.close()
+    return {"id": tid, "name": name, "type": type}
+
+
+@app.get("/api/dm-chats")
+def list_dm_chats(request: Request):
+    user = require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""SELECT d.id, d.user1_id, d.user2_id,
+        CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END as peer_id,
+        u.display_name, u.username, u.avatar_color, u.avatar_image
+        FROM direct_chats d
+        JOIN users u ON u.id = CASE WHEN d.user1_id = ? THEN d.user2_id ELSE d.user1_id END
+        WHERE d.user1_id = ? OR d.user2_id = ?""", (user["id"], user["id"], user["id"], user["id"]))
+    chats = [dict(r) for r in c.fetchall()]
+    conn.close()
+    conn2 = get_db(MESSAGES_DB)
+    c2 = conn2.cursor()
+    for ch in chats:
+        c2.execute("SELECT count FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + ch["id"]))
+        row = c2.fetchone()
+        ch["unread"] = row["count"] if row else 0
+    conn2.close()
+    return chats
+
+
+@app.get("/api/dm-chats/{chat_id}/history")
+def dm_history(chat_id: str, request: Request, limit: int = 50):
+    user = require_user(request)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + chat_id))
+    conn.commit()
+    conn.close()
+    return _get_history(f"dm:{chat_id}", limit)
+
+
+@app.get("/api/topics/{topic_id}/history")
+def topic_history(topic_id: str, request: Request, limit: int = 50):
+    user = require_user(request)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "topic:" + topic_id))
+    conn.commit()
+    conn.close()
+    return _get_history(f"topic:{topic_id}", limit)
+
+
+@app.get("/api/unread")
+def get_unread(request: Request):
+    user = require_user(request)
+    conn = get_db(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT room_id, count FROM unread WHERE user_id = ?", (user["id"],))
+    rows = {r["room_id"]: r["count"] for r in c.fetchall()}
+    conn.close()
+    return rows
+
+
+@app.post("/api/messages/{msg_id}/react")
+def react_to_message(msg_id: int, request: Request, emoji: str = Form(...)):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    try:
+        c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        c.execute("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", (msg_id, user["id"], emoji))
+        conn.commit()
+    # Retornar reações atualizadas
+    c.execute("SELECT user_id, emoji FROM reactions WHERE message_id = ?", (msg_id,))
+    reactions = {}
+    for r in c.fetchall():
+        emoji = r["emoji"]
+        if emoji not in reactions:
+            reactions[emoji] = {"count": 0, "users": []}
+        reactions[emoji]["count"] += 1
+        reactions[emoji]["users"].append(r["user_id"])
+    conn.close()
+    return {"reactions": reactions}
+
+
+@app.patch("/api/messages/{msg_id}")
+def edit_message(msg_id: int, request: Request, content: str = Form(...)):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Sem permissao")
+    c.execute("UPDATE messages SET content = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?", (content, msg_id))
+    conn.commit()
+    c.execute("SELECT id, room_id, user_id, user_name, user_color, content, msg_type, file_url, reply_to_id, reply_to_user, reply_to_content, edited_at, timestamp FROM messages WHERE id = ?", (msg_id,))
+    msg = dict(c.fetchone())
+    msg["user"] = {"name": msg.pop("user_name"), "color": msg.pop("user_color")}
+    conn.close()
+    return msg
+
+
+@app.delete("/api/messages/{msg_id}")
+def delete_message(msg_id: int, request: Request):
+    user = require_user(request)
+    conn = sqlite3.connect(MESSAGES_DB)
+    c = conn.cursor()
+    c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+    row = c.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Sem permissao")
+    c.execute("DELETE FROM messages WHERE id = ?", (msg_id,))
+    c.execute("DELETE FROM reactions WHERE message_id = ?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
+
+
+@app.get("/api/users/{user_id}/profile")
+def get_user_profile(user_id: str, request: Request):
+    require_user(request)
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT id, username, display_name, avatar_color, avatar_image, bio, status FROM users WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+    return dict(row)
+
+
+@app.post("/api/upload")
+async def upload(file: UploadFile = File(...)):
+    ext = os.path.splitext(file.filename)[1]
+    fname = f"{uuid.uuid4().hex}{ext}"
+    path = os.path.join(UPLOAD_DIR, fname)
+    with open(path, "wb") as f:
+        f.write(await file.read())
+    return {"url": f"/static/uploads/{fname}"}
+
+
+@app.websocket("/ws/notifications")
+async def notif_ws(ws: WebSocket):
+    await ws.accept()
+    raw = await ws.receive_text()
+    try:
+        data = json.loads(raw)
+    except:
+        await ws.close(); return
+    token = data.get("token")
+    if not token:
+        await ws.close(); return
+    payload = decode_token(token)
+    if not payload:
+        await ws.close(); return
+    user_id = payload["sub"]
+    conn = sqlite3.connect(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE users SET status = 'online', last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    notif_manager.connect(user_id, ws)
+    try:
+        while True:
+            await ws.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        notif_manager.disconnect(user_id)
+        # NÃO seta offline aqui — o status persiste entre reinicios do servidor
+        # O usuário pode estar com status 'busy' ou 'away' e não queremos perder isso
+        conn = sqlite3.connect(USERS_DB)
+        c = conn.cursor()
+        c.execute("UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
+        conn.commit()
+        conn.close()
+
+
+@app.websocket("/ws/{room_id}")
+async def ws_endpoint(room_id: str, ws: WebSocket):
+    await ws.accept()
+    raw = await ws.receive_text()
+    try:
+        data = json.loads(raw)
+    except:
+        await ws.close(); return
+
+    user = None
+    token = data.get("token")
+    if token:
+        payload = decode_token(token)
+        if payload:
+            conn = get_db(USERS_DB)
+            c = conn.cursor()
+            c.execute("SELECT id, username, display_name, avatar_color, avatar_image FROM users WHERE id = ?", (payload["sub"],))
+            row = c.fetchone()
+            conn.close()
+            if row:
+                user = {"id": row["id"], "name": row["display_name"] or row["username"], "color": row["avatar_color"], "avatar_image": row["avatar_image"] or "/static/cosmic_aero/alpacas/alpaca_gray.png", "is_guest": False}
+
+    if not user:
+        await ws.close()
+        return
+
+    manager.connect(room_id, ws, user)
+
+    await ws.send_text(json.dumps({"type": "handshake", "user_id": user["id"], "user": user}))
+    await manager.broadcast(room_id, {"type": "user_joined", "user": user, "users": manager.get_users(room_id)}, exclude=ws)
+    await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
+    await ws.send_text(json.dumps({"type": "users", "users": manager.get_users(room_id)}))
+
+    try:
+        while True:
+            raw = await ws.receive_text()
+            data = json.loads(raw)
+            mtype = data.get("type", "message")
+
+            if mtype == "typing":
+                await manager.broadcast(room_id, {"type": "typing", "user": user}, exclude=ws)
+                continue
+
+            if mtype == "voice_join":
+                manager.voice_users.setdefault(room_id, {})[user["id"]] = user
+                await manager.broadcast(room_id, {"type": "voice_user_joined", "user": user, "voice_users": manager.get_voice_users(room_id)})
+                continue
+
+            if mtype == "voice_leave":
+                if room_id in manager.voice_users and user["id"] in manager.voice_users[room_id]:
+                    del manager.voice_users[room_id][user["id"]]
+                    if not manager.voice_users[room_id]:
+                        del manager.voice_users[room_id]
+                await manager.broadcast(room_id, {"type": "voice_user_left", "user": user, "voice_users": manager.get_voice_users(room_id)})
+                continue
+
+            if mtype == "voice_offer":
+                await manager.send_to_user(data["target"], {"type": "voice_offer", "from": user["id"], "offer": data["offer"]})
+                continue
+
+            if mtype == "voice_answer":
+                await manager.send_to_user(data["target"], {"type": "voice_answer", "from": user["id"], "answer": data["answer"]})
+                continue
+
+            if mtype == "voice_ice":
+                await manager.send_to_user(data["target"], {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
+                continue
+
+            if mtype == "edit_message":
+                msg_id = data.get("msg_id")
+                new_content = data.get("content", "")
+                conn = get_db(MESSAGES_DB)
+                c = conn.cursor()
+                c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+                row = c.fetchone()
+                if row and row["user_id"] == user["id"]:
+                    c.execute("UPDATE messages SET content = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?", (new_content, msg_id))
+                    conn.commit()
+                    await manager.broadcast(room_id, {"type": "message_edited", "msg_id": msg_id, "content": new_content})
+                conn.close()
+                continue
+
+            if mtype == "delete_message":
+                msg_id = data.get("msg_id")
+                conn = get_db(MESSAGES_DB)
+                c = conn.cursor()
+                c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
+                row = c.fetchone()
+                if row and row["user_id"] == user["id"]:
+                    c.execute("DELETE FROM messages WHERE id = ?", (msg_id,))
+                    c.execute("DELETE FROM reactions WHERE message_id = ?", (msg_id,))
+                    conn.commit()
+                    await manager.broadcast(room_id, {"type": "message_deleted", "msg_id": msg_id})
+                conn.close()
+                continue
+
+            if mtype == "reaction":
+                msg_id = data.get("msg_id")
+                emoji = data.get("emoji")
+                conn = get_db(MESSAGES_DB)
+                c = conn.cursor()
+                try:
+                    c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
+                    conn.commit()
+                    added = True
+                except sqlite3.IntegrityError:
+                    c.execute("DELETE FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?", (msg_id, user["id"], emoji))
+                    conn.commit()
+                    added = False
+                c.execute("SELECT user_id, emoji FROM reactions WHERE message_id = ?", (msg_id,))
+                reactions = {}
+                for r in c.fetchall():
+                    e = r["emoji"]
+                    if e not in reactions:
+                        reactions[e] = {"count": 0, "users": []}
+                    reactions[e]["count"] += 1
+                    reactions[e]["users"].append(r["user_id"])
+                conn.close()
+                await manager.broadcast(room_id, {"type": "reaction_update", "msg_id": msg_id, "reactions": reactions})
+                continue
+
+            content = data.get("content", "")
+            file_url = data.get("file_url")
+            db_type = "image" if file_url else "text"
+
+            conn = get_db(MESSAGES_DB)
+            c = conn.cursor()
+            reply_to_id = data.get("reply_to_id")
+            reply_to_user = data.get("reply_to_user")
+            reply_to_content = data.get("reply_to_content")
+            c.execute("""INSERT INTO messages (room_id, user_id, user_name, user_color, content, msg_type, file_url,
+                reply_to_id, reply_to_user, reply_to_content) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (room_id, user["id"] if not user.get("is_guest") else None, user["name"], user["color"],
+                 content, db_type, file_url, reply_to_id, reply_to_user, reply_to_content))
+            msg_id = c.lastrowid
+            conn.commit()
+            conn.close()
+
+            room_users = manager.get_users(room_id)
+            conn = get_db(MESSAGES_DB)
+            c = conn.cursor()
+            for u in room_users:
+                if u["id"] != user["id"]:
+                    c.execute("INSERT INTO unread (user_id, room_id, count, last_message_id) VALUES (?, ?, 1, ?) ON CONFLICT(user_id, room_id) DO UPDATE SET count = count + 1, last_message_id = excluded.last_message_id",
+                        (u["id"], room_id, msg_id))
+            conn.commit()
+            conn.close()
+
+            msg_broadcast = {"type": "message", "id": msg_id, "user": user, "content": content,
+                "file_url": file_url, "msg_type": db_type,
+                "reply_to_id": reply_to_id, "reply_to_user": reply_to_user, "reply_to_content": reply_to_content,
+                "timestamp": datetime.utcnow().isoformat() + "Z"}
+            await manager.broadcast(room_id, msg_broadcast)
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        user_left = manager.disconnect(room_id, ws)
+        await manager.broadcast(room_id, {"type": "user_left", "user": user_left, "users": manager.get_users(room_id)})
+        if room_id in manager.voice_users and user_left.get("id") in manager.voice_users.get(room_id, {}):
+            del manager.voice_users[room_id][user_left["id"]]
+            if not manager.voice_users[room_id]:
+                del manager.voice_users[room_id]
+            await manager.broadcast(room_id, {"type": "voice_user_left", "user": user_left, "voice_users": manager.get_voice_users(room_id)})
