@@ -1816,12 +1816,6 @@ body {
 
 <base target="_blank">
 <base target="_blank">
-<base target="_blank">
-
-
-<base target="_blank">
-<base target="_blank">
-<base target="_blank">
 </head>
 <body>
 <div class="stars"></div>
@@ -2541,7 +2535,7 @@ function renderFriendRow(f) {
   const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
   const unread = unreadMap['dm:' + dmId] || 0;
   return `
-    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+    <div class="friends-row" onclick="openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
       <div class="friends-row-avatar-wrap">
         <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="friends-row-avatar" alt="">
         <div class="friends-row-status ${f.user_status || 'offline'}"></div>
@@ -2551,7 +2545,7 @@ function renderFriendRow(f) {
         <div class="friends-row-sub">@${f.username}${unread > 0 ? ' · <strong style="color:#ef4444;">' + unread + ' mensagem' + (unread>1?'s':'') + ' nova' + (unread>1?'s':'') + '</strong>' : ''}</div>
       </div>
       <div class="friends-row-actions">
-        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
+        <button class="friends-row-action" onclick="event.stopPropagation(); openDM('${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}');" title="Enviar mensagem">💬</button>
         <button class="friends-row-action" onclick="event.stopPropagation();" title="Mais">⋮</button>
       </div>
     </div>
@@ -2608,7 +2602,7 @@ function renderPanelFriends() {
       const dmId = dmChats.find(d => d.peer_id === f.fid)?.id;
       const unread = unreadMap['dm:' + dmId] || 0;
       html.push(`
-        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\'")}', '${f.avatar_color}')">
+        <div class="contact-item" data-peer="${f.fid}" onclick="selectContact(this, '${f.fid}', '${(f.display_name||f.username).replace(/'/g,"\\'")}', '${f.avatar_color}')">
           <div class="contact-avatar-wrap">
             <div class="contact-avatar" style="background:${f.avatar_color}20;">
               <img src="${f.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
