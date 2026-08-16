@@ -2456,6 +2456,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="nebula-blur"></div>
@@ -3087,6 +3088,7 @@ function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
   homeNavTab = 'friends';
   document.getElementById('membersPanel').classList.add('hidden');
+  document.getElementById('membersPanel').innerHTML = '';
   document.getElementById('btnToggleMembers').style.display = 'none';
   document.getElementById('mainHeaderIcon').textContent = '👥';
   document.getElementById('btnToggleMembers').style.display = 'none';
@@ -3456,6 +3458,12 @@ function aboutEasterEgg() {
 }
 
 function showAboutScreen() {
+  // Fecha conexão ativa e limpa estado de chat
+  closeWS();
+  cancelReply();
+  cancelEdit();
+  currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
+  saveSession();
   // Reset easter egg state when entering About
   aboutClickCount = 0;
   aboutEggActive = false;
@@ -3543,6 +3551,11 @@ async function selectCircle(id) {
   cancelReply();
   cancelEdit();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
+  // Limpa easter egg timers
+  aboutEggTimers.forEach(t => clearTimeout(t));
+  aboutEggTimers = [];
+  aboutClickCount = 0;
+  aboutEggActive = false;
   document.getElementById('chatArea').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6366f1;font-size:14px;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(139,92,246,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:spinSlow 1s linear infinite;margin:0 auto 12px;"></div>Carregando...</div></div>';
   document.getElementById('inputArea').classList.add('hidden');
   document.getElementById('userList').classList.add('hidden');
@@ -3759,6 +3772,11 @@ async function openDM(peerId, peerName, peerColor) {
   cancelReply();
   cancelEdit();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
+  // Limpa easter egg timers
+  aboutEggTimers.forEach(t => clearTimeout(t));
+  aboutEggTimers = [];
+  aboutClickCount = 0;
+  aboutEggActive = false;
   document.getElementById('chatArea').innerHTML = '';
   _lastMsgAuthor = null;
   _lastMsgTime = 0;
@@ -3768,6 +3786,7 @@ async function openDM(peerId, peerName, peerColor) {
   setActiveDock('dockHome');
   saveSession();
   document.getElementById('membersPanel').classList.add('hidden');
+  document.getElementById('membersPanel').innerHTML = '';
   document.getElementById('btnToggleMembers').style.display = 'none';
   document.getElementById('mainHeaderIcon').textContent = '👥';
   document.getElementById('panelTitle').textContent = 'Amigos';
@@ -3804,17 +3823,7 @@ function setWsStatus(status, text) {
 }
 
 function connectWS(roomId) {
-  // Se já temos WS aberto, apenas trocamos de room via subscribe
-  if (ws && ws.readyState === 1) {
-    if (currentRoom === roomId) return;
-    currentRoom = roomId;
-    document.getElementById('chatArea').innerHTML = '';
-    _lastMsgAuthor = null;
-    _lastMsgTime = 0;
-    ws.send(JSON.stringify({type: 'subscribe', room: roomId}));
-    return;
-  }
-
+  // SEMPRE fecha e reabre o WS ao trocar de room — elimina race conditions
   closeWS();
   currentRoom = roomId;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -3835,10 +3844,14 @@ function connectWS(roomId) {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'history') {
+      // Guard: só processa history se ainda estamos em um chat ativo
+      if (!currentCircle && !currentDM) return;
       document.getElementById('chatArea').innerHTML = ''; _lastMsgAuthor = null; _lastMsgTime = 0;
       msg.messages.forEach(m => appendMessage(m));
     }
     else if (msg.type === 'message') {
+      // Guard extra: ignora mensagens se saímos do chat
+      if (!currentCircle && !currentDM) return;
       appendMessage(msg);
       if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
     }
@@ -3881,7 +3894,11 @@ function connectWS(roomId) {
   };
 }
 
-function closeWS() { if (ws) { ws.close(); ws = null; } }
+function closeWS() {
+  if (wsRetryTimer) { clearTimeout(wsRetryTimer); wsRetryTimer = null; }
+  if (ws) { ws.close(); ws = null; }
+  currentRoom = null;
+}
 
 let _lastMsgAuthor = null;
 let _lastMsgTime = 0;
