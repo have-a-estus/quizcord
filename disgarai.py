@@ -219,7 +219,7 @@ def _get_history(room_id: str, limit: int = 50):
     msg_ids = []
     for r in rows:
         d = dict(r)
-        d["user"] = {"name": d.pop("user_name"), "color": d.pop("user_color")}
+        d["user"] = {"id": d.pop("user_id"), "name": d.pop("user_name"), "color": d.pop("user_color")}
         msg_ids.append(d["id"])
         msgs.append(d)
     # Buscar reações

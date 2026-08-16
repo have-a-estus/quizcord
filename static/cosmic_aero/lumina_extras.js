@@ -46,6 +46,7 @@ function nuclearBindChatElements() {
         const bubble = this.closest('.message-bubble');
         if (!bubble) { console.log('[LuminaExtras] bubble nao encontrado'); return; }
         let uid = bubble.dataset.uid;
+        console.log('[LuminaExtras] bubble.dataset.uid:', uid);
         if (!uid) {
           const name = this.textContent.trim();
           uid = resolveUserIdByName(name);
@@ -281,9 +282,12 @@ function patchAppendMessage() {
     const area = document.getElementById('chatArea');
     if (!area) return;
     const lastBubble = area.lastElementChild;
-    if (lastBubble && m.user?.id && !lastBubble.dataset.uid) {
+    if (lastBubble && m.user?.id) {
       lastBubble.dataset.uid = m.user.id;
       lastBubble.dataset.uname = m.user.name || '';
+      console.log('[LuminaExtras] bubble uid setado:', m.user.id, m.user.name);
+    } else if (lastBubble && !m.user?.id) {
+      console.log('[LuminaExtras] WARNING: mensagem sem user.id:', m);
     }
     setTimeout(nuclearBindChatElements, 50);
   };
@@ -293,11 +297,31 @@ function patchAppendMessage() {
 // ===== RESOLVE USER ID por nome =====
 function resolveUserIdByName(name) {
   if (!name) return null;
+  // Busca exata em amigos
   const friend = (window.friends?.friends || []).find(f => (f.display_name || f.username) === name);
   if (friend) return friend.fid;
+  // Busca exata em membros do circulo
   if (window.currentCircle?.members) {
     const member = window.currentCircle.members.find(m => (m.display_name || m.username) === name);
     if (member) return member.id;
+  }
+  // Busca parcial (case-insensitive) em amigos
+  const friendPartial = (window.friends?.friends || []).find(f => {
+    const dn = (f.display_name || f.username || '').toLowerCase();
+    const un = (f.username || '').toLowerCase();
+    const n = name.toLowerCase();
+    return dn.includes(n) || un.includes(n) || n.includes(dn) || n.includes(un);
+  });
+  if (friendPartial) return friendPartial.fid;
+  // Busca em dmChats (conversas diretas)
+  if (window.dmChats) {
+    const dm = window.dmChats.find(d => {
+      const dn = (d.display_name || d.username || '').toLowerCase();
+      const un = (d.username || '').toLowerCase();
+      const n = name.toLowerCase();
+      return dn.includes(n) || un.includes(n);
+    });
+    if (dm) return dm.peer_id;
   }
   return null;
 }
