@@ -33,17 +33,28 @@ function patchAppendMessage() {
   const original = appendMessage;
   appendMessage = function(m) {
     original(m);
-    // Adiciona data-uid no bubble recem-criado
     const area = document.getElementById('chatArea');
     if (!area) return;
     const lastBubble = area.lastElementChild;
     if (lastBubble && m.user?.id && !lastBubble.dataset.uid) {
       lastBubble.dataset.uid = m.user.id;
-      // Tambem guarda o nome pra fallback
       lastBubble.dataset.uname = m.user.name || '';
     }
   };
   console.log('[LuminaExtras] appendMessage patched');
+}
+
+// ===== RESOLVE USER ID por nome (fallback para msgs antigas) =====
+function resolveUserIdByName(name) {
+  if (!name) return null;
+  const friend = (window.friends?.friends || []).find(f => (f.display_name || f.username) === name);
+  if (friend) return friend.fid;
+  // Tambem checa membros do circulo atual
+  if (window.currentCircle?.members) {
+    const member = window.currentCircle.members.find(m => (m.display_name || m.username) === name);
+    if (member) return member.id;
+  }
+  return null;
 }
 
 // ===== BLOQUEIOS =====
@@ -115,7 +126,7 @@ function bindContextMenus() {
     });
   }
 
-  // Tela de amigos (friends-row) - delegation no document
+  // Tela de amigos (friends-row)
   document.addEventListener('contextmenu', (e) => {
     const row = e.target.closest('.friends-row');
     if (row && row.closest('.friends-list')) {
@@ -129,6 +140,35 @@ function bindContextMenus() {
       if (fid) showFriendContextMenu(e, fid, name, avatar);
     }
   });
+
+  // CHAT: context menu em msg-author e msg-avatar
+  const chatArea = document.getElementById('chatArea');
+  if (chatArea) {
+    chatArea.addEventListener('contextmenu', (e) => {
+      const bubble = e.target.closest('.message-bubble');
+      if (!bubble) return;
+      // So mostra se nao for mensagem propria
+      const isOwn = bubble.classList.contains('own');
+      if (isOwn) return;
+
+      let uid = bubble.dataset.uid;
+      // Fallback: tenta achar pelo nome
+      if (!uid) {
+        const authorEl = bubble.querySelector('.msg-author');
+        const name = authorEl ? authorEl.textContent.trim() : null;
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
+      }
+      if (!uid || uid === me?.id) return;
+
+      e.preventDefault();
+      const authorEl = bubble.querySelector('.msg-author');
+      const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
+      const avatarEl = bubble.querySelector('.msg-avatar img');
+      const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+      showFriendContextMenu(e, uid, name, avatar);
+    });
+  }
 }
 
 function showFriendContextMenu(e, friendId, friendName, friendAvatar) {
@@ -212,14 +252,18 @@ function bindMiniProfiles() {
       e.stopPropagation();
       const bubble = el.closest('.message-bubble');
       if (!bubble) return;
-      const uid = bubble.dataset.uid;
-      if (uid && uid !== me?.id) {
-        showMiniProfile(uid, el);
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const authorEl = bubble.querySelector('.msg-author');
+        const name = authorEl ? authorEl.textContent.trim() : null;
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
       }
+      if (uid && uid !== me?.id) showMiniProfile(uid, el);
     });
   });
 
-  // Nomes nas mensagens (msg-author) — NOVO
+  // Nomes nas mensagens (msg-author)
   document.querySelectorAll('.msg-author').forEach(el => {
     if (el.dataset.luminaBound) return;
     el.dataset.luminaBound = '1';
@@ -227,10 +271,13 @@ function bindMiniProfiles() {
       e.stopPropagation();
       const bubble = el.closest('.message-bubble');
       if (!bubble) return;
-      const uid = bubble.dataset.uid;
-      if (uid && uid !== me?.id) {
-        showMiniProfile(uid, el);
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const name = el.textContent.trim();
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
       }
+      if (uid && uid !== me?.id) showMiniProfile(uid, el);
     });
   });
 }
@@ -326,7 +373,6 @@ async function showFullProfile(userId) {
     </div>
   `, `<button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>`);
 
-  // Expande o modal para o layout de perfil
   const modalBox = document.getElementById('modalBox');
   if (modalBox) modalBox.classList.add('lumina-profile-modal-box');
 
