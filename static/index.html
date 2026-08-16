@@ -1928,8 +1928,8 @@ body {
   transform: scale(1.05);
 }
 .about-logo {
-  width: 160px;
-  height: 160px;
+  width: 180px;
+  height: 180px;
   border-radius: 36px;
   object-fit: cover;
   border: 3px solid rgba(139, 92, 246, 0.5);
@@ -1988,6 +1988,87 @@ body {
   border: 1px solid rgba(139, 92, 246, 0.2);
   box-shadow: 0 0 20px rgba(139, 92, 246, 0.1);
 }
+
+@keyframes alpacaShake {
+  0%, 100% { transform: translateX(0) scale(1); }
+  10% { transform: translateX(-14px) rotate(-6deg) scale(1.05); }
+  20% { transform: translateX(14px) rotate(6deg) scale(1.05); }
+  30% { transform: translateX(-12px) rotate(-5deg) scale(1.05); }
+  40% { transform: translateX(12px) rotate(5deg) scale(1.05); }
+  50% { transform: translateX(-10px) rotate(-4deg) scale(1.05); }
+  60% { transform: translateX(10px) rotate(4deg) scale(1.05); }
+  70% { transform: translateX(-7px) rotate(-3deg) scale(1.03); }
+  80% { transform: translateX(7px) rotate(3deg) scale(1.03); }
+  90% { transform: translateX(-3px) rotate(-1deg) scale(1.01); }
+}
+
+.about-logo.bonk {
+  animation: alpacaShake 0.6s ease-in-out !important;
+  filter: brightness(1.2) saturate(1.3);
+}
+
+.about-logo.gone {
+  opacity: 0;
+  transform: scale(0.4) translateY(-120px) rotate(15deg);
+  transition: all 2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  filter: blur(4px);
+}
+
+.about-title.bonk-text {
+  background: linear-gradient(135deg, #fbbf24, #f97316) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 0 30px rgba(251, 191, 36, 0.4) !important;
+}
+
+.about-title.sad-text {
+  background: linear-gradient(135deg, #f87171, #ef4444) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  text-shadow: 0 0 30px rgba(248, 113, 113, 0.4) !important;
+}
+
+.about-title.gone-text {
+  background: linear-gradient(135deg, #6366f1, #4338ca) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  opacity: 0.5;
+}
+
+.about-author.bonk-text,
+.about-vibe.bonk-text {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 16px rgba(251, 191, 36, 0.3) !important;
+}
+
+.about-author.sad-text,
+.about-vibe.sad-text {
+  color: #f87171 !important;
+  text-shadow: 0 0 16px rgba(248, 113, 113, 0.3) !important;
+}
+
+.about-author.gone-text,
+.about-vibe.gone-text {
+  color: #6366f1 !important;
+  opacity: 0.4;
+}
+
+.about-click-hint {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: rgba(139, 92, 246, 0.5);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.about-logo-wrap:hover .about-click-hint {
+  opacity: 1;
+}
 </style>
 
 <!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
@@ -2000,6 +2081,7 @@ body {
 <link rel="stylesheet" href="/static/cosmic_aero/lumina_extras.css?v=1">
 
 
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
@@ -2284,6 +2366,9 @@ let notifWs = null;
 let typingTimer = null;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
+let aboutClickCount = 0;
+let aboutEggActive = false;
+let aboutEggTimers = [];
 let homeNavTab = 'friends';
 let pendingCount = 0;
 let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
@@ -2861,16 +2946,91 @@ function setHomeNavTab(tab) {
 
 function aboutEasterEgg() {
   const logo = document.getElementById('aboutLogo');
-  if (!logo) return;
-  logo.style.animation = 'none';
-  logo.offsetHeight; // trigger reflow
-  logo.style.animation = 'alpacaSpin 0.6s ease-in-out, alpacaFloat 4s ease-in-out infinite 0.6s';
-  logo.style.transform = 'scale(1.2)';
-  showToast('✨', 'Vibe Coded with Kimi 2.6', '#ec4899');
-  setTimeout(() => { logo.style.transform = 'scale(1)'; }, 600);
+  if (!logo || aboutEggActive) return;
+
+  aboutClickCount++;
+
+  // Feedback visual sutil antes do 10º clique
+  if (aboutClickCount < 10) {
+    logo.style.transform = 'scale(1.12)';
+    setTimeout(() => { if (logo) logo.style.transform = 'scale(1)'; }, 150);
+    // Atualiza hint
+    const hint = document.querySelector('.about-click-hint');
+    if (hint) hint.textContent = (10 - aboutClickCount) + ' cliques restantes';
+    return;
+  }
+
+  // ===== EASTER EGG ATIVADO =====
+  aboutEggActive = true;
+
+  // Toca o som BONK
+  const bonkAudio = new Audio('/static/cosmic_aero/bonk.mp3');
+  bonkAudio.volume = 0.8;
+  bonkAudio.play().catch(() => {});
+
+  // Aplica tremida (shake)
+  logo.classList.add('bonk');
+
+  // Muda para alpaca tonta
+  logo.src = '/static/cosmic_aero/Icon_dizzy.png';
+
+  // Muda textos para "Bonk"
+  const title = document.getElementById('aboutTitle');
+  const author = document.getElementById('aboutAuthor');
+  const vibe = document.getElementById('aboutVibe');
+  const version = document.getElementById('aboutVersion');
+
+  if (title) { title.textContent = 'O que você fez?!'; title.classList.add('bonk-text'); }
+  if (author) { author.textContent = ''; }
+  if (vibe) { vibe.textContent = ''; }
+  if (version) { version.style.opacity = '0.3'; }
+
+  // Remove hint
+  const hint = document.querySelector('.about-click-hint');
+  if (hint) hint.style.display = 'none';
+
+  // Timer 1: Depois de 3.5s -> alpaca triste
+  const t1 = setTimeout(() => {
+    if (!document.getElementById('aboutLogo')) return;
+    logo.classList.remove('bonk');
+    logo.src = '/static/cosmic_aero/Icon_hurt.png';
+    if (title) {
+      title.textContent = 'Você deixou ela triste';
+      title.classList.remove('bonk-text');
+      title.classList.add('sad-text');
+    }
+    if (author) { author.textContent = 'Ela só queria ser sua amiga...'; author.classList.add('sad-text'); }
+    if (vibe) { vibe.textContent = ''; }
+  }, 3500);
+  aboutEggTimers.push(t1);
+
+  // Timer 2: Depois de 8.5s (3.5s + 5s) -> fade out
+  const t2 = setTimeout(() => {
+    if (!document.getElementById('aboutLogo')) return;
+    logo.classList.add('gone');
+    if (title) {
+      title.textContent = 'Ela foi embora...';
+      title.classList.remove('sad-text');
+      title.classList.add('gone-text');
+    }
+    if (author) {
+      author.textContent = 'Talvez ela volte um dia';
+      author.classList.remove('sad-text');
+      author.classList.add('gone-text');
+    }
+    if (vibe) { vibe.textContent = ''; }
+    if (version) { version.style.opacity = '0.15'; }
+  }, 8500);
+  aboutEggTimers.push(t2);
 }
 
 function showAboutScreen() {
+  // Reset easter egg state when entering About
+  aboutClickCount = 0;
+  aboutEggActive = false;
+  aboutEggTimers.forEach(t => clearTimeout(t));
+  aboutEggTimers = [];
+
   document.getElementById('mainTitle').textContent = 'Sobre';
   document.getElementById('topicTabs').classList.add('hidden');
   document.getElementById('headerActions').innerHTML = '';
@@ -2880,13 +3040,14 @@ function showAboutScreen() {
   document.getElementById('chatArea').innerHTML = `
     <div class="about-screen">
       <div class="about-glow"></div>
-      <div class="about-logo-wrap" onclick="aboutEasterEgg()" title="Click me!">
+      <div class="about-logo-wrap" onclick="aboutEasterEgg()" title="Não clique demais...">
+        <div class="about-click-hint">${10 - aboutClickCount} cliques restantes</div>
         <img src="/static/cosmic_aero/alpaca_avatar.png" class="about-logo" id="aboutLogo" alt="Lumina">
       </div>
-      <div class="about-title">Lumina Chat</div>
-      <div class="about-author">Created by TioBruno</div>
-      <div class="about-vibe">Vibe Coded with Kimi 2.6</div>
-      <div class="about-version">v1.2.0-beta &middot; Cosmic Aero Theme</div>
+      <div class="about-title" id="aboutTitle">Lumina Chat</div>
+      <div class="about-author" id="aboutAuthor">Created by TioBruno</div>
+      <div class="about-vibe" id="aboutVibe">Vibe Coded with Kimi 2.6</div>
+      <div class="about-version" id="aboutVersion">v1.2.0-beta &middot; Cosmic Aero Theme</div>
     </div>
   `;
 }
