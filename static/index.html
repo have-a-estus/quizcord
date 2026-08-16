@@ -3036,6 +3036,11 @@ function renderDock() {
 }
 
 document.getElementById('dockHome').onclick = () => {
+  // Força reset completo de estado antes de ir pra Home
+  closeWS();
+  cancelReply();
+  cancelEdit();
+  if (typeof closeAnyLumina === 'function') closeAnyLumina();
   setActiveDock('dockHome');
   currentDM = null;
   currentCircle = null;
@@ -3066,7 +3071,7 @@ function toggleMembersPanel() {
 }
 
 function showHome() {
-  // Fecha conexão e limpa estados ao sair do chat
+  // Fecha conexão ativa e limpa estados flutuantes
   closeWS();
   cancelReply();
   cancelEdit();
@@ -3361,7 +3366,6 @@ function setHomeNavTab(tab) {
     renderFriendsScreen();
     renderPanelFriends();
   } else if (tab === 'about') {
-    // Limpa timers do about anterior antes de entrar
     aboutEggTimers.forEach(t => clearTimeout(t));
     aboutEggTimers = [];
     aboutClickCount = 0;
@@ -3535,17 +3539,21 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
-  // Limpa estados anteriores imediatamente para evitar "junção de telas"
+  // Limpa tudo imediatamente para evitar estado sujo
   cancelReply();
   cancelEdit();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
-  document.getElementById('chatArea').innerHTML = '';
+  document.getElementById('chatArea').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6366f1;font-size:14px;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(139,92,246,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:spinSlow 1s linear infinite;margin:0 auto 12px;"></div>Carregando...</div></div>';
+  document.getElementById('inputArea').classList.add('hidden');
+  document.getElementById('userList').classList.add('hidden');
+  document.getElementById('typingIndicator').classList.add('hidden');
   _lastMsgAuthor = null;
   _lastMsgTime = 0;
 
   setActiveDock(id);
   currentCircle = circles.find(c => c.id === id);
   currentDM = null;
+  currentTopic = null;  // ← CRÍTICO: resetar para forçar seleção do primeiro tópico
   if (!currentCircle) return;
   const res = await fetch(API + '/api/circles/' + id, { headers: authHeader() });
   if (!res.ok) return;
@@ -3748,7 +3756,6 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
-  // Limpa estados anteriores imediatamente
   cancelReply();
   cancelEdit();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
@@ -3963,7 +3970,7 @@ async function processMessageContent(content, container) {
 }
 
 function appendMessage(m) {
-  // Guard: ignora mensagens se não estiver em um chat ativo (evita renderizar na Home)
+  // Guard: só renderiza se estiver em um chat ativo
   if (!currentCircle && !currentDM) return;
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
