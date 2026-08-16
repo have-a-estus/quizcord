@@ -10,8 +10,11 @@ let _blockedLoaded = false;
 document.addEventListener('DOMContentLoaded', () => {
   loadBlockedList();
   patchAppendMessage();
-  // Delegation global - funciona pra elementos que ainda nao existem
-  document.addEventListener('click', handleGlobalClick);
+  // Polling robusto: verifica a cada 300ms por elementos novos
+  setInterval(bindAllInteractiveElements, 300);
+  // Tambem bind imediatamente
+  bindAllInteractiveElements();
+  // Context menu global
   document.addEventListener('contextmenu', handleGlobalContextMenu);
 });
 
@@ -35,7 +38,7 @@ function patchAppendMessage() {
   console.log('[LuminaExtras] appendMessage patched');
 }
 
-// ===== RESOLVE USER ID por nome (fallback para msgs antigas) =====
+// ===== RESOLVE USER ID por nome =====
 function resolveUserIdByName(name) {
   if (!name) return null;
   const friend = (window.friends?.friends || []).find(f => (f.display_name || f.username) === name);
@@ -96,60 +99,79 @@ async function unblockUser(userId) {
   } catch (e) { showToast('Erro', 'Falha na conexao', '#ef4444'); }
 }
 
-// ===== GLOBAL CLICK HANDLER (delegation) =====
-function handleGlobalClick(e) {
-  // 1. Click em avatar/nome no CHAT -> mini perfil
-  const msgAuthor = e.target.closest('.msg-author');
-  const msgAvatar = e.target.closest('.msg-avatar');
-  if (msgAuthor || msgAvatar) {
-    const bubble = (msgAuthor || msgAvatar).closest('.message-bubble');
-    if (!bubble) return;
-    let uid = bubble.dataset.uid;
-    if (!uid) {
-      const nameEl = bubble.querySelector('.msg-author');
-      const name = nameEl ? nameEl.textContent.trim() : null;
-      uid = resolveUserIdByName(name);
-      if (uid) bubble.dataset.uid = uid;
-    }
-    if (uid && uid !== me?.id) {
+// ===== BIND ALL (polling) =====
+function bindAllInteractiveElements() {
+  // 1. Nomes no chat (msg-author)
+  document.querySelectorAll('.msg-author').forEach(el => {
+    if (el._luminaBound) return;
+    el._luminaBound = true;
+    el.addEventListener('click', (e) => {
       e.stopPropagation();
-      showMiniProfile(uid, msgAuthor || msgAvatar);
-    }
-    return;
-  }
+      e.preventDefault();
+      const bubble = el.closest('.message-bubble');
+      if (!bubble) return;
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const name = el.textContent.trim();
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
+      }
+      if (uid && uid !== me?.id) showMiniProfile(uid, el);
+    });
+  });
 
-  // 2. Click em avatar no PAINEL (contact-item)
-  const contactAvatar = e.target.closest('.contact-item .contact-avatar-wrap, .contact-item .contact-avatar');
-  if (contactAvatar) {
-    const item = contactAvatar.closest('.contact-item');
-    if (!item) return;
-    const fid = item.dataset.peer;
-    if (fid && fid !== me?.id) {
+  // 2. Avatares no chat (msg-avatar)
+  document.querySelectorAll('.msg-avatar').forEach(el => {
+    if (el._luminaBound) return;
+    el._luminaBound = true;
+    el.addEventListener('click', (e) => {
       e.stopPropagation();
-      showMiniProfile(fid, contactAvatar);
-    }
-    return;
-  }
+      e.preventDefault();
+      const bubble = el.closest('.message-bubble');
+      if (!bubble) return;
+      let uid = bubble.dataset.uid;
+      if (!uid) {
+        const authorEl = bubble.querySelector('.msg-author');
+        const name = authorEl ? authorEl.textContent.trim() : null;
+        uid = resolveUserIdByName(name);
+        if (uid) bubble.dataset.uid = uid;
+      }
+      if (uid && uid !== me?.id) showMiniProfile(uid, el);
+    });
+  });
 
-  // 3. Click em avatar na tela de amigos (friends-row)
-  const friendAvatar = e.target.closest('.friends-row .friends-row-avatar-wrap, .friends-row .friends-row-avatar');
-  if (friendAvatar) {
-    const row = friendAvatar.closest('.friends-row');
-    if (!row) return;
-    const onclick = row.getAttribute('onclick') || '';
-    const match = onclick.match(/openDM\('([^']+)'/);
-    const fid = match ? match[1] : null;
-    if (fid && fid !== me?.id) {
+  // 3. Avatares no painel (contact-item)
+  document.querySelectorAll('.contact-item .contact-avatar-wrap, .contact-item .contact-avatar').forEach(el => {
+    if (el._luminaBound) return;
+    el._luminaBound = true;
+    el.addEventListener('click', (e) => {
       e.stopPropagation();
-      showMiniProfile(fid, friendAvatar);
-    }
-    return;
-  }
+      const item = el.closest('.contact-item');
+      if (!item) return;
+      const fid = item.dataset.peer;
+      if (fid && fid !== me?.id) showMiniProfile(fid, el);
+    });
+  });
+
+  // 4. Avatares na tela de amigos (friends-row)
+  document.querySelectorAll('.friends-row .friends-row-avatar-wrap, .friends-row .friends-row-avatar').forEach(el => {
+    if (el._luminaBound) return;
+    el._luminaBound = true;
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const row = el.closest('.friends-row');
+      if (!row) return;
+      const onclick = row.getAttribute('onclick') || '';
+      const match = onclick.match(/openDM\('([^']+)'/);
+      const fid = match ? match[1] : null;
+      if (fid && fid !== me?.id) showMiniProfile(fid, el);
+    });
+  });
 }
 
-// ===== GLOBAL CONTEXT MENU HANDLER (delegation) =====
+// ===== CONTEXT MENU =====
 function handleGlobalContextMenu(e) {
-  // 1. Context menu no CHAT (msg-author, msg-avatar, ou qualquer parte da mensagem)
+  // 1. Chat: msg-author, msg-avatar, ou qualquer parte da mensagem
   const bubble = e.target.closest('.message-bubble');
   if (bubble && !bubble.classList.contains('own')) {
     let uid = bubble.dataset.uid;
@@ -166,11 +188,11 @@ function handleGlobalContextMenu(e) {
       const avatarEl = bubble.querySelector('.msg-avatar img');
       const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
       showFriendContextMenu(e, uid, name, avatar);
+      return;
     }
-    return;
   }
 
-  // 2. Context menu no PAINEL (contact-item)
+  // 2. Painel (contact-item)
   const item = e.target.closest('.contact-item');
   if (item) {
     e.preventDefault();
@@ -184,7 +206,7 @@ function handleGlobalContextMenu(e) {
     return;
   }
 
-  // 3. Context menu na tela de amigos (friends-row)
+  // 3. Tela de amigos (friends-row)
   const row = e.target.closest('.friends-row');
   if (row && row.closest('.friends-list')) {
     e.preventDefault();
