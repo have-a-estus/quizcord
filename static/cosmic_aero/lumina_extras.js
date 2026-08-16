@@ -9,6 +9,7 @@ let _blockedLoaded = false;
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   loadBlockedList();
+  patchAppendMessage();
   bindContextMenus();
   bindMiniProfiles();
   // Observa mudancas no DOM pra re-bind em elementos novos
@@ -17,9 +18,33 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   const panel = document.getElementById('panelContent');
   const chat = document.getElementById('chatArea');
+  const friendsList = document.getElementById('friendsListContainer');
   if (panel) observer.observe(panel, { childList: true, subtree: true });
   if (chat) observer.observe(chat, { childList: true, subtree: true });
+  if (friendsList) observer.observe(friendsList, { childList: true, subtree: true });
 });
+
+// ===== PATCH appendMessage para guardar user.id =====
+function patchAppendMessage() {
+  if (typeof appendMessage !== 'function') {
+    console.log('[LuminaExtras] appendMessage nao encontrado');
+    return;
+  }
+  const original = appendMessage;
+  appendMessage = function(m) {
+    original(m);
+    // Adiciona data-uid no bubble recem-criado
+    const area = document.getElementById('chatArea');
+    if (!area) return;
+    const lastBubble = area.lastElementChild;
+    if (lastBubble && m.user?.id && !lastBubble.dataset.uid) {
+      lastBubble.dataset.uid = m.user.id;
+      // Tambem guarda o nome pra fallback
+      lastBubble.dataset.uname = m.user.name || '';
+    }
+  };
+  console.log('[LuminaExtras] appendMessage patched');
+}
 
 // ===== BLOQUEIOS =====
 async function loadBlockedList() {
@@ -185,16 +210,26 @@ function bindMiniProfiles() {
     el.dataset.luminaBound = '1';
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      // Tenta achar o user_id pela mensagem — usamos o author name como fallback
       const bubble = el.closest('.message-bubble');
       if (!bubble) return;
-      const authorEl = bubble.querySelector('.msg-author');
-      const authorName = authorEl ? authorEl.textContent.trim() : null;
-      if (!authorName || authorName === (me?.name || me?.display_name || me?.username)) return;
-      // Procura nos amigos pelo nome
-      const friend = (friends?.friends || []).find(f => (f.display_name || f.username) === authorName);
-      if (friend && friend.fid !== me?.id) {
-        showMiniProfile(friend.fid, el);
+      const uid = bubble.dataset.uid;
+      if (uid && uid !== me?.id) {
+        showMiniProfile(uid, el);
+      }
+    });
+  });
+
+  // Nomes nas mensagens (msg-author) — NOVO
+  document.querySelectorAll('.msg-author').forEach(el => {
+    if (el.dataset.luminaBound) return;
+    el.dataset.luminaBound = '1';
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const bubble = el.closest('.message-bubble');
+      if (!bubble) return;
+      const uid = bubble.dataset.uid;
+      if (uid && uid !== me?.id) {
+        showMiniProfile(uid, el);
       }
     });
   });
@@ -291,6 +326,10 @@ async function showFullProfile(userId) {
     </div>
   `, `<button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>`);
 
+  // Expande o modal para o layout de perfil
+  const modalBox = document.getElementById('modalBox');
+  if (modalBox) modalBox.classList.add('lumina-profile-modal-box');
+
   try {
     const [profileRes, mutualsRes] = await Promise.all([
       fetch(API + '/api/users/' + encodeURIComponent(userId) + '/profile', {
@@ -349,10 +388,10 @@ async function showFullProfile(userId) {
     const bodyHtml = `
       <div class="lumina-profile-modal">
         <div class="lumina-profile-banner">
-          <div class="lumina-profile-avatar-wrap">
-            <img src="${user.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="lumina-profile-avatar-big" alt="">
-            <div class="lumina-profile-status-big" style="background:${statusColor};box-shadow:0 0 8px ${statusColor}99"></div>
-          </div>
+        </div>
+        <div class="lumina-profile-avatar-section">
+          <img src="${user.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="lumina-profile-avatar-big" alt="">
+          <div class="lumina-profile-status-big" style="background:${statusColor};box-shadow:0 0 8px ${statusColor}99"></div>
         </div>
         <div class="lumina-profile-body">
           <div class="lumina-profile-name-row">
@@ -398,10 +437,11 @@ async function showFullProfile(userId) {
       </div>
     `;
 
-    openModal('', bodyHtml, `<button class="btn-sm btn-ghost" onclick="closeModal()">Fechar</button>`);
+    openModal('', bodyHtml, `<button class="btn-sm btn-ghost" onclick="closeModal(); document.getElementById('modalBox').classList.remove('lumina-profile-modal-box');">Fechar</button>`);
     document.getElementById('modalTitle').style.display = 'none';
 
   } catch (e) {
+    if (modalBox) modalBox.classList.remove('lumina-profile-modal-box');
     closeModal();
     showToast('Erro', 'Nao foi possivel carregar o perfil', '#ef4444');
   }
