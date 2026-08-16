@@ -2092,6 +2092,7 @@ let unreadMap = {};
 let currentCircle = null;
 let currentTopic = null;
 let currentDM = null;
+let currentRoom = null;
 let ws = null;
 let notifWs = null;
 let typingTimer = null;
@@ -2391,13 +2392,12 @@ function setActiveDock(id) {
 let friendsFilterTab = 'all';
 
 function showHome() {
-  currentCircle = null; currentTopic = null; currentDM = null;
+  currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
       item.classList.remove('active');
     });
   }, 0);
-  closeWS();
   saveSession();
   document.getElementById('panelTitle').textContent = 'Amigos';
   document.getElementById('panelSubtitle').textContent = 'Conversas diretas';
@@ -2834,7 +2834,19 @@ function setWsStatus(status, text) {
 }
 
 function connectWS(roomId) {
+  // Se já temos WS aberto, apenas trocamos de room via subscribe
+  if (ws && ws.readyState === 1) {
+    if (currentRoom === roomId) return;
+    currentRoom = roomId;
+    document.getElementById('chatArea').innerHTML = '';
+    _lastMsgAuthor = null;
+    _lastMsgTime = 0;
+    ws.send(JSON.stringify({type: 'subscribe', room: roomId}));
+    return;
+  }
+
   closeWS();
+  currentRoom = roomId;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const url = proto + '//' + location.host + '/ws/' + roomId;
   ws = new WebSocket(url);
@@ -2860,16 +2872,6 @@ function connectWS(roomId) {
       appendMessage(msg);
       if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
     }
-    
-    else if (msg.type === 'message_edited') {
-      updateMessageContent(msg.msg_id, msg.content);
-    }
-    else if (msg.type === 'message_deleted') {
-      removeMessage(msg.msg_id);
-    }
-    else if (msg.type === 'reaction_update') {
-      updateMessageReactions(msg.msg_id, msg.reactions);
-    }
     else if (msg.type === 'system') {
       // Ignora mensagens de sistema de join/leave (privacidade)
     }
@@ -2881,16 +2883,26 @@ function connectWS(roomId) {
     else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
     else if (msg.type === 'voice_answer') handleVoiceAnswer(msg);
     else if (msg.type === 'voice_ice') handleVoiceICE(msg);
+    else if (msg.type === 'message_edited') {
+      updateMessageContent(msg.msg_id, msg.content);
+    }
+    else if (msg.type === 'message_deleted') {
+      removeMessage(msg.msg_id);
+    }
+    else if (msg.type === 'reaction_update') {
+      updateMessageReactions(msg.msg_id, msg.reactions);
+    }
   };
 
   ws.onclose = () => {
     ws = null;
+    currentRoom = null;
     setWsStatus('offline', 'Desconectado');
     const delay = Math.min(3000 + wsRetryCount * 2000, 15000);
     wsRetryCount++;
     if (wsRetryTimer) clearTimeout(wsRetryTimer);
     wsRetryTimer = setTimeout(() => {
-      if ((currentTopic || currentDM) && !ws) connectWS(roomId);
+      if ((currentTopic || currentDM) && !ws) connectWS(currentRoom || roomId);
     }, delay);
   };
 

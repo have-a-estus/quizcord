@@ -63,7 +63,7 @@ def get_db(path: str):
 
 
 def init_users_db():
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -119,7 +119,7 @@ def init_users_db():
 
 def migrate_users_db():
     """Adiciona colunas novas se não existirem"""
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("PRAGMA table_info(users)")
     cols = [col[1] for col in c.fetchall()]
@@ -133,7 +133,7 @@ def migrate_users_db():
 
 
 def init_circles_db():
-    conn = get_db(CIRCLES_DB)
+    conn = sqlite3.connect(CIRCLES_DB)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS circles (
         id TEXT PRIMARY KEY,
@@ -165,7 +165,7 @@ def init_circles_db():
 
 
 def init_messages_db():
-    conn = get_db(MESSAGES_DB)
+    conn = sqlite3.connect(MESSAGES_DB)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS messages (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -315,6 +315,12 @@ class NotifManager:
                 pass
 
 
+    def leave_room(self, room_id, ws):
+        if room_id in self.rooms and ws in self.rooms[room_id]:
+            self.rooms[room_id].remove(ws)
+            if not self.rooms[room_id]:
+                del self.rooms[room_id]
+
 manager = RoomManager()
 notif_manager = NotifManager()
 
@@ -352,7 +358,7 @@ def update_status(request: Request, status: str = Form(...)):
     valid_statuses = ['online', 'busy', 'away', 'invisible']
     if status not in valid_statuses:
         raise HTTPException(status_code=400, detail="Status invalido")
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("UPDATE users SET status = ? WHERE id = ?", (status, user["id"]))
     conn.commit()
@@ -363,7 +369,7 @@ def update_status(request: Request, status: str = Form(...)):
 @app.post("/api/me/update")
 def update_profile(request: Request, display_name: str = Form(None), avatar_color: str = Form(None), bio: str = Form(None)):
     user = require_user(request)
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     updates = []
     params = []
@@ -397,7 +403,7 @@ async def upload_avatar(request: Request, file: UploadFile = File(...)):
     with open(path, "wb") as f:
         f.write(await file.read())
     avatar_url = f"/static/avatars/{fname}"
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("UPDATE users SET avatar_image = ? WHERE id = ?", (avatar_url, user["id"]))
     conn.commit()
@@ -447,7 +453,7 @@ def get_mutuals(user_id: str, request: Request):
 @app.post("/api/friends/{friend_id}/note")
 def set_friend_note(friend_id: str, request: Request, note: str = Form("")):
     user = require_user(request)
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     try:
         c.execute("""INSERT INTO friend_notes (id, user_id, friend_id, note) VALUES (?, ?, ?, ?)""",
@@ -462,7 +468,7 @@ def set_friend_note(friend_id: str, request: Request, note: str = Form("")):
 @app.post("/api/friends/{friend_id}/nickname")
 def set_friend_nickname(friend_id: str, request: Request, nickname: str = Form("")):
     user = require_user(request)
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     try:
         c.execute("""INSERT INTO friend_nicknames (id, user_id, friend_id, nickname) VALUES (?, ?, ?, ?)""",
@@ -479,7 +485,7 @@ def block_user(user_id: str, request: Request):
     user = require_user(request)
     if user_id == user["id"]:
         raise HTTPException(status_code=400, detail="Nao pode bloquear voce mesmo")
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
         (user["id"], user_id, user_id, user["id"]))
@@ -496,7 +502,7 @@ def block_user(user_id: str, request: Request):
 @app.post("/api/users/{user_id}/unblock")
 def unblock_user(user_id: str, request: Request):
     user = require_user(request)
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?", (user["id"], user_id))
     conn.commit()
@@ -552,7 +558,7 @@ def register(username: str = Form(...), password: str = Form(...), display_name:
     alpaca_img = random.choice(ALPACA_POOL)
 
     uid = str(uuid.uuid4())[:8]
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     try:
         c.execute("INSERT INTO users (id, username, display_name, password_hash, avatar_color, avatar_image) VALUES (?, ?, ?, ?, ?, ?)",
@@ -860,7 +866,7 @@ def get_unread(request: Request):
 @app.post("/api/messages/{msg_id}/react")
 def react_to_message(msg_id: int, request: Request, emoji: str = Form(...)):
     user = require_user(request)
-    conn = get_db(MESSAGES_DB)
+    conn = sqlite3.connect(MESSAGES_DB)
     c = conn.cursor()
     try:
         c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
@@ -884,7 +890,7 @@ def react_to_message(msg_id: int, request: Request, emoji: str = Form(...)):
 @app.patch("/api/messages/{msg_id}")
 def edit_message(msg_id: int, request: Request, content: str = Form(...)):
     user = require_user(request)
-    conn = get_db(MESSAGES_DB)
+    conn = sqlite3.connect(MESSAGES_DB)
     c = conn.cursor()
     c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
     row = c.fetchone()
@@ -903,7 +909,7 @@ def edit_message(msg_id: int, request: Request, content: str = Form(...)):
 @app.delete("/api/messages/{msg_id}")
 def delete_message(msg_id: int, request: Request):
     user = require_user(request)
-    conn = get_db(MESSAGES_DB)
+    conn = sqlite3.connect(MESSAGES_DB)
     c = conn.cursor()
     c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
     row = c.fetchone()
@@ -955,7 +961,7 @@ async def notif_ws(ws: WebSocket):
     if not payload:
         await ws.close(); return
     user_id = payload["sub"]
-    conn = get_db(USERS_DB)
+    conn = sqlite3.connect(USERS_DB)
     c = conn.cursor()
     c.execute("UPDATE users SET status = 'online', last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
     conn.commit()
@@ -970,7 +976,7 @@ async def notif_ws(ws: WebSocket):
         notif_manager.disconnect(user_id)
         # NÃO seta offline aqui — o status persiste entre reinicios do servidor
         # O usuário pode estar com status 'busy' ou 'away' e não queremos perder isso
-        conn = get_db(USERS_DB)
+        conn = sqlite3.connect(USERS_DB)
         c = conn.cursor()
         c.execute("UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
         conn.commit()
@@ -1045,10 +1051,21 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
                 await manager.send_to_user(data["target"], {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
                 continue
 
+            if mtype == "subscribe":
+                new_room = data.get("room")
+                if new_room and new_room != room_id:
+                    manager.leave_room(room_id, ws)
+                    room_id = new_room
+                    manager.connect(room_id, ws, user)
+                    await ws.send_text(json.dumps({"type": "history", "messages": _get_history(room_id, 50)}))
+                    await ws.send_text(json.dumps({"type": "users", "users": manager.get_users(room_id)}))
+                    await manager.broadcast(room_id, {"type": "user_joined", "user": user, "users": manager.get_users(room_id)}, exclude=ws)
+                continue
+
             if mtype == "edit_message":
                 msg_id = data.get("msg_id")
                 new_content = data.get("content", "")
-                conn = get_db(MESSAGES_DB)
+                conn = sqlite3.connect(MESSAGES_DB)
                 c = conn.cursor()
                 c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
                 row = c.fetchone()
@@ -1061,7 +1078,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
 
             if mtype == "delete_message":
                 msg_id = data.get("msg_id")
-                conn = get_db(MESSAGES_DB)
+                conn = sqlite3.connect(MESSAGES_DB)
                 c = conn.cursor()
                 c.execute("SELECT user_id FROM messages WHERE id = ?", (msg_id,))
                 row = c.fetchone()
@@ -1076,7 +1093,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             if mtype == "reaction":
                 msg_id = data.get("msg_id")
                 emoji = data.get("emoji")
-                conn = get_db(MESSAGES_DB)
+                conn = sqlite3.connect(MESSAGES_DB)
                 c = conn.cursor()
                 try:
                     c.execute("INSERT INTO reactions (message_id, user_id, emoji) VALUES (?, ?, ?)", (msg_id, user["id"], emoji))
@@ -1102,7 +1119,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             file_url = data.get("file_url")
             db_type = "image" if file_url else "text"
 
-            conn = get_db(MESSAGES_DB)
+            conn = sqlite3.connect(MESSAGES_DB)
             c = conn.cursor()
             reply_to_id = data.get("reply_to_id")
             reply_to_user = data.get("reply_to_user")
@@ -1116,7 +1133,7 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
             conn.close()
 
             room_users = manager.get_users(room_id)
-            conn = get_db(MESSAGES_DB)
+            conn = sqlite3.connect(MESSAGES_DB)
             c = conn.cursor()
             for u in room_users:
                 if u["id"] != user["id"]:
