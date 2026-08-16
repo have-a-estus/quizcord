@@ -1,0 +1,429 @@
+/* ============================================
+   LUMINA EXTRAS - Menu de Contexto, Mini Perfil & Perfil Completo
+   ============================================ */
+
+/* ===== CONTEXT MENU ===== */
+.lumina-context-menu {
+  position: fixed;
+  z-index: 500;
+  min-width: 180px;
+  background: rgba(10, 8, 30, 0.95);
+  backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow:
+    0 20px 50px rgba(0,0,0,0.6),
+    0 0 40px rgba(139, 92, 246, 0.1);
+  animation: ctxIn 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+@keyframes ctxIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.lumina-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e0e7ff;
+  transition: all 0.15s ease;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.lumina-ctx-item:hover {
+  background: rgba(139, 92, 246, 0.12);
+  color: #fff;
+}
+
+.lumina-ctx-item.danger {
+  color: #f87171;
+}
+
+.lumina-ctx-item.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.lumina-ctx-divider {
+  height: 1px;
+  background: rgba(139, 92, 246, 0.15);
+  margin: 4px 8px;
+}
+
+.lumina-ctx-icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ===== MINI PROFILE POPOVER ===== */
+.lumina-mini-profile {
+  position: fixed;
+  z-index: 400;
+  width: 280px;
+  background: rgba(10, 8, 30, 0.92);
+  backdrop-filter: blur(32px) saturate(160%);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow:
+    0 25px 50px rgba(0,0,0,0.6),
+    0 0 40px rgba(139, 92, 246, 0.12);
+  animation: miniProfileIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes miniProfileIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.lumina-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.lumina-mini-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  box-shadow: 0 0 16px rgba(139, 92, 246, 0.25);
+  flex-shrink: 0;
+}
+
+.lumina-mini-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lumina-mini-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #e0e7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lumina-mini-user {
+  font-size: 12px;
+  color: #6366f1;
+  margin-top: 2px;
+}
+
+.lumina-mini-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #a5b4fc;
+  margin-top: 4px;
+}
+
+.lumina-mini-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.lumina-mini-bio {
+  font-size: 12px;
+  color: #a5b4fc;
+  line-height: 1.5;
+  margin: 10px 0;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.lumina-mini-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.lumina-mini-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.lumina-mini-btn.primary {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.lumina-mini-btn.primary:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.lumina-mini-btn.ghost {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  color: #a5b4fc;
+}
+
+.lumina-mini-btn.ghost:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: #fff;
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+/* ===== FULL PROFILE MODAL ===== */
+.lumina-profile-modal {
+  width: 480px;
+  max-width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.lumina-profile-banner {
+  height: 100px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(6, 182, 212, 0.3), rgba(236, 72, 153, 0.2));
+  position: relative;
+  margin-bottom: 40px;
+  overflow: hidden;
+}
+
+.lumina-profile-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("/static/cosmic_aero/nebula_bg.jpg") center/cover;
+  opacity: 0.3;
+}
+
+.lumina-profile-avatar-wrap {
+  position: absolute;
+  bottom: -32px;
+  left: 24px;
+  z-index: 2;
+}
+
+.lumina-profile-avatar-big {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(10, 8, 30, 0.95);
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+}
+
+.lumina-profile-status-big {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(10, 8, 30, 0.95);
+}
+
+.lumina-profile-body {
+  padding: 0 8px 8px;
+}
+
+.lumina-profile-name-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  padding-left: 100px;
+}
+
+.lumina-profile-display {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e0e7ff;
+  word-break: break-word;
+}
+
+.lumina-profile-username {
+  font-size: 14px;
+  color: #6366f1;
+  padding-left: 100px;
+  margin-bottom: 16px;
+}
+
+.lumina-profile-id {
+  font-size: 11px;
+  color: #6366f1;
+  opacity: 0.6;
+  font-family: monospace;
+  padding-left: 100px;
+  margin-bottom: 16px;
+}
+
+.lumina-profile-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+  margin: 16px 0;
+}
+
+.lumina-profile-section {
+  margin-bottom: 16px;
+}
+
+.lumina-profile-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+.lumina-profile-bio {
+  font-size: 13px;
+  color: #a5b4fc;
+  line-height: 1.6;
+  background: rgba(255,255,255,0.03);
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.lumina-profile-mutuals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lumina-mutual-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(139, 92, 246, 0.08);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.lumina-mutual-row:hover {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.lumina-mutual-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+}
+
+.lumina-mutual-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lumina-mutual-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e7ff;
+}
+
+.lumina-mutual-sub {
+  font-size: 11px;
+  color: #6366f1;
+}
+
+.lumina-profile-actions-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.lumina-profile-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.lumina-profile-btn.msg {
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+}
+
+.lumina-profile-btn.msg:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.lumina-profile-btn.block {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.lumina-profile-btn.block:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.lumina-profile-btn.unblock {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #4ade80;
+}
+
+.lumina-profile-btn.unblock:hover {
+  background: rgba(16, 185, 129, 0.2);
+  color: #86efac;
+}
+
+.lumina-empty-state {
+  text-align: center;
+  color: #6366f1;
+  font-size: 12px;
+  padding: 16px;
+  opacity: 0.7;
+}
+
+/* ===== AVATAR CLICKABLE CURSOR ===== */
+.msg-avatar,
+.contact-avatar,
+.friends-row-avatar,
+.dock-profile-avatar,
+.panel-profile-avatar {
+  cursor: pointer !important;
+}
