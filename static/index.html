@@ -3533,6 +3533,8 @@ function escapeHtml(t) { const d = document.createElement('div'); d.textContent 
 
 function renderUserList(users) {
   const el = document.getElementById('userList');
+  // Nunca mostrar lista de membros em conversa privada (DM)
+  if (currentDM) { el.classList.add('hidden'); return; }
   if (!users || !users.length) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
   el.innerHTML = users.map(u =>
