@@ -3232,7 +3232,10 @@ async function toggleReaction(msgId, emoji) {
     const res = await fetch(API + '/api/messages/' + msgId + '/react', {
       method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + token }
     });
-    if (!res.ok) {
+    if (res.ok) {
+      const data = await res.json();
+      updateMessageReactions(msgId, data.reactions);
+    } else {
       const d = await res.json();
       showToast('Erro', d.detail || 'Nao foi possivel reagir', '#ef4444');
     }
