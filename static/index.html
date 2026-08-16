@@ -1817,6 +1817,7 @@ body {
 
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="stars"></div>
@@ -2859,6 +2860,16 @@ function connectWS(roomId) {
       appendMessage(msg);
       if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
     }
+    
+    else if (msg.type === 'message_edited') {
+      updateMessageContent(msg.msg_id, msg.content);
+    }
+    else if (msg.type === 'message_deleted') {
+      removeMessage(msg.msg_id);
+    }
+    else if (msg.type === 'reaction_update') {
+      updateMessageReactions(msg.msg_id, msg.reactions);
+    }
     else if (msg.type === 'system') {
       // Ignora mensagens de sistema de join/leave (privacidade)
     }
@@ -2910,8 +2921,6 @@ function _getUserColor(userName) {
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
-
-  // Avatar do usuário: usa avatar_image se disponível, senão alpaca cinza
   const userAvatar = m.user?.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png';
 
   let timeStr = '';
@@ -2923,15 +2932,16 @@ function appendMessage(m) {
   }
 
   const authorName = m.user?.name || '?';
-  const shouldGroup = _lastMsgAuthor === authorName && 
-                      (msgTime - _lastMsgTime) < _GROUP_THRESHOLD_MS &&
-                      msgTime > 0;
+  const shouldGroup = _lastMsgAuthor === authorName && (msgTime - _lastMsgTime) < _GROUP_THRESHOLD_MS && msgTime > 0;
 
   _lastMsgAuthor = authorName;
   _lastMsgTime = msgTime;
 
   const bubble = document.createElement('div');
   bubble.className = 'message-bubble ' + (isOwn ? 'own' : '') + (shouldGroup ? ' grouped' : '');
+  if (m.id) bubble.dataset.msgId = m.id;
+  if (m.user?.id) bubble.dataset.uid = m.user.id;
+  bubble.dataset.uname = m.user?.name || '';
 
   const inviteMatch = m.content?.match(/\?join=([a-zA-Z0-9\-]+)/);
   let contentHtml = '';
@@ -2943,31 +2953,65 @@ function appendMessage(m) {
 
   const userColor = _getUserColor(authorName);
 
+  let replyHtml = '';
+  if (m.reply_to_id && m.reply_to_user) {
+    const replyShort = m.reply_to_content ? m.reply_to_content.substring(0, 50) + (m.reply_to_content.length > 50 ? '...' : '') : '';
+    replyHtml = `<div class="msg-reply-bar"><span class="reply-author">↩️ ${escapeHtml(m.reply_to_user)}</span><span class="reply-content">${escapeHtml(replyShort)}</span></div>`;
+  }
+
+  let editedHtml = '';
+  if (m.edited_at) editedHtml = `<span class="msg-edited-tag">(editado)</span>`;
+
   if (shouldGroup) {
-    // Mensagem agrupada: só texto, sem avatar, sem header, sem timestamp
     bubble.innerHTML = `
       <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
       <div class="msg-body">
+        ${replyHtml}
         <div class="msg-content">${contentHtml}</div>
       </div>
     `;
   } else {
-    // Primeira mensagem do grupo: avatar + nome + timestamp
     bubble.innerHTML = `
       <div class="msg-avatar" style="background:${userColor}"><img src="${userAvatar}" alt=""></div>
       <div class="msg-body">
+        ${replyHtml}
         <div class="msg-header">
           <span class="msg-author">${authorName}</span>
           <span class="msg-time-inline">${timeStr}</span>
+          ${editedHtml}
         </div>
         <div class="msg-content">${contentHtml}</div>
       </div>
     `;
   }
 
+  if (m.reactions && Object.keys(m.reactions).length > 0) {
+    const reactionsContainer = document.createElement('div');
+    reactionsContainer.className = 'msg-reactions';
+    for (const [emoji, data] of Object.entries(m.reactions)) {
+      const isActive = data.users && data.users.includes(me?.id);
+      reactionsContainer.innerHTML += `<div class="msg-reaction${isActive ? ' active' : ''}" onclick="event.stopPropagation(); toggleReaction(${m.id}, '${emoji}')"><span>${emoji}</span><span class="msg-reaction-count">${data.count}</span></div>`;
+    }
+    reactionsContainer.innerHTML += `<div class="msg-reaction-add" onclick="event.stopPropagation(); showEmojiPicker(${m.id}, this)">+</div>`;
+    const msgBody = bubble.querySelector('.msg-body');
+    if (msgBody) msgBody.appendChild(reactionsContainer);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'msg-actions';
+  actions.innerHTML = `<button class="msg-action-btn" title="Responder" onclick="event.stopPropagation(); startReply({id:${m.id}, user:'${(m.user?.name||'').replace(/'/g, "\\'")}', content:'${(m.content||'').replace(/'/g, "\\'")}'})">↩️</button>`;
+  if (isOwn && m.id) {
+    actions.innerHTML += `<button class="msg-action-btn" title="Editar" onclick="event.stopPropagation(); startEdit(${m.id}, '${(m.content||'').replace(/'/g, "\\'")}')">✏️</button>`;
+    actions.innerHTML += `<button class="msg-action-btn danger" title="Deletar" onclick="event.stopPropagation(); deleteMessage(${m.id})">🗑️</button>`;
+  }
+  actions.innerHTML += `<button class="msg-action-btn" title="Reagir" onclick="event.stopPropagation(); showEmojiPicker(${m.id}, this)">😀</button>`;
+  bubble.style.position = 'relative';
+  bubble.appendChild(actions);
+
   area.appendChild(bubble);
   area.scrollTop = area.scrollHeight;
 }
+
 
 function renderChatEmbed(code, fallbackText) {
   const placeholderId = 'embed-' + Math.random().toString(36).slice(2, 10);
@@ -3086,6 +3130,9 @@ function bindInputs() {
   document.getElementById('btnCreateCircle').onclick = openCreateCircle;
 }
 
+let replyingTo = null;
+let editingMessageId = null;
+
 function sendMessage(text, fileUrl) {
   const input = document.getElementById('msgInput');
   const content = text !== undefined ? text : input.value.trim();
@@ -3094,9 +3141,178 @@ function sendMessage(text, fileUrl) {
     showToast('Desconectado', 'Aguarde a conexao ser restabelecida...', '#f87171');
     return;
   }
-  ws.send(JSON.stringify({ content: content || '', file_url: fileUrl || undefined }));
+
+  if (editingMessageId) {
+    ws.send(JSON.stringify({ type: 'edit_message', msg_id: editingMessageId, content: content }));
+    cancelEdit();
+    if (text === undefined) input.value = '';
+    return;
+  }
+
+  const payload = { content: content || '', file_url: fileUrl || undefined };
+  if (replyingTo) {
+    payload.reply_to_id = replyingTo.id;
+    payload.reply_to_user = replyingTo.user;
+    payload.reply_to_content = replyingTo.content;
+    cancelReply();
+  }
+  ws.send(JSON.stringify(payload));
   if (text === undefined) input.value = '';
 }
+
+function startReply(msg) {
+  cancelEdit();
+  replyingTo = msg;
+  renderReplyPreview();
+  document.getElementById('msgInput').focus();
+}
+
+function cancelReply() {
+  replyingTo = null;
+  const preview = document.getElementById('replyPreviewBox');
+  if (preview) preview.remove();
+}
+
+function renderReplyPreview() {
+  let preview = document.getElementById('replyPreviewBox');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.id = 'replyPreviewBox';
+    preview.className = 'reply-preview-box';
+    const inputArea = document.getElementById('inputArea');
+    if (inputArea) inputArea.insertBefore(preview, inputArea.firstChild);
+  }
+  const shortContent = replyingTo.content ? replyingTo.content.substring(0, 60) + (replyingTo.content.length > 60 ? '...' : '') : '';
+  preview.innerHTML = `<span class="reply-label">↩️ Respondendo</span><span class="reply-text">${escapeHtml(replyingTo.user)}: ${escapeHtml(shortContent)}</span><button class="reply-cancel" onclick="cancelReply()">✕</button>`;
+}
+
+function startEdit(msgId, content) {
+  cancelReply();
+  editingMessageId = msgId;
+  renderEditPreview();
+  const input = document.getElementById('msgInput');
+  input.value = content;
+  input.focus();
+}
+
+function cancelEdit() {
+  editingMessageId = null;
+  const preview = document.getElementById('editPreviewBox');
+  if (preview) preview.remove();
+  const input = document.getElementById('msgInput');
+  input.value = '';
+}
+
+function renderEditPreview() {
+  let preview = document.getElementById('editPreviewBox');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.id = 'editPreviewBox';
+    preview.className = 'editing-preview-box';
+    const inputArea = document.getElementById('inputArea');
+    if (inputArea) inputArea.insertBefore(preview, inputArea.firstChild);
+  }
+  preview.innerHTML = `<span class="edit-label">✏️ Editando mensagem</span><button class="edit-cancel" onclick="cancelEdit()">✕</button>`;
+}
+
+function deleteMessage(msgId) {
+  if (!confirm('Tem certeza que deseja deletar esta mensagem?')) return;
+  if (!ws || ws.readyState !== 1) {
+    showToast('Erro', 'Desconectado do servidor', '#ef4444');
+    return;
+  }
+  ws.send(JSON.stringify({ type: 'delete_message', msg_id: msgId }));
+}
+
+async function toggleReaction(msgId, emoji) {
+  if (!token) return;
+  try {
+    const fd = new FormData();
+    fd.append('emoji', emoji);
+    const res = await fetch(API + '/api/messages/' + msgId + '/react', {
+      method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      showToast('Erro', d.detail || 'Nao foi possivel reagir', '#ef4444');
+    }
+  } catch (e) {
+    showToast('Erro', 'Falha na conexao', '#ef4444');
+  }
+}
+
+function showEmojiPicker(msgId, anchorEl) {
+  const existing = document.getElementById('luminaEmojiPicker');
+  if (existing) existing.remove();
+  const emojis = ['❤️', '👍', '👎', '😂', '😮', '😢', '😡', '🔥', '🎉', '👀', '✨', '🙏', '💀', '🤔', '👏'];
+  const picker = document.createElement('div');
+  picker.id = 'luminaEmojiPicker';
+  picker.className = 'lumina-emoji-picker';
+  emojis.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.className = 'lumina-emoji-btn';
+    btn.textContent = emoji;
+    btn.onclick = function(e) { e.stopPropagation(); toggleReaction(msgId, emoji); picker.remove(); };
+    picker.appendChild(btn);
+  });
+  const rect = anchorEl.getBoundingClientRect();
+  let left = rect.left, top = rect.bottom + 8;
+  if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+  if (top + 200 > window.innerHeight) top = rect.top - 210;
+  if (top < 10) top = 10;
+  picker.style.left = left + 'px';
+  picker.style.top = top + 'px';
+  document.body.appendChild(picker);
+}
+
+function updateMessageReactions(msgId, reactions) {
+  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
+  if (!bubble) return;
+  let container = bubble.querySelector('.msg-reactions');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'msg-reactions';
+    const msgBody = bubble.querySelector('.msg-body');
+    if (msgBody) msgBody.appendChild(container);
+  }
+  container.innerHTML = '';
+  for (const [emoji, data] of Object.entries(reactions)) {
+    const isActive = data.users && data.users.includes(me?.id);
+    container.innerHTML += `<div class="msg-reaction${isActive ? ' active' : ''}" onclick="event.stopPropagation(); toggleReaction(${msgId}, '${emoji}')"><span>${emoji}</span><span class="msg-reaction-count">${data.count}</span></div>`;
+  }
+  container.innerHTML += `<div class="msg-reaction-add" onclick="event.stopPropagation(); showEmojiPicker(${msgId}, this)">+</div>`;
+}
+
+function updateMessageContent(msgId, newContent) {
+  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
+  if (!bubble) return;
+  const contentEl = bubble.querySelector('.msg-content');
+  if (!contentEl) return;
+  contentEl.innerHTML = escapeHtml(newContent);
+  let editedTag = bubble.querySelector('.msg-edited-tag');
+  if (!editedTag) {
+    const header = bubble.querySelector('.msg-header');
+    if (header) {
+      editedTag = document.createElement('span');
+      editedTag.className = 'msg-edited-tag';
+      editedTag.textContent = '(editado)';
+      const timeEl = header.querySelector('.msg-time-inline');
+      if (timeEl) timeEl.after(editedTag);
+      else header.appendChild(editedTag);
+    }
+  }
+}
+
+function removeMessage(msgId) {
+  const bubble = document.querySelector(`.message-bubble[data-msg-id="${msgId}"]`);
+  if (!bubble) return;
+  bubble.classList.add('deleted');
+  const contentEl = bubble.querySelector('.msg-content');
+  if (contentEl) contentEl.innerHTML = '<em style="opacity:0.5;">Mensagem deletada</em>';
+  const actions = bubble.querySelector('.msg-actions');
+  if (actions) actions.remove();
+}
+
 
 function openModal(title, bodyHtml, actionsHtml) {
   document.getElementById('modalTitle').textContent = title;
@@ -3504,6 +3720,9 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     const s = document.getElementById('settingsScreen');
     if (s && s.classList.contains('show')) closeSettings();
+    cancelReply();
+    cancelEdit();
+    closeAnyLumina();
   }
 });
 </script>
@@ -4257,6 +4476,6 @@ document.addEventListener('keydown', (e) => {
 }
 
 </style>
-<script src="/static/cosmic_aero/lumina_extras.js?v=1"></script>
+<script src="/static/cosmic_aero/lumina_extras.js?v=3"></script>
 </body>
 </html>
