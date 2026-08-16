@@ -2457,6 +2457,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="nebula-blur"></div>
@@ -2882,7 +2883,10 @@ function enterApp() {
   startAwayTimer();
 
   connectNotifWS();
-  loadData();
+  loadData().then(() => {
+    // Restaura sessão apenas UMA VEZ no início do app
+    setTimeout(restoreSession, 100);
+  });
   checkJoinParam();
   bindDockProfile();
 }
@@ -2932,19 +2936,19 @@ async function loadData() {
   renderDock();
   showHome();
   startPolling();
-  restoreSession();
 }
 
 function restoreSession() {
-  if (!lastSession) return;
-  if (lastSession.type === 'dm' && lastSession.peerId) {
-    const f = friends.friends?.find(x => x.fid === lastSession.peerId);
-    if (f) openDM(lastSession.peerId, f.display_name || f.username, f.avatar_color);
-  } else if (lastSession.type === 'circle' && lastSession.circleId) {
-    const c = circles.find(x => x.id === lastSession.circleId);
+  const session = JSON.parse(localStorage.getItem('aurora_session') || '{}');
+  if (!session || Object.keys(session).length === 0) return;
+  if (session.type === 'dm' && session.peerId) {
+    const f = friends.friends?.find(x => x.fid === session.peerId);
+    if (f) openDM(session.peerId, f.display_name || f.username, f.avatar_color);
+  } else if (lastSession.type === 'circle' && session.circleId) {
+    const c = circles.find(x => x.id === session.circleId);
     if (c) {
       selectCircle(lastSession.circleId).then(() => {
-        if (lastSession.topicId && currentCircle?.topics) {
+        if (session.topicId && currentCircle?.topics) {
           const t = currentCircle.topics.find(x => x.id === lastSession.topicId);
           if (t) selectTopic(lastSession.topicId);
         }
@@ -3559,6 +3563,14 @@ async function rejectFriend(fid) {
 
 async function selectCircle(id) {
   console.log('[DEBUG] selectCircle(' + id + ') called');
+  // Se o usuário está na tela de amigos (currentCircle e currentDM são null), 
+  // e ele não clicou explicitamente em um círculo (ou seja, veio de restoreSession),
+  // verificamos se a sessão atual é realmente deste círculo
+  const session = JSON.parse(localStorage.getItem('aurora_session') || '{}');
+  if (!currentCircle && !currentDM && session.type !== 'circle') {
+    console.log('[DEBUG] selectCircle(' + id + ') ABORTED — user is on Home screen');
+    return;
+  }
   // Guarda qual círculo estamos carregando — se mudar, aborta no final
   _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
