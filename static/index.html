@@ -2134,6 +2134,309 @@ body {
     url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
   background-size: cover, cover, 128px 128px;
 }
+
+/* ===== MEMBERS PANEL (Discord-style right sidebar) ===== */
+.members-panel {
+  width: 240px;
+  background: rgba(15, 15, 30, 0.6);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 4;
+  overflow-y: auto;
+  padding: 16px 0;
+}
+.members-panel.hidden {
+  display: none !important;
+}
+.members-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 16px 16px 8px;
+}
+.members-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 8px;
+  margin: 0 8px;
+}
+.members-row:hover {
+  background: rgba(139, 92, 246, 0.08);
+}
+.members-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.members-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(139, 92, 246, 0.2);
+}
+.members-status {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #0f0f12;
+}
+.members-status.online { background: #10b981; box-shadow: 0 0 4px rgba(16,185,129,0.5); }
+.members-status.away { background: #f59e0b; box-shadow: 0 0 4px rgba(245,158,11,0.5); }
+.members-status.busy { background: #ef4444; box-shadow: 0 0 4px rgba(239,68,68,0.5); }
+.members-status.offline { background: #6b7280; }
+.members-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.members-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.members-name.owner {
+  color: #fbbf24;
+}
+.members-sub {
+  font-size: 11px;
+  color: #6366f1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.members-role-tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(139, 92, 246, 0.15);
+  color: #a5b4fc;
+  flex-shrink: 0;
+}
+.members-role-tag.owner {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+.members-role-tag.mod {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+/* ===== VOICE CHANNELS IN PANEL ===== */
+.voice-channel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  margin: 0 8px 4px;
+  font-size: 14px;
+  color: #a5b4fc;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.voice-channel:hover {
+  background: rgba(139, 92, 246, 0.06);
+  border-color: rgba(139, 92, 246, 0.15);
+  color: #e0e7ff;
+}
+.voice-channel.active {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #fff;
+}
+.voice-channel-icon {
+  font-size: 16px;
+  opacity: 0.8;
+}
+.voice-channel-users {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #6366f1;
+}
+.voice-user-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 4px 32px;
+  margin: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.voice-user-row:hover {
+  background: rgba(139, 92, 246, 0.06);
+}
+.voice-user-row img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.voice-user-row span {
+  font-size: 12px;
+  color: #a5b4fc;
+}
+
+/* ===== LINK EMBEDS ===== */
+.link-embed {
+  max-width: 520px;
+  background: rgba(10, 8, 30, 0.6);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+.link-embed:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.1);
+}
+.link-embed-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: cover;
+  display: block;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+.link-embed-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.link-embed-site {
+  font-size: 11px;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.link-embed-site img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+.link-embed-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e7ff;
+  line-height: 1.4;
+}
+.link-embed-title a {
+  color: inherit;
+  text-decoration: none;
+}
+.link-embed-title a:hover {
+  text-decoration: underline;
+}
+.link-embed-desc {
+  font-size: 12px;
+  color: #a5b4fc;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ===== HEADER ICONS ===== */
+.header-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #a5b4fc;
+  background: transparent;
+  border: none;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+.header-icon-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: #e0e7ff;
+}
+.header-icon-btn.active {
+  background: rgba(139, 92, 246, 0.15);
+  color: #fff;
+}
+.header-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===== CATEGORY HEADERS IN PANEL ===== */
+.panel-category {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 16px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  user-select: none;
+}
+.panel-category:hover {
+  color: #a5b4fc;
+}
+.panel-category-arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+.panel-category.collapsed .panel-category-arrow {
+  transform: rotate(-90deg);
+}
+
+/* ===== MAIN HEADER CENTER ===== */
+.main-header-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.main-header-icon {
+  color: #6366f1;
+  font-size: 20px;
+}
+.main-header-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(139, 92, 246, 0.2);
+  margin: 0 4px;
+}
 </style>
 
 <!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
@@ -2146,6 +2449,7 @@ body {
 <link rel="stylesheet" href="/static/cosmic_aero/lumina_extras.css?v=1">
 
 
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
@@ -2251,11 +2555,26 @@ body {
   <!-- MAIN -->
   <div class="main">
     <div class="main-header">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div class="main-header-center">
+        <span class="main-header-icon" id="mainHeaderIcon">&#128172;</span>
         <h3 id="mainTitle">Bem-vindo</h3>
+        <div class="main-header-divider"></div>
         <div class="header-tabs hidden" id="topicTabs"></div>
       </div>
-      <div style="display:flex;gap:8px;" id="headerActions"></div>
+      <div style="display:flex;align-items:center;gap:4px;" id="headerActions">
+        <button class="header-icon-btn" id="btnToggleMembers" title="Mostrar membros" onclick="toggleMembersPanel()" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </button>
+        <button class="header-icon-btn" title="Buscar" onclick="showToast('Em breve', 'Busca no chat está chegando...', '#8b5cf6')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="header-icon-btn" title="Notificações" onclick="showToast('Em breve', 'Configurações de notificação...', '#8b5cf6')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </button>
+        <button class="header-icon-btn" title="Fixar mensagem" onclick="showToast('Em breve', 'Mensagens fixadas...', '#8b5cf6')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="3"/><path d="M5 17h14"/><path d="M12 3l-4 4"/><path d="M12 3l4 4"/></svg>
+        </button>
+      </div>
     </div>
 
     <div class="user-list hidden" id="userList"></div>
@@ -2292,6 +2611,9 @@ body {
   </div>
 </div>
 
+
+  <!-- MEMBERS PANEL (right sidebar - Discord style) -->
+  <div class="members-panel hidden" id="membersPanel"></div>
 
 <!-- ===== SETTINGS SCREEN ===== -->
 <div class="settings-screen" id="settingsScreen">
@@ -2730,9 +3052,26 @@ function setActiveDock(id) {
 
 let friendsFilterTab = 'all';
 
+function toggleMembersPanel() {
+  const panel = document.getElementById('membersPanel');
+  const btn = document.getElementById('btnToggleMembers');
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    btn.classList.add('active');
+  } else {
+    panel.classList.add('hidden');
+    btn.classList.remove('active');
+  }
+}
+
 function showHome() {
   currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
   homeNavTab = 'friends';
+  document.getElementById('membersPanel').classList.add('hidden');
+  document.getElementById('btnToggleMembers').style.display = 'none';
+  document.getElementById('mainHeaderIcon').textContent = '👥';
+  document.getElementById('btnToggleMembers').style.display = 'none';
+  document.getElementById('mainHeaderIcon').textContent = '👥';
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
       item.classList.remove('active');
@@ -3199,9 +3538,10 @@ async function selectCircle(id) {
   actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">&#128279; Convite</button>`;
   document.getElementById('headerActions').innerHTML = actions;
 
+  // Header tabs
   const tabs = document.getElementById('topicTabs');
   tabs.classList.remove('hidden');
-  tabs.innerHTML = currentCircle.topics.map(t => {
+  tabs.innerHTML = currentCircle.topics.filter(t => t.type === 'text').map(t => {
     const unread = unreadMap['topic:' + t.id] || 0;
     const isActive = currentTopic?.id === t.id;
     return `<div class="header-tab ${isActive?'active':''}" data-tid="${t.id}">
@@ -3213,35 +3553,118 @@ async function selectCircle(id) {
     el.onclick = () => selectTopic(el.dataset.tid);
   });
 
-  let html = `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:8px;">Topicos</div>`;
-  currentCircle.topics.forEach(t => {
-    const icon = t.type === 'voice' ? '&#127908;' : t.type === 'media' ? '&#128206;' : '&#128172;';
-    const unread = unreadMap['topic:' + t.id] || 0;
-    const isActive = currentTopic?.id === t.id;
-    html += `<div class="topic-tab ${isActive?'active':''}" data-tid="${t.id}" onclick="selectTopic('${t.id}')">
-      <span class="topic-icon">${icon}</span> ${t.name}
-      ${unread > 0 ? `<div class="topic-badge ${!isActive?'pulse':''}">${unread}</div>` : ''}
+  // Build panel with categories
+  let html_panel = '';
+
+  // Text channels
+  const textTopics = currentCircle.topics.filter(t => t.type === 'text');
+  if (textTopics.length) {
+    html_panel += `<div class="panel-category" onclick="toggleCategory(this)">
+      <span class="panel-category-arrow">▼</span> Canais de Texto
     </div>`;
-  });
-  html += `<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:16px 8px 8px;">Membros</div>`;
-  currentCircle.members.forEach(m => {
-    html += `<div class="contact-item">
-      <div class="contact-avatar-wrap">
-        <div class="contact-avatar" style="background:${m.avatar_color}20;color:${m.avatar_color}">${(m.display_name||m.username)[0].toUpperCase()}</div>
-      </div>
-      <div class="contact-info">
-        <div class="contact-name">${m.display_name || m.username} ${m.role==='owner'?'&#128081;':''}</div>
-        <div class="contact-sub">@${m.username}</div>
-      </div>
+    html_panel += `<div class="panel-category-content">`;
+    textTopics.forEach(t => {
+      const unread = unreadMap['topic:' + t.id] || 0;
+      const isActive = currentTopic?.id === t.id;
+      html_panel += `<div class="topic-tab ${isActive?'active':''}" data-tid="${t.id}" onclick="selectTopic('${t.id}')">
+        <span class="topic-icon">&#128172;</span> ${t.name}
+        ${unread > 0 ? `<div class="topic-badge ${!isActive?'pulse':''}">${unread}</div>` : ''}
+      </div>`;
+    });
+    html_panel += `</div>`;
+  }
+
+  // Voice channels
+  const voiceTopics = currentCircle.topics.filter(t => t.type === 'voice');
+  if (voiceTopics.length) {
+    html_panel += `<div class="panel-category" onclick="toggleCategory(this)">
+      <span class="panel-category-arrow">▼</span> Canais de Voz
     </div>`;
-  });
-  document.getElementById('panelContent').innerHTML = html;
+    html_panel += `<div class="panel-category-content">`;
+    voiceTopics.forEach(t => {
+      const voiceUsers = (manager.voice_users && manager.voice_users['topic:' + t.id]) || [];
+      html_panel += `<div class="voice-channel" data-tid="${t.id}" onclick="joinVoiceChannel('${t.id}')">
+        <span class="voice-channel-icon">&#127908;</span> ${t.name}
+        ${voiceUsers.length > 0 ? `<div class="voice-channel-users">${voiceUsers.length} <span style="font-size:10px;">&#127908;</span></div>` : ''}
+      </div>`;
+      voiceUsers.forEach(u => {
+        html_panel += `<div class="voice-user-row" onclick="showMiniProfile('${u.id}', this)">
+          <img src="${u.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
+          <span>${u.name}</span>
+        </div>`;
+      });
+    });
+    html_panel += `</div>`;
+  }
+
+  document.getElementById('panelContent').innerHTML = html_panel;
+
+  // Show members panel on the right
+  const membersPanel = document.getElementById('membersPanel');
+  membersPanel.classList.remove('hidden');
+  document.getElementById('btnToggleMembers').style.display = 'flex';
+  document.getElementById('mainHeaderIcon').textContent = '💬';
+  renderMembersPanel(data.members);
 
   if (currentCircle.topics.length && !currentTopic) {
-    selectTopic(currentCircle.topics[0].id);
+    const firstText = currentCircle.topics.find(t => t.type === 'text');
+    if (firstText) selectTopic(firstText.id);
   }
 }
 
+function toggleCategory(el) {
+  el.classList.toggle('collapsed');
+  const content = el.nextElementSibling;
+  if (content) {
+    content.style.display = el.classList.contains('collapsed') ? 'none' : 'block';
+  }
+}
+
+function renderMembersPanel(members) {
+  const panel = document.getElementById('membersPanel');
+  if (!panel) return;
+
+  const online = members.filter(m => m.status === 'online' || m.status === 'away');
+  const offline = members.filter(m => !m.status || m.status === 'offline' || m.status === 'invisible');
+
+  let html = '';
+
+  if (online.length) {
+    html += `<div class="members-section-title">Online — ${online.length}</div>`;
+    online.forEach(m => renderMemberRow(m));
+  }
+  if (offline.length) {
+    html += `<div class="members-section-title">Offline — ${offline.length}</div>`;
+    offline.forEach(m => renderMemberRow(m));
+  }
+
+  panel.innerHTML = html;
+
+  function renderMemberRow(m) {
+    const isOwner = m.role === 'owner';
+    const isMod = m.role === 'mod';
+    const roleTag = isOwner ? '<span class="members-role-tag owner">Dono</span>' : isMod ? '<span class="members-role-tag mod">Mod</span>' : '';
+    const status = m.status || 'offline';
+    const displayName = m.display_name || m.username;
+    html += `
+      <div class="members-row" onclick="showMiniProfile('${m.id}', this)">
+        <div class="members-avatar-wrap">
+          <img src="${m.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" class="members-avatar" alt="">
+          <div class="members-status ${status}"></div>
+        </div>
+        <div class="members-info">
+          <div class="members-name ${isOwner ? 'owner' : ''}">${escapeHtml(displayName)}</div>
+          <div class="members-sub">@${escapeHtml(m.username)}</div>
+        </div>
+        ${roleTag}
+      </div>
+    `;
+  }
+}
+
+function joinVoiceChannel(tid) {
+  showToast('Em breve', 'Canais de voz estão chegando...', '#8b5cf6');
+}
 
 async function selectTopic(tid) {
   currentTopic = currentCircle.topics.find(t => t.id === tid);
@@ -3291,6 +3714,9 @@ async function openDM(peerId, peerName, peerColor) {
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
   saveSession();
+  document.getElementById('membersPanel').classList.add('hidden');
+  document.getElementById('btnToggleMembers').style.display = 'none';
+  document.getElementById('mainHeaderIcon').textContent = '👥';
   document.getElementById('panelTitle').textContent = 'Amigos';
   document.getElementById('panelSubtitle').textContent = 'Conversa direta';
   document.getElementById('mainTitle').textContent = peerName;
@@ -3421,6 +3847,75 @@ function _getUserColor(userName) {
   return AVATAR_BG_COLORS[Math.abs(hash) % AVATAR_BG_COLORS.length];
 }
 
+
+// ===== LINK PREVIEW SYSTEM =====
+const linkPreviewCache = {};
+
+function extractUrls(text) {
+  const urlRegex = /(https?:\/\/[^\s<]+[^\s.,;!?<])/gi;
+  return text.match(urlRegex) || [];
+}
+
+async function fetchLinkPreview(url) {
+  if (linkPreviewCache[url]) return linkPreviewCache[url];
+  try {
+    // Use noembed for common sites, or a simple proxy approach
+    const encoded = encodeURIComponent(url);
+    const res = await fetch('https://noembed.com/embed?url=' + encoded);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const preview = {
+      url: url,
+      title: data.title || url,
+      description: data.description || '',
+      image: data.thumbnail_url || data.image || '',
+      site: data.provider_name || new URL(url).hostname
+    };
+    linkPreviewCache[url] = preview;
+    return preview;
+  } catch (e) {
+    // Fallback: just show hostname
+    try {
+      const hostname = new URL(url).hostname;
+      return { url, title: url, description: '', image: '', site: hostname };
+    } catch { return null; }
+  }
+}
+
+function renderLinkEmbed(preview) {
+  let imageHtml = '';
+  if (preview.image) {
+    imageHtml = `<img class="link-embed-image" src="${escapeHtml(preview.image)}" alt="" onerror="this.style.display='none'">`;
+  }
+  return `
+    <div class="link-embed" onclick="window.open('${escapeHtml(preview.url)}', '_blank')">
+      ${imageHtml}
+      <div class="link-embed-body">
+        <div class="link-embed-site">${escapeHtml(preview.site)}</div>
+        <div class="link-embed-title"><a href="${escapeHtml(preview.url)}" target="_blank">${escapeHtml(preview.title)}</a></div>
+        ${preview.description ? `<div class="link-embed-desc">${escapeHtml(preview.description)}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function processMessageContent(content, container) {
+  const urls = extractUrls(content);
+  if (!urls.length) return;
+
+  for (const url of urls) {
+    // Skip image URLs (already handled by file_url)
+    if (/\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i.test(url)) continue;
+
+    const preview = await fetchLinkPreview(url);
+    if (preview) {
+      const embedDiv = document.createElement('div');
+      embedDiv.innerHTML = renderLinkEmbed(preview);
+      container.appendChild(embedDiv.firstElementChild);
+    }
+  }
+}
+
 function appendMessage(m) {
   const area = document.getElementById('chatArea');
   const isOwn = m.user?.id === me.id || m.user?.name === (me.name || me.display_name || me.username);
@@ -3513,6 +4008,11 @@ function appendMessage(m) {
 
   area.appendChild(bubble);
   area.scrollTop = area.scrollHeight;
+
+  // Process link previews
+  if (m.content) {
+    processMessageContent(m.content, bubble.querySelector('.msg-body'));
+  }
 }
 
 
@@ -3557,14 +4057,11 @@ function appendSystemMessage(content) {
 function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
 function renderUserList(users) {
-  const el = document.getElementById('userList');
-  // Nunca mostrar lista de membros em conversa privada (DM)
-  if (currentDM) { el.classList.add('hidden'); return; }
-  if (!users || !users.length) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML = users.map(u =>
-    `<div class="user-chip"><div class="user-chip-dot" style="background:${u.color||'#888'}"></div>${u.name}</div>`
-  ).join('');
+  // Members are now shown in the right panel via renderMembersPanel
+  // This function is kept for WS user_joined/left events but doesn't render inline
+  if (currentCircle && currentCircle.members) {
+    renderMembersPanel(currentCircle.members);
+  }
 }
 
 function showTyping(user) {
