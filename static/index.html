@@ -2885,7 +2885,10 @@ function enterApp() {
   connectNotifWS();
   loadData().then(() => {
     // Restaura sessão apenas UMA VEZ no início do app
-    setTimeout(restoreSession, 100);
+    if (!window._sessionRestored) {
+      window._sessionRestored = true;
+      setTimeout(restoreSession, 100);
+    }
   });
   checkJoinParam();
   bindDockProfile();
@@ -3096,26 +3099,34 @@ function showHome() {
 
   currentCircle = null; currentTopic = null; currentDM = null; currentRoom = null;
   homeNavTab = 'friends';
+  const btnToggleMembers = document.getElementById('btnToggleMembers');
+  if (btnToggleMembers) btnToggleMembers.style.display = 'none';
+  const mainHeaderIcon = document.getElementById('mainHeaderIcon');
+  if (mainHeaderIcon) mainHeaderIcon.textContent = '👥';
   document.getElementById('membersPanel').classList.add('hidden');
   document.getElementById('membersPanel').innerHTML = '';
-  document.getElementById('btnToggleMembers').style.display = 'none';
-  document.getElementById('mainHeaderIcon').textContent = '👥';
-  document.getElementById('btnToggleMembers').style.display = 'none';
-  document.getElementById('mainHeaderIcon').textContent = '👥';
   setTimeout(() => {
     document.querySelectorAll('.contact-item').forEach(item => {
       item.classList.remove('active');
     });
   }, 0);
   saveSession();
-  document.getElementById('panelTitle').textContent = 'Amigos';
-  document.getElementById('panelSubtitle').textContent = 'Conversas diretas';
-  document.getElementById('mainTitle').textContent = '';
-  document.getElementById('topicTabs').classList.add('hidden');
-  document.getElementById('headerActions').innerHTML = '';
-  document.getElementById('inputArea').classList.add('hidden');
-  document.getElementById('userList').classList.add('hidden');
-  document.getElementById('msgInput').placeholder = 'Conversar em #bate-papo...';
+  const shPanelTitle = document.getElementById('panelTitle');
+  if (shPanelTitle) shPanelTitle.textContent = 'Amigos';
+  const shPanelSubtitle = document.getElementById('panelSubtitle');
+  if (shPanelSubtitle) shPanelSubtitle.textContent = 'Conversas diretas';
+  const shMainTitle = document.getElementById('mainTitle');
+  if (shMainTitle) shMainTitle.textContent = '';
+  const shTopicTabs = document.getElementById('topicTabs');
+  if (shTopicTabs) shTopicTabs.classList.add('hidden');
+  const shHeaderActions = document.getElementById('headerActions');
+  if (shHeaderActions) shHeaderActions.innerHTML = '';
+  const shInputArea = document.getElementById('inputArea');
+  if (shInputArea) shInputArea.classList.add('hidden');
+  const shUserList = document.getElementById('userList');
+  if (shUserList) shUserList.classList.add('hidden');
+  const shMsgInput = document.getElementById('msgInput');
+  if (shMsgInput) shMsgInput.placeholder = 'Conversar em #bate-papo...';
 
   // Limpa explicitamente antes de renderizar (garantia contra race conditions)
   document.getElementById('chatArea').innerHTML = '';
@@ -3485,11 +3496,16 @@ function showAboutScreen() {
   aboutEggTimers.forEach(t => clearTimeout(t));
   aboutEggTimers = [];
 
-  document.getElementById('mainTitle').textContent = 'Sobre';
-  document.getElementById('topicTabs').classList.add('hidden');
-  document.getElementById('headerActions').innerHTML = '';
-  document.getElementById('inputArea').classList.add('hidden');
-  document.getElementById('userList').classList.add('hidden');
+  const aboutMainTitle = document.getElementById('mainTitle');
+  if (aboutMainTitle) aboutMainTitle.textContent = 'Sobre';
+  const aboutTopicTabs = document.getElementById('topicTabs');
+  if (aboutTopicTabs) aboutTopicTabs.classList.add('hidden');
+  const aboutInputArea = document.getElementById('inputArea');
+  if (aboutInputArea) aboutInputArea.classList.add('hidden');
+  const aboutUserList = document.getElementById('userList');
+  if (aboutUserList) aboutUserList.classList.add('hidden');
+  const aboutHeaderActions = document.getElementById('headerActions');
+  if (aboutHeaderActions) aboutHeaderActions.innerHTML = '';
 
   document.getElementById('chatArea').innerHTML = `
     <div class="about-screen">
@@ -3563,14 +3579,6 @@ async function rejectFriend(fid) {
 
 async function selectCircle(id) {
   console.log('[DEBUG] selectCircle(' + id + ') called');
-  // Se o usuário está na tela de amigos (currentCircle e currentDM são null), 
-  // e ele não clicou explicitamente em um círculo (ou seja, veio de restoreSession),
-  // verificamos se a sessão atual é realmente deste círculo
-  const session = JSON.parse(localStorage.getItem('aurora_session') || '{}');
-  if (!currentCircle && !currentDM && session.type !== 'circle') {
-    console.log('[DEBUG] selectCircle(' + id + ') ABORTED — user is on Home screen');
-    return;
-  }
   // Guarda qual círculo estamos carregando — se mudar, aborta no final
   _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
@@ -3817,10 +3825,12 @@ async function openDM(peerId, peerName, peerColor) {
   currentCircle = null; currentTopic = null;
   setActiveDock('dockHome');
   saveSession();
-  document.getElementById('membersPanel').classList.add('hidden');
-  document.getElementById('membersPanel').innerHTML = '';
-  document.getElementById('btnToggleMembers').style.display = 'none';
-  document.getElementById('mainHeaderIcon').textContent = '👥';
+  const membersPanel = document.getElementById('membersPanel');
+  if (membersPanel) { membersPanel.classList.add('hidden'); membersPanel.innerHTML = ''; }
+  const btnToggleMembersDM = document.getElementById('btnToggleMembers');
+  if (btnToggleMembersDM) btnToggleMembersDM.style.display = 'none';
+  const mainHeaderIconDM = document.getElementById('mainHeaderIcon');
+  if (mainHeaderIconDM) mainHeaderIconDM.textContent = '👥';
   document.getElementById('panelTitle').textContent = 'Amigos';
   document.getElementById('panelSubtitle').textContent = 'Conversa direta';
   document.getElementById('mainTitle').textContent = peerName;
