@@ -2955,7 +2955,7 @@ async function loadData() {
     renderPanelFriends();
     renderFriendsScreen();
   } else if (currentCircle) {
-    renderPanelFriends();
+    // Não renderiza panel de amigos — o panel do círculo já está montado
     updateTopicTabsUnread();
   }
 }
@@ -3018,7 +3018,7 @@ function startPolling() {
       renderPanelFriends();
       renderFriendsScreen();
     } else if (currentCircle) {
-      renderPanelFriends();
+      // Não renderiza panel de amigos — o panel do círculo já está montado
       updateTopicTabsUnread();
     }
   }, 8000);
