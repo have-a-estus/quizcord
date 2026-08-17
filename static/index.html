@@ -3648,6 +3648,11 @@ async function rejectFriend(fid) {
 
 async function selectCircle(id) {
   console.log('[DEBUG] selectCircle(' + id + ') called');
+  // Guard: se já está nesse círculo, não faz nada (evita duplo clique)
+  if (currentCircle && currentCircle.id === id) {
+    console.log('[DEBUG] selectCircle(' + id + ') IGNORED — already in this circle');
+    return;
+  }
   // Guarda qual círculo estamos carregando — se mudar, aborta no final
   _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
@@ -5753,5 +5758,33 @@ document.addEventListener('keydown', (e) => {
 
 </style>
 <script src="/static/cosmic_aero/lumina_extras.js?v=3"></script>
+<script>
+// ===== FIX: Context Menu Global para Círculos =====
+// Listener em capturing phase garante que roda antes de qualquer handler individual
+// e funciona mesmo que nuclearBindChatElements falhe em aplicar o oncontextmenu
+
+document.addEventListener('contextmenu', function(e) {
+  const bubble = e.target.closest('.message-bubble');
+  if (!bubble || bubble.classList.contains('own')) return;
+
+  let uid = bubble.dataset.uid;
+  if (!uid && typeof resolveUserIdByName === 'function') {
+    const authorEl = bubble.querySelector('.msg-author');
+    const name = authorEl ? authorEl.textContent.trim() : null;
+    uid = resolveUserIdByName(name);
+    if (uid) bubble.dataset.uid = uid;
+  }
+
+  if (uid && uid !== me?.id && typeof showFriendContextMenu === 'function') {
+    e.preventDefault();
+    e.stopPropagation();
+    const authorEl = bubble.querySelector('.msg-author');
+    const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
+    const avatarEl = bubble.querySelector('.msg-avatar img');
+    const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
+    showFriendContextMenu(e, uid, name, avatar);
+  }
+}, true);
+</script>
 </body>
 </html>
