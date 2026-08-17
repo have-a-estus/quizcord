@@ -2458,6 +2458,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="nebula-blur"></div>
@@ -2887,7 +2888,17 @@ function enterApp() {
     // Restaura sessão apenas UMA VEZ no início do app
     if (!window._sessionRestored) {
       window._sessionRestored = true;
-      setTimeout(restoreSession, 100);
+      const session = JSON.parse(localStorage.getItem('aurora_session') || '{}');
+      if (session && Object.keys(session).length > 0) {
+        setTimeout(restoreSession, 100);
+      } else {
+        showHome();
+      }
+    }
+    // Polling só inicia uma vez, aqui
+    if (!window._pollingStarted) {
+      window._pollingStarted = true;
+      startPolling();
     }
   });
   checkJoinParam();
@@ -2937,8 +2948,16 @@ async function loadData() {
   unreadMap = uRes.ok ? await uRes.json() : {};
   updatePendingBadge();
   renderDock();
-  showHome();
-  startPolling();
+  // Atualiza UI conforme o contexto atual — SEM trocar de tela
+  if (!currentCircle && !currentDM) {
+    showHome();
+  } else if (currentDM) {
+    renderPanelFriends();
+    renderFriendsScreen();
+  } else if (currentCircle) {
+    renderPanelFriends();
+    updateTopicTabsUnread();
+  }
 }
 
 function restoreSession() {
@@ -2992,7 +3011,16 @@ function startPolling() {
     updatePendingBadge();
     const uRes = await fetch(API + '/api/unread', { headers: authHeader() });
     if (uRes.ok) { unreadMap = await uRes.json(); renderDock(); }
-    // Não chama showHome automaticamente — deixa o usuário controlar a navegação
+    // Atualiza UI conforme contexto atual — SEM trocar de tela
+    if (!currentCircle && !currentDM) {
+      showHome();
+    } else if (currentDM) {
+      renderPanelFriends();
+      renderFriendsScreen();
+    } else if (currentCircle) {
+      renderPanelFriends();
+      updateTopicTabsUnread();
+    }
   }, 8000);
 }
 
@@ -3041,6 +3069,11 @@ function renderDock() {
   container.querySelectorAll('.dock-server').forEach(el => {
     el.onclick = () => selectCircle(el.dataset.id);
   });
+  // Reaplica classe active se um círculo estiver selecionado
+  if (currentCircle) {
+    const activeEl = container.querySelector(`[data-id="${currentCircle.id}"]`);
+    if (activeEl) activeEl.classList.add('active');
+  }
 }
 
 document.getElementById('dockHome').onclick = () => {
@@ -3391,6 +3424,11 @@ function renderPanelFriends() {
   }
 
   document.getElementById('panelContent').innerHTML = html.join('');
+  // Reaplica classe active se estiver em um DM
+  if (currentDM) {
+    const activeContact = document.querySelector(`.contact-item[data-peer="${currentDM.peerId}"]`);
+    if (activeContact) activeContact.classList.add('active');
+  }
 }
 
 
@@ -3656,7 +3694,21 @@ async function selectCircle(id) {
     actions += `<button class="btn-sm btn-ghost" onclick="openCreateTopic()">+ Topico</button>`;
   }
   actions += `<button class="btn-sm btn-ghost" onclick="showInviteCode()">&#128279; Convite</button>`;
-  document.getElementById('headerActions').innerHTML = actions;
+  // Reconstrói headerActions com botões do círculo + botões padrão
+  document.getElementById('headerActions').innerHTML = actions + `
+    <button class="header-icon-btn" id="btnToggleMembers" title="Mostrar membros" onclick="toggleMembersPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </button>
+    <button class="header-icon-btn" title="Buscar" onclick="showToast('Em breve', 'Busca no chat está chegando...', '#8b5cf6')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="header-icon-btn" title="Notificações" onclick="showToast('Em breve', 'Configurações de notificação...', '#8b5cf6')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </button>
+    <button class="header-icon-btn" title="Fixar mensagem" onclick="showToast('Em breve', 'Mensagens fixadas...', '#8b5cf6')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="3"/><path d="M5 17h14"/><path d="M12 3l-4 4"/><path d="M12 3l4 4"/></svg>
+    </button>
+  `;
 
   // Header tabs
   const tabs = document.getElementById('topicTabs');
@@ -3732,6 +3784,44 @@ async function selectCircle(id) {
     const firstText = currentCircle.topics.find(t => t.type === 'text');
     if (firstText) selectTopic(firstText.id);
   }
+}
+
+
+function updateTopicTabsUnread() {
+  if (!currentCircle) return;
+  // Atualiza header tabs
+  document.querySelectorAll('.header-tab').forEach(el => {
+    const tid = el.dataset.tid;
+    const unread = unreadMap['topic:' + tid] || 0;
+    let dot = el.querySelector('.header-unread');
+    if (unread > 0 && !el.classList.contains('active')) {
+      if (!dot) {
+        dot = document.createElement('span');
+        dot.className = 'header-unread';
+        el.appendChild(dot);
+      }
+    } else if (dot) {
+      dot.remove();
+    }
+  });
+  // Atualiza panel topic tabs
+  document.querySelectorAll('.topic-tab').forEach(el => {
+    const tid = el.dataset.tid;
+    const unread = unreadMap['topic:' + tid] || 0;
+    let badge = el.querySelector('.topic-badge');
+    if (unread > 0 && !el.classList.contains('active')) {
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.className = 'topic-badge pulse';
+        badge.textContent = unread;
+        el.appendChild(badge);
+      } else {
+        badge.textContent = unread;
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  });
 }
 
 function toggleCategory(el) {
