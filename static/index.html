@@ -3808,6 +3808,8 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
+  // Se já estamos nesse DM, não faz nada (evita limpar chat ao clicar 2x no mesmo amigo)
+  if (currentDM && currentDM.peerId === peerId) return;
   _pendingCircleLoad = null;  // Cancela qualquer loading de círculo
   cancelReply();
   cancelEdit();
@@ -4218,7 +4220,9 @@ function bindInputs() {
   send.onclick = () => sendMessage();
   input.onkeydown = (e) => {
     if (e.key === 'Enter') sendMessage();
-    else if (ws && ws.readyState === 1) ws.send(JSON.stringify({type:'typing'}));
+    else if (ws && ws.readyState === 1) {
+      try { ws.send(JSON.stringify({type:'typing'})); } catch(err) {}
+    }
   };
 
   // Focus glow na barra
