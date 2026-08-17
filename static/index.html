@@ -3120,7 +3120,23 @@ function showHome() {
   const shTopicTabs = document.getElementById('topicTabs');
   if (shTopicTabs) shTopicTabs.classList.add('hidden');
   const shHeaderActions = document.getElementById('headerActions');
-  if (shHeaderActions) shHeaderActions.innerHTML = '';
+  if (shHeaderActions) {
+    // Reconstrói botões padrão (não destrói o btnToggleMembers do DOM)
+    shHeaderActions.innerHTML = `
+      <button class="header-icon-btn" id="btnToggleMembers" title="Mostrar membros" onclick="toggleMembersPanel()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Buscar" onclick="showToast('Em breve', 'Busca no chat está chegando...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Notificações" onclick="showToast('Em breve', 'Configurações de notificação...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Fixar mensagem" onclick="showToast('Em breve', 'Mensagens fixadas...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="3"/><path d="M5 17h14"/><path d="M12 3l-4 4"/><path d="M12 3l4 4"/></svg>
+      </button>
+    `;
+  }
   const shInputArea = document.getElementById('inputArea');
   if (shInputArea) shInputArea.classList.add('hidden');
   const shUserList = document.getElementById('userList');
@@ -3505,7 +3521,22 @@ function showAboutScreen() {
   const aboutUserList = document.getElementById('userList');
   if (aboutUserList) aboutUserList.classList.add('hidden');
   const aboutHeaderActions = document.getElementById('headerActions');
-  if (aboutHeaderActions) aboutHeaderActions.innerHTML = '';
+  if (aboutHeaderActions) {
+    aboutHeaderActions.innerHTML = `
+      <button class="header-icon-btn" id="btnToggleMembers" title="Mostrar membros" onclick="toggleMembersPanel()" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Buscar" onclick="showToast('Em breve', 'Busca no chat está chegando...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Notificações" onclick="showToast('Em breve', 'Configurações de notificação...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+      <button class="header-icon-btn" title="Fixar mensagem" onclick="showToast('Em breve', 'Mensagens fixadas...', '#8b5cf6')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="3"/><path d="M5 17h14"/><path d="M12 3l-4 4"/><path d="M12 3l4 4"/></svg>
+      </button>
+    `;
+  }
 
   document.getElementById('chatArea').innerHTML = `
     <div class="about-screen">
@@ -3690,9 +3721,11 @@ async function selectCircle(id) {
 
   // Show members panel on the right
   const membersPanel = document.getElementById('membersPanel');
-  membersPanel.classList.remove('hidden');
-  document.getElementById('btnToggleMembers').style.display = 'flex';
-  document.getElementById('mainHeaderIcon').textContent = '💬';
+  if (membersPanel) membersPanel.classList.remove('hidden');
+  const btnToggle = document.getElementById('btnToggleMembers');
+  if (btnToggle) btnToggle.style.display = 'flex';
+  const mainIcon = document.getElementById('mainHeaderIcon');
+  if (mainIcon) mainIcon.textContent = '💬';
   renderMembersPanel(data.members);
 
   if (currentCircle.topics.length && !currentTopic) {
