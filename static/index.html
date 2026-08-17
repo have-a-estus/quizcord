@@ -3795,6 +3795,18 @@ async function selectTopic(tid) {
   document.getElementById('inputArea').classList.remove('hidden');
   document.getElementById('userList').classList.remove('hidden');
   document.getElementById('msgInput').placeholder = 'Conversar em #' + currentTopic.name;
+  // Limpa unread no servidor e atualiza badges
+  fetch(API + '/api/topics/' + tid + '/history', { headers: authHeader() })
+    .then(() => {
+      unreadMap['topic:' + tid] = 0;
+      // Atualiza badges no panel
+      const tab = document.querySelector(`.topic-tab[data-tid="${tid}"] .topic-badge`);
+      if (tab) tab.remove();
+      // Atualiza dot no header tab
+      const htab = document.querySelector(`.header-tab[data-tid="${tid}"] .header-unread`);
+      if (htab) htab.remove();
+    })
+    .catch(() => {});
   connectWS('topic:' + tid);
 }
 
@@ -3848,6 +3860,14 @@ async function openDM(peerId, peerName, peerColor) {
     chat = { id: u1, peer_id: peerId };
   }
   currentDM.chatId = chat.id;
+  // Limpa unread no servidor e atualiza badges
+  fetch(API + '/api/dm-chats/' + chat.id + '/history', { headers: authHeader() })
+    .then(() => {
+      unreadMap['dm:' + chat.id] = 0;
+      renderPanelFriends();
+      renderFriendsScreen();
+    })
+    .catch(() => {});
   connectWS('dm:' + chat.id);
 }
 
@@ -3897,6 +3917,12 @@ function connectWS(roomId) {
       // Guard extra: ignora mensagens se saímos do chat
       if (!currentCircle && !currentDM) return;
       appendMessage(msg);
+      // Se a mensagem é de outro room (não estamos vendo agora), incrementa unread visual
+      if (msg.room_id && currentRoom !== msg.room_id && msg.user?.id !== me.id) {
+        unreadMap[msg.room_id] = (unreadMap[msg.room_id] || 0) + 1;
+        renderPanelFriends();
+        renderDock();
+      }
       if (msg.user?.id !== me.id && document.hidden) { playNotifSound(); nativeFlash(); }
     }
     else if (msg.type === 'system') {
