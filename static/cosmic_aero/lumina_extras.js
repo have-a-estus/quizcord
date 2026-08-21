@@ -5,6 +5,51 @@
 
 console.log('[LuminaExtras] ===== ARQUIVO CARREGADO v2.4 =====');
 
+// ===== CONTEXT MENU DE MENSAGEM =====
+function showMessageContextMenu(e, msgId, roomId, targetId, targetName, content) {
+  closeAnyLumina();
+  const menu = document.createElement('div');
+  menu.className = 'lumina-context-menu';
+  menu.id = 'luminaContextMenu';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+
+  const safeName = (targetName || 'Usuario').replace(/'/g, "\'");
+  const safeContent = (content || '').substring(0, 60).replace(/'/g, "\'");
+
+  menu.innerHTML = `
+    <button class="lumina-ctx-item" onclick="startReply({id:${msgId}, user:'${safeName}', content:'${safeContent}'}); closeAnyLumina();">
+      <span class="lumina-ctx-icon">↩️</span> Responder
+    </button>
+    <button class="lumina-ctx-item" onclick="showEmojiPicker(${msgId}, this); closeAnyLumina();">
+      <span class="lumina-ctx-icon">😀</span> Reagir
+    </button>
+    <div class="lumina-ctx-divider"></div>
+    <button class="lumina-ctx-item" onclick="showFullProfile('${targetId}'); closeAnyLumina();">
+      <span class="lumina-ctx-icon">👤</span> Ver perfil
+    </button>
+    <button class="lumina-ctx-item" onclick="openDM('${targetId}', '${safeName}', '#a78bfa'); closeAnyLumina();">
+      <span class="lumina-ctx-icon">💬</span> Enviar mensagem
+    </button>
+    <div class="lumina-ctx-divider"></div>
+    <button class="lumina-ctx-item danger" onclick="openReportModal(${msgId}, '${roomId}', '${targetId}', '${safeName}'); closeAnyLumina();">
+      <span class="lumina-ctx-icon">🚩</span> Denunciar mensagem
+    </button>
+  `;
+
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    document.addEventListener('click', function closeCtx(ev) {
+      if (!menu.contains(ev.target)) {
+        menu.remove();
+        document.removeEventListener('click', closeCtx);
+      }
+    });
+  }, 50);
+}
+
+
+
 // ===== CACHE =====
 let _blockedList = [];
 let _blockedLoaded = false;
@@ -227,14 +272,14 @@ function handleDocumentContextMenu(e) {
       uid = resolveUserIdByName(name);
       if (uid) bubble.dataset.uid = uid;
     }
-    if (uid && uid !== me?.id) {
+    if (uid && uid !== me?.id && typeof showMessageContextMenu === 'function') {
       e.preventDefault();
       e.stopPropagation();
       const authorEl = bubble.querySelector('.msg-author');
       const name = authorEl ? authorEl.textContent.trim() : 'Usuario';
-      const avatarEl = bubble.querySelector('.msg-avatar img');
-      const avatar = avatarEl ? avatarEl.src : '/static/cosmic_aero/alpacas/alpaca_gray.png';
-      showFriendContextMenu(e, uid, name, avatar);
+      const msgId = bubble.dataset.msgId;
+      const roomId = currentRoom || '';
+      showMessageContextMenu(e, msgId, roomId, uid, name);
       return false;
     }
   }

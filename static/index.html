@@ -2437,6 +2437,38 @@ body {
   background: rgba(139, 92, 246, 0.2);
   margin: 0 4px;
 }
+
+/* ===== VOICE CALL BAR ===== */
+.voice-call-bar {
+  display: none;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  background: rgba(10, 8, 30, 0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  z-index: 10;
+  flex-shrink: 0;
+}
+.voice-call-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.voice-call-icon { font-size: 18px; }
+.voice-call-name { font-weight: 600; color: #e0e7ff; font-size: 14px; }
+.voice-call-status { font-size: 12px; color: #6366f1; }
+.voice-call-users { display: flex; gap: 6px; flex: 1; overflow-x: auto; }
+.voice-call-user { position: relative; width: 32px; height: 32px; flex-shrink: 0; }
+.voice-call-user img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid rgba(139, 92, 246, 0.3); }
+.voice-call-self-badge { position: absolute; bottom: -4px; right: -4px; font-size: 8px; background: #3b82f6; color: #fff; padding: 1px 4px; border-radius: 4px; font-weight: 700; }
+.voice-call-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.voice-call-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #a5b4fc; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; }
+.voice-call-btn:hover { background: rgba(139, 92, 246, 0.2); color: #fff; transform: scale(1.1); }
+.voice-call-btn.danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.voice-call-btn.danger:hover { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
+.voice-call-btn.muted { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 </style>
 
 <!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
@@ -2449,6 +2481,8 @@ body {
 <link rel="stylesheet" href="/static/cosmic_aero/lumina_extras.css?v=1">
 
 
+<base target="_blank">
+<base target="_blank">
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
@@ -2760,6 +2794,12 @@ let typingTimer = null;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
 let aboutClickCount = 0;
+let voiceWs = null;
+let localStream = null;
+let voicePeers = {};
+let inVoiceChannel = false;
+let currentVoiceTopicId = null;
+let isVoiceMuted = false;
 let aboutEggActive = false;
 let aboutEggTimers = [];
 let homeNavTab = 'friends';
@@ -2966,7 +3006,7 @@ function restoreSession() {
   if (session.type === 'dm' && session.peerId) {
     const f = friends.friends?.find(x => x.fid === session.peerId);
     if (f) openDM(session.peerId, f.display_name || f.username, f.avatar_color);
-  } else if (lastSession.type === 'circle' && session.circleId) {
+  } else if (session.type === 'circle' && session.circleId) {
     const c = circles.find(x => x.id === session.circleId);
     if (c) {
       selectCircle(lastSession.circleId).then(() => {
@@ -3083,6 +3123,7 @@ document.getElementById('dockHome').onclick = () => {
   closeWS();
   cancelReply();
   cancelEdit();
+  leaveVoiceChannel();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
   setActiveDock('dockHome');
   currentDM = null;
@@ -3115,12 +3156,19 @@ function toggleMembersPanel() {
 
 function showHome() {
   console.log('[DEBUG] showHome() called');
+  // Guard: se já estamos na Home, não faz nada (evita re-render desnecessário)
+  if (!currentCircle && !currentDM && homeNavTab === 'friends' && 
+      document.getElementById('panelTitle')?.textContent === 'Amigos') {
+    console.log('[DEBUG] showHome() IGNORED — already on Home');
+    return;
+  }
   // Cancela qualquer loading de círculo em andamento
   _pendingCircleLoad = null;
   // Fecha conexão ativa e limpa estados flutuantes
   closeWS();
   cancelReply();
   cancelEdit();
+  leaveVoiceChannel();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
   aboutEggTimers.forEach(t => clearTimeout(t));
   aboutEggTimers = [];
@@ -3647,6 +3695,7 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
+  leaveVoiceChannel();
   console.log('[DEBUG] selectCircle(' + id + ') called');
   // Guard: se já está nesse círculo, não faz nada (evita duplo clique)
   if (currentCircle && currentCircle.id === id) {
@@ -3887,7 +3936,259 @@ function renderMembersPanel(members) {
 }
 
 function joinVoiceChannel(tid) {
-  showToast('Em breve', 'Canais de voz estão chegando...', '#8b5cf6');
+  if (inVoiceChannel && currentVoiceTopicId === tid) return;
+  if (inVoiceChannel) leaveVoiceChannel();
+
+  currentVoiceTopicId = tid;
+  inVoiceChannel = true;
+
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const roomId = 'topic:' + tid;
+  voiceWs = new WebSocket(proto + '//' + location.host + '/ws/' + roomId);
+
+  voiceWs.onopen = () => {
+    voiceWs.send(JSON.stringify({
+      token: token,
+      name: me.name || me.display_name || me.username,
+      color: me.color || me.avatar_color || '#888'
+    }));
+    voiceWs.send(JSON.stringify({type: 'voice_join'}));
+    initLocalAudio();
+  };
+
+  voiceWs.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'voice_user_joined') {
+      renderVoiceUsers(msg.voice_users);
+      if (msg.voice_users) {
+        msg.voice_users.forEach(u => {
+          if (u.id !== me.id && !voicePeers[u.id]) createPeerOffer(u.id);
+        });
+      }
+    }
+    else if (msg.type === 'voice_user_left') {
+      renderVoiceUsers(msg.voice_users);
+      if (msg.user && msg.user.id && voicePeers[msg.user.id]) {
+        voicePeers[msg.user.id].close();
+        delete voicePeers[msg.user.id];
+        const audio = document.getElementById('voice-audio-' + msg.user.id);
+        if (audio) audio.remove();
+      }
+    }
+    else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
+    else if (msg.type === 'voice_answer') handleVoiceAnswer(msg);
+    else if (msg.type === 'voice_ice') handleVoiceICE(msg);
+    else if (msg.type === 'users') {
+      // Inicial: criar offers para todos no canal
+      if (msg.users) {
+        msg.users.forEach(u => {
+          if (u.id !== me.id && !voicePeers[u.id]) createPeerOffer(u.id);
+        });
+      }
+    }
+  };
+
+  voiceWs.onclose = () => {
+    voiceWs = null;
+  };
+
+  voiceWs.onerror = () => {
+    showToast('Erro', 'Falha na conexão de voz', '#ef4444');
+    leaveVoiceChannel();
+  };
+
+  showVoiceCallBar(tid);
+}
+
+async function initLocalAudio() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({audio: true});
+    isVoiceMuted = false;
+    const btn = document.getElementById('btnVoiceMute');
+    if (btn) { btn.textContent = '🎤'; btn.classList.remove('muted'); }
+  } catch(e) {
+    showToast('Microfone', 'Não foi possível acessar o microfone', '#ef4444');
+  }
+}
+
+function createPeerOffer(targetId) {
+  const pc = new RTCPeerConnection({
+    iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+  });
+  voicePeers[targetId] = pc;
+
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate && voiceWs && voiceWs.readyState === 1) {
+      voiceWs.send(JSON.stringify({type: 'voice_ice', target: targetId, candidate: e.candidate}));
+    }
+  };
+
+  pc.ontrack = (e) => {
+    let audio = document.getElementById('voice-audio-' + targetId);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'voice-audio-' + targetId;
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      pc.close();
+      delete voicePeers[targetId];
+      const audio = document.getElementById('voice-audio-' + targetId);
+      if (audio) audio.remove();
+    }
+  };
+
+  pc.createOffer().then(offer => {
+    pc.setLocalDescription(offer);
+    if (voiceWs && voiceWs.readyState === 1) {
+      voiceWs.send(JSON.stringify({type: 'voice_offer', target: targetId, offer: offer}));
+    }
+  }).catch(() => {});
+}
+
+function handleVoiceOffer(msg) {
+  if (!msg.from || voicePeers[msg.from]) return;
+  const pc = new RTCPeerConnection({
+    iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
+  });
+  voicePeers[msg.from] = pc;
+
+  if (localStream) {
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+  }
+
+  pc.onicecandidate = (e) => {
+    if (e.candidate && voiceWs && voiceWs.readyState === 1) {
+      voiceWs.send(JSON.stringify({type: 'voice_ice', target: msg.from, candidate: e.candidate}));
+    }
+  };
+
+  pc.ontrack = (e) => {
+    let audio = document.getElementById('voice-audio-' + msg.from);
+    if (!audio) {
+      audio = document.createElement('audio');
+      audio.id = 'voice-audio-' + msg.from;
+      audio.autoplay = true;
+      audio.style.display = 'none';
+      document.body.appendChild(audio);
+    }
+    audio.srcObject = e.streams[0];
+  };
+
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      pc.close();
+      delete voicePeers[msg.from];
+      const audio = document.getElementById('voice-audio-' + msg.from);
+      if (audio) audio.remove();
+    }
+  };
+
+  pc.setRemoteDescription(new RTCSessionDescription(msg.offer)).then(() => {
+    pc.createAnswer().then(answer => {
+      pc.setLocalDescription(answer);
+      if (voiceWs && voiceWs.readyState === 1) {
+        voiceWs.send(JSON.stringify({type: 'voice_answer', target: msg.from, answer: answer}));
+      }
+    });
+  }).catch(() => {});
+}
+
+function handleVoiceAnswer(msg) {
+  const pc = voicePeers[msg.from];
+  if (pc) {
+    pc.setRemoteDescription(new RTCSessionDescription(msg.answer)).catch(() => {});
+  }
+}
+
+function handleVoiceICE(msg) {
+  const pc = voicePeers[msg.from];
+  if (pc && msg.candidate) {
+    pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(() => {});
+  }
+}
+
+function showVoiceCallBar(tid) {
+  let bar = document.getElementById('voiceCallBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'voiceCallBar';
+    bar.className = 'voice-call-bar';
+    const main = document.querySelector('.main');
+    if (main) main.insertBefore(bar, main.firstChild);
+  }
+  const topicName = currentCircle?.topics?.find(t => t.id === tid)?.name || 'Canal de Voz';
+  bar.innerHTML = `
+    <div class="voice-call-info">
+      <span class="voice-call-icon">🔊</span>
+      <span class="voice-call-name">${topicName}</span>
+      <span class="voice-call-status" id="voiceCallStatus">Conectando...</span>
+    </div>
+    <div class="voice-call-users" id="voiceCallUsers"></div>
+    <div class="voice-call-actions">
+      <button class="voice-call-btn" id="btnVoiceMute" onclick="toggleVoiceMute()" title="Mutar">🎤</button>
+      <button class="voice-call-btn danger" onclick="leaveVoiceChannel()" title="Desligar">📞</button>
+    </div>
+  `;
+  bar.style.display = 'flex';
+}
+
+function renderVoiceUsers(users) {
+  const container = document.getElementById('voiceCallUsers');
+  if (!container) return;
+  const list = users || [];
+  container.innerHTML = list.map(u => `
+    <div class="voice-call-user" title="${u.name}">
+      <img src="${u.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
+      ${u.id === me.id ? '<div class="voice-call-self-badge">eu</div>' : ''}
+    </div>
+  `).join('');
+  const status = document.getElementById('voiceCallStatus');
+  if (status) status.textContent = list.length + ' participante' + (list.length !== 1 ? 's' : '');
+}
+
+function toggleVoiceMute() {
+  const btn = document.getElementById('btnVoiceMute');
+  if (!localStream) return;
+  const track = localStream.getAudioTracks()[0];
+  if (track) {
+    track.enabled = !track.enabled;
+    isVoiceMuted = !track.enabled;
+    if (btn) {
+      btn.textContent = track.enabled ? '🎤' : '🚫';
+      btn.classList.toggle('muted', !track.enabled);
+    }
+  }
+}
+
+function leaveVoiceChannel() {
+  if (voiceWs) {
+    try { voiceWs.send(JSON.stringify({type: 'voice_leave'})); } catch(e) {}
+    voiceWs.close();
+    voiceWs = null;
+  }
+  Object.values(voicePeers).forEach(pc => { try { pc.close(); } catch(e) {} });
+  voicePeers = {};
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  inVoiceChannel = false;
+  currentVoiceTopicId = null;
+  isVoiceMuted = false;
+  const bar = document.getElementById('voiceCallBar');
+  if (bar) bar.style.display = 'none';
+  document.querySelectorAll('audio[id^="voice-audio-"]').forEach(a => a.remove());
 }
 
 async function selectTopic(tid) {
@@ -3948,6 +4249,7 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
+  leaveVoiceChannel();
   // Se já estamos nesse DM, não faz nada (evita limpar chat ao clicar 2x no mesmo amigo)
   if (currentDM && currentDM.peerId === peerId) return;
   _pendingCircleLoad = null;  // Cancela qualquer loading de círculo
@@ -4023,18 +4325,45 @@ function connectWS(roomId) {
   ws = new WebSocket(url);
   setWsStatus('connecting', 'Conectando...');
 
+  // Heartbeat para detectar conexões zumbis
+  let heartbeatInterval = null;
+  let missedHeartbeats = 0;
+  const HEARTBEAT_INTERVAL = 30000; // 30s
+  const MAX_MISSED_HEARTBEATS = 2;
+
   ws.onopen = () => {
     wsRetryCount = 0;
+    missedHeartbeats = 0;
     setWsStatus('online', 'Conectado');
     ws.send(JSON.stringify({
       token: token,
       name: me.name || me.display_name || me.username,
       color: me.color || me.avatar_color || '#888'
     }));
+    // Inicia heartbeat
+    heartbeatInterval = setInterval(() => {
+      if (ws && ws.readyState === 1) {
+        try {
+          ws.send(JSON.stringify({type: 'ping'}));
+          missedHeartbeats++;
+          if (missedHeartbeats > MAX_MISSED_HEARTBEATS) {
+            console.log('[WS] Heartbeat falhou, forçando reconexão...');
+            ws.close();
+          }
+        } catch(e) {
+          ws.close();
+        }
+      }
+    }, HEARTBEAT_INTERVAL);
   };
 
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
+    // Heartbeat response
+    if (msg.type === 'pong') {
+      missedHeartbeats = 0;
+      return;
+    }
     if (msg.type === 'history') {
       // Guard: só processa history se ainda estamos em um chat ativo
       if (!currentCircle && !currentDM) return;
@@ -4076,15 +4405,28 @@ function connectWS(roomId) {
   };
 
   ws.onclose = () => {
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      heartbeatInterval = null;
+    }
     ws = null;
-    currentRoom = null;
     setWsStatus('offline', 'Desconectado');
-    const delay = Math.min(3000 + wsRetryCount * 2000, 15000);
-    wsRetryCount++;
-    if (wsRetryTimer) clearTimeout(wsRetryTimer);
-    wsRetryTimer = setTimeout(() => {
-      if ((currentTopic || currentDM) && !ws) connectWS(currentRoom || roomId);
-    }, delay);
+    // Só tenta reconectar se ainda estamos em um chat ativo
+    const shouldReconnect = (currentTopic && currentCircle) || (currentDM && currentDM.chatId);
+    if (shouldReconnect) {
+      const delay = Math.min(2000 + wsRetryCount * 1500, 20000);
+      wsRetryCount++;
+      if (wsRetryTimer) clearTimeout(wsRetryTimer);
+      wsRetryTimer = setTimeout(() => {
+        const activeRoom = currentTopic ? 'topic:' + currentTopic.id : (currentDM ? 'dm:' + currentDM.chatId : roomId);
+        if ((currentTopic || currentDM) && !ws) {
+          console.log('[WS] Reconectando para:', activeRoom);
+          connectWS(activeRoom);
+        }
+      }, delay);
+    } else {
+      currentRoom = null;
+    }
   };
 
   ws.onerror = () => {
@@ -4094,7 +4436,16 @@ function connectWS(roomId) {
 
 function closeWS() {
   if (wsRetryTimer) { clearTimeout(wsRetryTimer); wsRetryTimer = null; }
-  if (ws) { ws.close(); ws = null; }
+  wsRetryCount = 0;
+  if (ws) {
+    // Remove listeners antes de fechar para evitar callbacks pós-fechamento
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.close();
+    ws = null;
+  }
   currentRoom = null;
 }
 
@@ -5003,6 +5354,72 @@ document.addEventListener('keydown', (e) => {
     closeAnyLumina();
   }
 });
+
+
+/* ===== SISTEMA DE DENÚNCIAS ===== */
+let reportingMessageId = null;
+let reportingRoomId = null;
+let reportingTargetId = null;
+
+function openReportModal(msgId, roomId, targetId, targetName) {
+  closeAnyLumina();
+  reportingMessageId = msgId;
+  reportingRoomId = roomId;
+  reportingTargetId = targetId;
+  openModal('Denunciar mensagem', `
+    <p style="font-size:13px;color:#a5b4fc;margin-bottom:12px;">Denunciando mensagem de <strong>${escapeHtml(targetName)}</strong></p>
+    <select id="reportReason" class="modal-input" style="margin-bottom:12px;">
+      <option value="">Selecione o motivo...</option>
+      <option value="spam">Spam</option>
+      <option value="harassment">Assédio ou bullying</option>
+      <option value="nsfw">Conteúdo NSFW</option>
+      <option value="hate">Discurso de ódio</option>
+      <option value="doxxing">Doxxing / exposição de dados</option>
+      <option value="other">Outro</option>
+    </select>
+    <textarea id="reportDetails" class="modal-input" placeholder="Detalhes adicionais (opcional)" rows="3" style="resize:vertical;margin-bottom:0;"></textarea>
+  `, `
+    <button class="btn-sm btn-ghost" onclick="closeModal(); reportingMessageId=null;">Cancelar</button>
+    <button class="btn-sm btn-primary" onclick="submitReport()">Enviar denúncia</button>
+  `);
+}
+
+async function submitReport() {
+  const reason = document.getElementById('reportReason').value;
+  const details = document.getElementById('reportDetails').value.trim();
+  if (!reason) {
+    showToast('Erro', 'Selecione um motivo para a denúncia', '#ef4444');
+    return;
+  }
+  if (!reportingMessageId || !reportingRoomId) {
+    showToast('Erro', 'Dados da denúncia inválidos', '#ef4444');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('target_id', reportingTargetId || '');
+  fd.append('target_type', 'message');
+  fd.append('room_id', reportingRoomId);
+  fd.append('message_id', reportingMessageId);
+  fd.append('reason', reason);
+  fd.append('details', details);
+
+  try {
+    const res = await fetch(API + '/api/reports', { method: 'POST', body: fd, headers: authHeader() });
+    if (res.ok) {
+      showToast('Denúncia enviada', 'Obrigado por ajudar a manter a comunidade segura.', '#4ade80');
+      closeModal();
+      reportingMessageId = null;
+      reportingRoomId = null;
+      reportingTargetId = null;
+    } else {
+      const d = await res.json();
+      showToast('Erro', d.detail || 'Não foi possível enviar a denúncia', '#ef4444');
+    }
+  } catch (e) {
+    showToast('Erro', 'Falha na conexão', '#ef4444');
+  }
+}
+
 </script>
 <div class="ws-status offline" id="wsStatus" style="display:none;">
   <div class="ws-status-dot"></div><span id="wsStatusText">Desconectado</span>

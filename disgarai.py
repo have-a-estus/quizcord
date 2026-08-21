@@ -26,7 +26,11 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-SECRET_KEY = "quizcord-secret-key-mude-em-producao"
+SECRET_KEY = os.environ.get("LUMINA_SECRET_KEY")
+if not SECRET_KEY:
+    import warnings
+    warnings.warn("LUMINA_SECRET_KEY não definida! Usando chave de desenvolvimento. DEFINA EM PRODUÇÃO!")
+    SECRET_KEY = "quizcord-secret-key-mude-em-producao"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
 
@@ -132,6 +136,32 @@ def migrate_users_db():
     conn.close()
 
 
+def _require_circle_member(circle_id: str, user_id: str):
+    """Verifica se o usuário é membro do círculo. Levanta 403 se não for."""
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT role FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user_id))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=403, detail="Acesso negado: voce nao e membro deste circulo")
+    return row["role"]
+
+
+def _require_dm_participant(chat_id: str, user_id: str):
+    """Verifica se o usuário é participante da DM. Levanta 403 se não for."""
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("SELECT user1_id, user2_id FROM direct_chats WHERE id = ?", (chat_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Chat nao encontrado")
+    if row["user1_id"] != user_id and row["user2_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Acesso negado: voce nao participa desta conversa")
+
+
+
 def init_circles_db():
     conn = sqlite3.connect(CIRCLES_DB)
     c = conn.cursor()
@@ -206,6 +236,30 @@ init_users_db()
 init_circles_db()
 init_messages_db()
 migrate_users_db()
+
+
+def init_reports_db():
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        target_id TEXT,
+        target_type TEXT DEFAULT 'message',
+        room_id TEXT,
+        message_id INTEGER,
+        reason TEXT NOT NULL,
+        details TEXT DEFAULT '',
+        status TEXT DEFAULT 'open',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        resolved_at TIMESTAMP,
+        resolved_by TEXT
+    )""")
+    conn.commit()
+    conn.close()
+
+init_reports_db()
+
 
 
 def _get_history(room_id: str, limit: int = 50):
@@ -810,7 +864,10 @@ def create_topic(circle_id: str, request: Request, name: str = Form(...), type: 
     c = conn.cursor()
     c.execute("SELECT role FROM circle_members WHERE circle_id = ? AND user_id = ?", (circle_id, user["id"]))
     row = c.fetchone()
-    if not row or row["role"] not in ("owner", "mod"):
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Acesso negado: voce nao e membro deste circulo")
+    if row["role"] not in ("owner", "mod"):
         conn.close()
         raise HTTPException(status_code=403, detail="Sem permissao")
     tid = str(uuid.uuid4())[:8]
@@ -848,6 +905,7 @@ def list_dm_chats(request: Request):
 @app.get("/api/dm-chats/{chat_id}/history")
 def dm_history(chat_id: str, request: Request, limit: int = 50):
     user = require_user(request)
+    _require_dm_participant(chat_id, user["id"])
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
     c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "dm:" + chat_id))
@@ -859,6 +917,15 @@ def dm_history(chat_id: str, request: Request, limit: int = 50):
 @app.get("/api/topics/{topic_id}/history")
 def topic_history(topic_id: str, request: Request, limit: int = 50):
     user = require_user(request)
+    # Verificar se o usuário é membro do círculo ao qual o tópico pertence
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT circle_id FROM topics WHERE id = ?", (topic_id,))
+    topic_row = c.fetchone()
+    conn.close()
+    if not topic_row:
+        raise HTTPException(status_code=404, detail="Topico nao encontrado")
+    _require_circle_member(topic_row["circle_id"], user["id"])
     conn = get_db(MESSAGES_DB)
     c = conn.cursor()
     c.execute("DELETE FROM unread WHERE user_id = ? AND room_id = ?", (user["id"], "topic:" + topic_id))
@@ -952,13 +1019,84 @@ def get_user_profile(user_id: str, request: Request):
 
 
 @app.post("/api/upload")
-async def upload(file: UploadFile = File(...)):
-    ext = os.path.splitext(file.filename)[1]
+async def upload(request: Request, file: UploadFile = File(...)):
+    user = require_user(request)
+    # Validar tipo de arquivo
+    allowed_exts = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.mp4', '.webm', '.mov', '.mp3', '.ogg', '.wav', '.pdf', '.txt', '.zip'}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail=f"Tipo de arquivo nao permitido. Extensoes aceitas: {', '.join(allowed_exts)}")
+    # Limite de tamanho: 25MB
+    content = await file.read()
+    if len(content) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Arquivo muito grande. Limite: 25MB")
+    # Nome seguro
     fname = f"{uuid.uuid4().hex}{ext}"
     path = os.path.join(UPLOAD_DIR, fname)
     with open(path, "wb") as f:
-        f.write(await file.read())
+        f.write(content)
     return {"url": f"/static/uploads/{fname}"}
+
+
+
+
+@app.post("/api/reports")
+def create_report(request: Request, target_id: str = Form(None), target_type: str = Form("message"),
+                  room_id: str = Form(None), message_id: int = Form(None),
+                  reason: str = Form(...), details: str = Form("")):
+    user = require_user(request)
+    valid_reasons = ['spam', 'harassment', 'nsfw', 'hate', 'doxxing', 'other']
+    if reason not in valid_reasons:
+        raise HTTPException(status_code=400, detail="Motivo invalido")
+    if not room_id:
+        raise HTTPException(status_code=400, detail="room_id obrigatorio")
+    rid = str(uuid.uuid4())[:8]
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""INSERT INTO reports (id, reporter_id, target_id, target_type, room_id, message_id, reason, details)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (rid, user["id"], target_id, target_type, room_id, message_id, reason, details))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "id": rid}
+
+
+@app.get("/api/reports")
+def list_reports(request: Request, status: str = "open"):
+    user = require_user(request)
+    # Por enquanto, qualquer usuário pode ver as próprias denúncias
+    # Em produção, isso deve ser restrito a mods/admins
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("""SELECT r.*, u.username as reporter_name, tu.username as target_name
+        FROM reports r
+        LEFT JOIN users u ON u.id = r.reporter_id
+        LEFT JOIN users tu ON tu.id = r.target_id
+        WHERE r.reporter_id = ? AND r.status = ?
+        ORDER BY r.created_at DESC""", (user["id"], status))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+
+@app.post("/api/reports/{report_id}/resolve")
+def resolve_report(report_id: str, request: Request):
+    user = require_user(request)
+    # Verificar se o usuário é moderador/admin (owner ou mod de algum círculo)
+    conn = get_db(CIRCLES_DB)
+    c = conn.cursor()
+    c.execute("SELECT role FROM circle_members WHERE user_id = ? AND role IN ('owner', 'mod') LIMIT 1", (user["id"],))
+    mod_row = c.fetchone()
+    conn.close()
+    if not mod_row:
+        raise HTTPException(status_code=403, detail="Acesso negado: apenas moderadores podem resolver denuncias")
+    conn = get_db(USERS_DB)
+    c = conn.cursor()
+    c.execute("UPDATE reports SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = ? WHERE id = ?",
+        (user["id"], report_id))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
 
 
 @app.websocket("/ws/notifications")
@@ -1024,6 +1162,30 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
         await ws.close()
         return
 
+    # Validar permissão para o room_id
+    if room_id.startswith("topic:"):
+        topic_id = room_id.split(":", 1)[1]
+        conn = get_db(CIRCLES_DB)
+        c = conn.cursor()
+        c.execute("SELECT circle_id FROM topics WHERE id = ?", (topic_id,))
+        topic_row = c.fetchone()
+        conn.close()
+        if not topic_row:
+            await ws.close()
+            return
+        try:
+            _require_circle_member(topic_row["circle_id"], user["id"])
+        except HTTPException:
+            await ws.close()
+            return
+    elif room_id.startswith("dm:"):
+        chat_id = room_id.split(":", 1)[1]
+        try:
+            _require_dm_participant(chat_id, user["id"])
+        except HTTPException:
+            await ws.close()
+            return
+
     manager.connect(room_id, ws, user)
 
     await ws.send_text(json.dumps({"type": "handshake", "user_id": user["id"], "user": user}))
@@ -1055,20 +1217,50 @@ async def ws_endpoint(room_id: str, ws: WebSocket):
                 continue
 
             if mtype == "voice_offer":
-                await manager.send_to_user(data["target"], {"type": "voice_offer", "from": user["id"], "offer": data["offer"]})
+                target = data.get("target")
+                # Só permite signaling para usuários no mesmo room
+                room_users_ids = {u["id"] for u in manager.get_users(room_id)}
+                if target and target in room_users_ids and target != user["id"]:
+                    await manager.send_to_user(target, {"type": "voice_offer", "from": user["id"], "offer": data["offer"]})
                 continue
 
             if mtype == "voice_answer":
-                await manager.send_to_user(data["target"], {"type": "voice_answer", "from": user["id"], "answer": data["answer"]})
+                target = data.get("target")
+                room_users_ids = {u["id"] for u in manager.get_users(room_id)}
+                if target and target in room_users_ids and target != user["id"]:
+                    await manager.send_to_user(target, {"type": "voice_answer", "from": user["id"], "answer": data["answer"]})
                 continue
 
             if mtype == "voice_ice":
-                await manager.send_to_user(data["target"], {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
+                target = data.get("target")
+                room_users_ids = {u["id"] for u in manager.get_users(room_id)}
+                if target and target in room_users_ids and target != user["id"]:
+                    await manager.send_to_user(target, {"type": "voice_ice", "from": user["id"], "candidate": data["candidate"]})
                 continue
 
             if mtype == "subscribe":
                 new_room = data.get("room")
                 if new_room and new_room != room_id:
+                    # Validar permissão para o novo room
+                    if new_room.startswith("topic:"):
+                        new_topic_id = new_room.split(":", 1)[1]
+                        conn = get_db(CIRCLES_DB)
+                        c = conn.cursor()
+                        c.execute("SELECT circle_id FROM topics WHERE id = ?", (new_topic_id,))
+                        new_topic_row = c.fetchone()
+                        conn.close()
+                        if not new_topic_row:
+                            continue
+                        try:
+                            _require_circle_member(new_topic_row["circle_id"], user["id"])
+                        except HTTPException:
+                            continue
+                    elif new_room.startswith("dm:"):
+                        new_chat_id = new_room.split(":", 1)[1]
+                        try:
+                            _require_dm_participant(new_chat_id, user["id"])
+                        except HTTPException:
+                            continue
                     manager.leave_room(room_id, ws)
                     room_id = new_room
                     manager.connect(room_id, ws, user)
