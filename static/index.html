@@ -2461,6 +2461,7 @@ body {
 <base target="_blank">
 <base target="_blank">
 <base target="_blank">
+<base target="_blank">
 </head>
 <body>
 <div class="nebula-blur"></div>
@@ -2766,6 +2767,7 @@ let aboutEggActive = false;
 let aboutEggTimers = [];
 let homeNavTab = 'friends';
 let pendingCount = 0;
+let currentView;
 let lastSession = JSON.parse(localStorage.getItem('aurora_session') || '{}');
 
 const COLORS = ['#ff7b72','#a78bfa','#4ade80','#fbbf24','#60a5fa','#f472b6','#22d3ee'];
@@ -2950,16 +2952,15 @@ async function loadData() {
   unreadMap = uRes.ok ? await uRes.json() : {};
   updatePendingBadge();
   renderDock();
-  // Atualiza UI conforme o contexto atual — SEM trocar de tela
-  if (!currentCircle && !currentDM) {
+  // Atualiza UI conforme currentView — SEM trocar de tela indevidamente
+  if (currentView === 'home') {
     showHome();
-  } else if (currentDM) {
+  } else if (currentView === 'dm') {
     renderPanelFriends();
-    renderFriendsScreen();
-  } else if (currentCircle) {
-    // Não renderiza panel de amigos — o panel do círculo já está montado
+  } else if (currentView === 'circle') {
     updateTopicTabsUnread();
   }
+  // currentView === 'about' => não altera nada
 }
 
 function restoreSession() {
@@ -3013,17 +3014,16 @@ function startPolling() {
     updatePendingBadge();
     const uRes = await fetch(API + '/api/unread', { headers: authHeader() });
     if (uRes.ok) { unreadMap = await uRes.json(); renderDock(); }
-    // Atualiza UI conforme contexto atual — SEM trocar de tela
-    if (!currentCircle && !currentDM) {
+    // Atualiza UI conforme currentView — SEM trocar de tela indevidamente
+    if (currentView === 'home') {
       showHome();
-    } else if (currentDM) {
+    } else if (currentView === 'dm') {
       // Durante DM: atualiza apenas o panel lateral (badges/unread)
-      // NÃO chama renderFriendsScreen() — ela substitui o chatArea
       renderPanelFriends();
-    } else if (currentCircle) {
-      // Não renderiza panel de amigos — o panel do círculo já está montado
+    } else if (currentView === 'circle') {
       updateTopicTabsUnread();
     }
+    // currentView === 'about' => não altera nada
   }, 8000);
 }
 
@@ -3119,11 +3119,11 @@ function toggleMembersPanel() {
 function showHome() {
   console.log('[DEBUG] showHome() called');
   // Guard: se já estamos na Home, não faz nada (evita re-render desnecessário)
-  if (!currentCircle && !currentDM && homeNavTab === 'friends' && 
-      document.getElementById('panelTitle')?.textContent === 'Amigos') {
+  if (currentView === 'home') {
     console.log('[DEBUG] showHome() IGNORED — already on Home');
     return;
   }
+  currentView = 'home';
   // Cancela qualquer loading de círculo em andamento
   _pendingCircleLoad = null;
   // Fecha conexão ativa e limpa estados flutuantes
@@ -3444,8 +3444,7 @@ function renderPanelFriends() {
 function setHomeNavTab(tab) {
   homeNavTab = tab;
   if (tab === 'friends') {
-    renderFriendsScreen();
-    renderPanelFriends();
+    showHome();
   } else if (tab === 'comet') {
     showToast('Em breve', 'Comet esta chegando...', '#8b5cf6');
     homeNavTab = 'friends';
@@ -3547,6 +3546,7 @@ function aboutEasterEgg() {
 }
 
 function showAboutScreen() {
+  currentView = 'about';
   // Fecha conexão ativa e limpa estado de chat
   closeWS();
   cancelReply();
@@ -3662,6 +3662,7 @@ async function selectCircle(id) {
     console.log('[DEBUG] selectCircle(' + id + ') IGNORED — already in this circle');
     return;
   }
+  currentView = 'circle';
   // Guarda qual círculo estamos carregando — se mudar, aborta no final
   _pendingCircleLoad = id;
   // Limpa tudo imediatamente para evitar estado sujo
@@ -3959,6 +3960,7 @@ function selectContact(el, peerId, peerName, peerColor) {
 async function openDM(peerId, peerName, peerColor) {
   // Se já estamos nesse DM, não faz nada (evita limpar chat ao clicar 2x no mesmo amigo)
   if (currentDM && currentDM.peerId === peerId) return;
+  currentView = 'dm';
   _pendingCircleLoad = null;  // Cancela qualquer loading de círculo
   cancelReply();
   cancelEdit();
