@@ -2437,38 +2437,6 @@ body {
   background: rgba(139, 92, 246, 0.2);
   margin: 0 4px;
 }
-
-/* ===== VOICE CALL BAR ===== */
-.voice-call-bar {
-  display: none;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 20px;
-  background: rgba(10, 8, 30, 0.92);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
-  z-index: 10;
-  flex-shrink: 0;
-}
-.voice-call-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-.voice-call-icon { font-size: 18px; }
-.voice-call-name { font-weight: 600; color: #e0e7ff; font-size: 14px; }
-.voice-call-status { font-size: 12px; color: #6366f1; }
-.voice-call-users { display: flex; gap: 6px; flex: 1; overflow-x: auto; }
-.voice-call-user { position: relative; width: 32px; height: 32px; flex-shrink: 0; }
-.voice-call-user img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 2px solid rgba(139, 92, 246, 0.3); }
-.voice-call-self-badge { position: absolute; bottom: -4px; right: -4px; font-size: 8px; background: #3b82f6; color: #fff; padding: 1px 4px; border-radius: 4px; font-weight: 700; }
-.voice-call-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.voice-call-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: rgba(255,255,255,0.05); color: #a5b4fc; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; }
-.voice-call-btn:hover { background: rgba(139, 92, 246, 0.2); color: #fff; transform: scale(1.1); }
-.voice-call-btn.danger { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.voice-call-btn.danger:hover { background: rgba(239, 68, 68, 0.3); color: #fca5a5; }
-.voice-call-btn.muted { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 </style>
 
 <!-- CSS externos VÊM DEPOIS do inline = prioridade máxima -->
@@ -2794,12 +2762,6 @@ let typingTimer = null;
 let selectedColor = '#ff7b72';
 let pollInterval = null;
 let aboutClickCount = 0;
-let voiceWs = null;
-let localStream = null;
-let voicePeers = {};
-let inVoiceChannel = false;
-let currentVoiceTopicId = null;
-let isVoiceMuted = false;
 let aboutEggActive = false;
 let aboutEggTimers = [];
 let homeNavTab = 'friends';
@@ -3055,8 +3017,9 @@ function startPolling() {
     if (!currentCircle && !currentDM) {
       showHome();
     } else if (currentDM) {
+      // Durante DM: atualiza apenas o panel lateral (badges/unread)
+      // NÃO chama renderFriendsScreen() — ela substitui o chatArea
       renderPanelFriends();
-      renderFriendsScreen();
     } else if (currentCircle) {
       // Não renderiza panel de amigos — o panel do círculo já está montado
       updateTopicTabsUnread();
@@ -3123,7 +3086,6 @@ document.getElementById('dockHome').onclick = () => {
   closeWS();
   cancelReply();
   cancelEdit();
-  leaveVoiceChannel();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
   setActiveDock('dockHome');
   currentDM = null;
@@ -3168,7 +3130,6 @@ function showHome() {
   closeWS();
   cancelReply();
   cancelEdit();
-  leaveVoiceChannel();
   if (typeof closeAnyLumina === 'function') closeAnyLumina();
   aboutEggTimers.forEach(t => clearTimeout(t));
   aboutEggTimers = [];
@@ -3695,7 +3656,6 @@ async function rejectFriend(fid) {
 }
 
 async function selectCircle(id) {
-  leaveVoiceChannel();
   console.log('[DEBUG] selectCircle(' + id + ') called');
   // Guard: se já está nesse círculo, não faz nada (evita duplo clique)
   if (currentCircle && currentCircle.id === id) {
@@ -3936,259 +3896,7 @@ function renderMembersPanel(members) {
 }
 
 function joinVoiceChannel(tid) {
-  if (inVoiceChannel && currentVoiceTopicId === tid) return;
-  if (inVoiceChannel) leaveVoiceChannel();
-
-  currentVoiceTopicId = tid;
-  inVoiceChannel = true;
-
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const roomId = 'topic:' + tid;
-  voiceWs = new WebSocket(proto + '//' + location.host + '/ws/' + roomId);
-
-  voiceWs.onopen = () => {
-    voiceWs.send(JSON.stringify({
-      token: token,
-      name: me.name || me.display_name || me.username,
-      color: me.color || me.avatar_color || '#888'
-    }));
-    voiceWs.send(JSON.stringify({type: 'voice_join'}));
-    initLocalAudio();
-  };
-
-  voiceWs.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'voice_user_joined') {
-      renderVoiceUsers(msg.voice_users);
-      if (msg.voice_users) {
-        msg.voice_users.forEach(u => {
-          if (u.id !== me.id && !voicePeers[u.id]) createPeerOffer(u.id);
-        });
-      }
-    }
-    else if (msg.type === 'voice_user_left') {
-      renderVoiceUsers(msg.voice_users);
-      if (msg.user && msg.user.id && voicePeers[msg.user.id]) {
-        voicePeers[msg.user.id].close();
-        delete voicePeers[msg.user.id];
-        const audio = document.getElementById('voice-audio-' + msg.user.id);
-        if (audio) audio.remove();
-      }
-    }
-    else if (msg.type === 'voice_offer') handleVoiceOffer(msg);
-    else if (msg.type === 'voice_answer') handleVoiceAnswer(msg);
-    else if (msg.type === 'voice_ice') handleVoiceICE(msg);
-    else if (msg.type === 'users') {
-      // Inicial: criar offers para todos no canal
-      if (msg.users) {
-        msg.users.forEach(u => {
-          if (u.id !== me.id && !voicePeers[u.id]) createPeerOffer(u.id);
-        });
-      }
-    }
-  };
-
-  voiceWs.onclose = () => {
-    voiceWs = null;
-  };
-
-  voiceWs.onerror = () => {
-    showToast('Erro', 'Falha na conexão de voz', '#ef4444');
-    leaveVoiceChannel();
-  };
-
-  showVoiceCallBar(tid);
-}
-
-async function initLocalAudio() {
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({audio: true});
-    isVoiceMuted = false;
-    const btn = document.getElementById('btnVoiceMute');
-    if (btn) { btn.textContent = '🎤'; btn.classList.remove('muted'); }
-  } catch(e) {
-    showToast('Microfone', 'Não foi possível acessar o microfone', '#ef4444');
-  }
-}
-
-function createPeerOffer(targetId) {
-  const pc = new RTCPeerConnection({
-    iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
-  });
-  voicePeers[targetId] = pc;
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-  }
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate && voiceWs && voiceWs.readyState === 1) {
-      voiceWs.send(JSON.stringify({type: 'voice_ice', target: targetId, candidate: e.candidate}));
-    }
-  };
-
-  pc.ontrack = (e) => {
-    let audio = document.getElementById('voice-audio-' + targetId);
-    if (!audio) {
-      audio = document.createElement('audio');
-      audio.id = 'voice-audio-' + targetId;
-      audio.autoplay = true;
-      audio.style.display = 'none';
-      document.body.appendChild(audio);
-    }
-    audio.srcObject = e.streams[0];
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      pc.close();
-      delete voicePeers[targetId];
-      const audio = document.getElementById('voice-audio-' + targetId);
-      if (audio) audio.remove();
-    }
-  };
-
-  pc.createOffer().then(offer => {
-    pc.setLocalDescription(offer);
-    if (voiceWs && voiceWs.readyState === 1) {
-      voiceWs.send(JSON.stringify({type: 'voice_offer', target: targetId, offer: offer}));
-    }
-  }).catch(() => {});
-}
-
-function handleVoiceOffer(msg) {
-  if (!msg.from || voicePeers[msg.from]) return;
-  const pc = new RTCPeerConnection({
-    iceServers: [{urls: 'stun:stun.l.google.com:19302'}]
-  });
-  voicePeers[msg.from] = pc;
-
-  if (localStream) {
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-  }
-
-  pc.onicecandidate = (e) => {
-    if (e.candidate && voiceWs && voiceWs.readyState === 1) {
-      voiceWs.send(JSON.stringify({type: 'voice_ice', target: msg.from, candidate: e.candidate}));
-    }
-  };
-
-  pc.ontrack = (e) => {
-    let audio = document.getElementById('voice-audio-' + msg.from);
-    if (!audio) {
-      audio = document.createElement('audio');
-      audio.id = 'voice-audio-' + msg.from;
-      audio.autoplay = true;
-      audio.style.display = 'none';
-      document.body.appendChild(audio);
-    }
-    audio.srcObject = e.streams[0];
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      pc.close();
-      delete voicePeers[msg.from];
-      const audio = document.getElementById('voice-audio-' + msg.from);
-      if (audio) audio.remove();
-    }
-  };
-
-  pc.setRemoteDescription(new RTCSessionDescription(msg.offer)).then(() => {
-    pc.createAnswer().then(answer => {
-      pc.setLocalDescription(answer);
-      if (voiceWs && voiceWs.readyState === 1) {
-        voiceWs.send(JSON.stringify({type: 'voice_answer', target: msg.from, answer: answer}));
-      }
-    });
-  }).catch(() => {});
-}
-
-function handleVoiceAnswer(msg) {
-  const pc = voicePeers[msg.from];
-  if (pc) {
-    pc.setRemoteDescription(new RTCSessionDescription(msg.answer)).catch(() => {});
-  }
-}
-
-function handleVoiceICE(msg) {
-  const pc = voicePeers[msg.from];
-  if (pc && msg.candidate) {
-    pc.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(() => {});
-  }
-}
-
-function showVoiceCallBar(tid) {
-  let bar = document.getElementById('voiceCallBar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'voiceCallBar';
-    bar.className = 'voice-call-bar';
-    const main = document.querySelector('.main');
-    if (main) main.insertBefore(bar, main.firstChild);
-  }
-  const topicName = currentCircle?.topics?.find(t => t.id === tid)?.name || 'Canal de Voz';
-  bar.innerHTML = `
-    <div class="voice-call-info">
-      <span class="voice-call-icon">🔊</span>
-      <span class="voice-call-name">${topicName}</span>
-      <span class="voice-call-status" id="voiceCallStatus">Conectando...</span>
-    </div>
-    <div class="voice-call-users" id="voiceCallUsers"></div>
-    <div class="voice-call-actions">
-      <button class="voice-call-btn" id="btnVoiceMute" onclick="toggleVoiceMute()" title="Mutar">🎤</button>
-      <button class="voice-call-btn danger" onclick="leaveVoiceChannel()" title="Desligar">📞</button>
-    </div>
-  `;
-  bar.style.display = 'flex';
-}
-
-function renderVoiceUsers(users) {
-  const container = document.getElementById('voiceCallUsers');
-  if (!container) return;
-  const list = users || [];
-  container.innerHTML = list.map(u => `
-    <div class="voice-call-user" title="${u.name}">
-      <img src="${u.avatar_image || '/static/cosmic_aero/alpacas/alpaca_gray.png'}" alt="">
-      ${u.id === me.id ? '<div class="voice-call-self-badge">eu</div>' : ''}
-    </div>
-  `).join('');
-  const status = document.getElementById('voiceCallStatus');
-  if (status) status.textContent = list.length + ' participante' + (list.length !== 1 ? 's' : '');
-}
-
-function toggleVoiceMute() {
-  const btn = document.getElementById('btnVoiceMute');
-  if (!localStream) return;
-  const track = localStream.getAudioTracks()[0];
-  if (track) {
-    track.enabled = !track.enabled;
-    isVoiceMuted = !track.enabled;
-    if (btn) {
-      btn.textContent = track.enabled ? '🎤' : '🚫';
-      btn.classList.toggle('muted', !track.enabled);
-    }
-  }
-}
-
-function leaveVoiceChannel() {
-  if (voiceWs) {
-    try { voiceWs.send(JSON.stringify({type: 'voice_leave'})); } catch(e) {}
-    voiceWs.close();
-    voiceWs = null;
-  }
-  Object.values(voicePeers).forEach(pc => { try { pc.close(); } catch(e) {} });
-  voicePeers = {};
-  if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
-    localStream = null;
-  }
-  inVoiceChannel = false;
-  currentVoiceTopicId = null;
-  isVoiceMuted = false;
-  const bar = document.getElementById('voiceCallBar');
-  if (bar) bar.style.display = 'none';
-  document.querySelectorAll('audio[id^="voice-audio-"]').forEach(a => a.remove());
+  showToast('Em breve', 'Canais de voz estão chegando...', '#8b5cf6');
 }
 
 async function selectTopic(tid) {
@@ -4249,7 +3957,6 @@ function selectContact(el, peerId, peerName, peerColor) {
 }
 
 async function openDM(peerId, peerName, peerColor) {
-  leaveVoiceChannel();
   // Se já estamos nesse DM, não faz nada (evita limpar chat ao clicar 2x no mesmo amigo)
   if (currentDM && currentDM.peerId === peerId) return;
   _pendingCircleLoad = null;  // Cancela qualquer loading de círculo
